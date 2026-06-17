@@ -1,0 +1,92 @@
+/* Fuentes self-hosted (Fontsource) — funcionan offline */
+@import "@fontsource/hanken-grotesk/400.css";
+@import "@fontsource/hanken-grotesk/500.css";
+@import "@fontsource/hanken-grotesk/600.css";
+@import "@fontsource/hanken-grotesk/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/700.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Tokens de diseño (sección 3 de la hoja de ruta) como variables CSS */
+    --ink: #0e1726;
+    --surface: #f7f9fb;
+    --signal: #00b5d8;
+    --triage-1: #e5392e;
+    --triage-2: #f2792b;
+    --triage-3: #f5c518;
+    --triage-4: #2fb67a;
+    --triage-5: #3b82f6;
+    --muted: #64748b;
+
+    color-scheme: light;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    background: #0a0f1a;
+    color: #0e1726;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Numerales tabulares en datos/vitales/ETA: evita que los números "salten" */
+  .tabular,
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* Foco de teclado visible y consistente (piso de calidad) */
+  :focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Respeta prefers-reduced-motion en toda la app */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-thin: none;
+    scrollbar-width: none;
+  }
+  /* Cuadrícula sutil tipo monitor para el fondo de Urgencias */
+  .grid-monitor {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+}

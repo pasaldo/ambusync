@@ -1,0 +1,49 @@
+# ── Node / frontend ──────────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+# Artefactos de TypeScript (tsc -b)
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Python / backend (futuro: Django, Fases 4–5) ─────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+*.sqlite3
+db.sqlite3
+.env
+.env.*
+!.env.example
+
+# ── Claude Code ──────────────────────────────────────────────
+.claude/
+
+# ── Documento de trabajo interno (no se publica) ─────────────
+AmbuSync_Roadmap_MVP.md
+
+# ── Sistema operativo ────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editores / IDE ───────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# ── Logs varios ──────────────────────────────────────────────
+logs/
+*.log
