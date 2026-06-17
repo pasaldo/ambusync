@@ -8,8 +8,10 @@ claro, captura) y `/urgencias` (modo oscuro, tablero).
 (frontend). El backend Django + DRF + Channels (Fases 4–5 de la hoja de ruta) queda como
 trabajo futuro: el MVP demostrable vive completo en `frontend/`.
 
-**Tiempo real:** simulado en el frontend con un store Zustand (`useCases`) y temporizadores.
-Los datos "viajan" dentro del navegador; el countdown de ETA corre con `useNow`.
+**Tiempo real:** store Zustand (`useCases`) sincronizado **entre pestañas** del mismo
+navegador (`store/sync.ts`: BroadcastChannel + localStorage de respaldo/persistencia). Abrir
+`/ambulancia` y `/urgencias` en dos ventanas muestra el caso en vivo. El countdown de ETA corre
+con `useNow`. Sincronización entre dispositivos = backend (Fases 4–5), trabajo futuro.
 
 **Diseño:** tokens en `AmbuSync_Roadmap_MVP.md` sección 3, implementados en
 `tailwind.config.js` y `src/index.css`. El color codifica triage (no decora). Acento cian

@@ -63,9 +63,12 @@ acciones de recepción.
 - **Zustand** (estado global), **React Router** (`/ambulancia` y `/urgencias`)
 - Fuentes: **Hanken Grotesk** (UI) + **JetBrains Mono** tabular (vitales/ETA)
 
-El **tiempo real está simulado** en el frontend (store + temporizadores): los datos "viajan"
-dentro del navegador. El backend Django + DRF + Channels (Fases 4–5 de la hoja de ruta) queda
-como trabajo futuro; el MVP demostrable es 100 % frontend.
+El **tiempo real** se resuelve en el frontend, sin backend: el store (Zustand) se sincroniza
+**entre pestañas del mismo navegador** vía **BroadcastChannel** (push instantáneo) con respaldo
+en **localStorage** (persiste al recargar y alimenta a las pestañas que se abren después). Así
+puedes abrir `/ambulancia` y `/urgencias` en dos ventanas y ver el caso aparecer en vivo. El
+backend Django + DRF + Channels (Fases 4–5) —para sincronizar entre **dispositivos** distintos—
+queda como trabajo futuro.
 
 ## Cómo correrlo
 
@@ -88,22 +91,29 @@ npm run preview   # sirve el build de producción
 
 ## Cómo demostrarlo
 
+**Demo en vivo entre dos ventanas** (lo más vistoso): abre la app en **dos ventanas lado a
+lado** del mismo navegador — una en **Urgencias** (`/urgencias`) y otra en **Paramédico**
+(`/ambulancia`). Captura un paciente en la ambulancia y pulsa **Transmitir al hospital**: el
+caso aparece **en vivo** en el tablero de Urgencias (badge **NUEVO** + countdown corriendo),
+y los cambios de estado (*Aceptar*, *Preparar box*, *Marcar recibido*) se reflejan en ambas.
+
+Otras formas de mostrarlo:
+
 1. Entra como **Urgencias**: el tablero arranca sembrado con casos de demo (triage variado),
-   con countdowns de ETA vivos. Toca una tarjeta para ver el detalle y las acciones
-   (*Aceptar*, *Preparar box*, *Marcar recibido*).
+   con countdowns de ETA vivos. Toca una tarjeta para ver el detalle y las acciones.
 2. Pulsa **Modo demo** (pie del tablero) para que entre un caso crítico guionado y veas la
-   animación de "aterrizaje" + el badge **NUEVO** — ideal para grabar el video.
-3. O entra como **Paramédico**, pulsa **Nueva emergencia**, completa el wizard y pulsa
-   **Transmitir al hospital**: verás el **pulso de transmisión** y el caso aparece en el
-   tablero de Urgencias.
+   animación de "aterrizaje" + el badge **NUEVO** — ideal para grabar el video en una pantalla.
 
 ## Arquitectura
 
 El MVP es una **SPA React** que vive completa en el navegador. El estado global
-(`useCases`, Zustand) actúa como un **bus de tiempo real simulado**: el flujo del
-paramédico publica un `Case` y el tablero de Urgencias, suscrito reactivamente, lo refleja
-al instante. El backend Django + WebSockets (Fases 4–5) está diseñado pero queda como
-trabajo futuro; su punto de integración es justamente ese store.
+(`useCases`, Zustand) actúa como un **bus de tiempo real**: el flujo del paramédico publica un
+`Case` y el tablero de Urgencias, suscrito reactivamente, lo refleja al instante. Ese bus se
+sincroniza **entre pestañas** ([`sync.ts`](frontend/src/store/sync.ts)) con **BroadcastChannel**
+(push) + **localStorage** (persistencia y late-join), así que dos ventanas del mismo navegador
+ven los mismos datos en vivo. El backend Django + WebSockets (Fases 4–5) —que llevaría esa
+sincronización entre dispositivos distintos— queda como trabajo futuro; su punto de integración
+es justamente ese store.
 
 ```mermaid
 flowchart LR
@@ -115,12 +125,14 @@ flowchart LR
             W["Wizard de captura<br/>paciente · vitales · triage · ETA"]
             T["Pulso de transmisión"]
         end
-        Store[("useCases<br/>store Zustand<br/>(estado en memoria)")]
+        Store[("useCases · store Zustand<br/>sync.ts: BroadcastChannel + localStorage")]
         subgraph ER["/urgencias · modo oscuro"]
             B["Tablero entrantes<br/>orden por triage + ETA"]
             D["Detalle + acciones"]
         end
     end
+
+    Tab2["Otra pestaña<br/>(mismo navegador)"]
 
     RS --> Amb
     RS --> ER
@@ -129,6 +141,7 @@ flowchart LR
     Store ==>|"suscripción reactiva<br/>(countdown ETA en vivo)"| B
     B --> D
     D -->|"updateStatus()"| Store
+    Store <-.->|"sincroniza en vivo"| Tab2
 
     subgraph Future["Backend — trabajo futuro (Fases 4–5)"]
         direction TB
@@ -225,7 +238,7 @@ ambusync/
 │   ├── src/
 │   │   ├── components/        # PhoneFrame, VitalsStrip, TriageBadge, EtaCountdown, ui/
 │   │   ├── screens/           # RoleSelect, ambulance/, er/
-│   │   ├── store/useCases.ts  # estado global (Zustand)
+│   │   ├── store/             # useCases (Zustand) + sync.ts (BroadcastChannel/localStorage)
 │   │   ├── data/              # triage, vitals, status, seed
 │   │   └── types.ts           # modelo de datos (CaseRecord)
 │   ├── scripts/               # shots.mjs (capturas), check-mermaid.mjs (valida diagramas)

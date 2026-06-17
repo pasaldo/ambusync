@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "shots": "node scripts/shots.mjs",
-    "check:diagrams": "node scripts/check-mermaid.mjs"
+    "check:diagrams": "node scripts/check-mermaid.mjs",
+    "test:sync": "node scripts/sync-test.mjs"
   },
   "dependencies": {
     "@fontsource/hanken-grotesk": "^5.0.20",
