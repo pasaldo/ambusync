@@ -183,9 +183,9 @@ Sin corrección ordinaria después de recepción/cierre; posteriores errores req
 
 - Proveedores de correo/copias y retención de aplicación, auditoría, logs y registro de operaciones procesadas.
 - Requisito comunicado para servicios externos/copias: jurisdicción Chile y costo recurrente $0. No hay opción de almacenamiento externo que cumpla ambos requisitos confirmada; no desplegar ni cambiar jurisdicción para usar una cuota gratuita incompatible.
-- Verificación administrativa de identidad y revocación técnica de sesiones/suscripciones.
-- Formulario durante reautenticación: preservación/descarte sin exposición a otra cuenta ni reenvío bajo identidad distinta.
-- Detalle del reemplazo si traslado ya está iniciado: estado, seguimiento y proyección autorizada de antecedentes.
+- Verificación administrativa de identidad y revocación técnica de sesiones/suscripciones. Propuesta pendiente de aprobación para pérdida de correo: comprobar por contacto institucional previo registrado y dejar constancia del verificador, método, fecha y resultado; no preguntas secretas ni cambio a un correo no verificado.
+- Formulario no enviado al vencer sesión: conducta acordada en D-012 (solo memoria; revalidar misma cuenta/permisos; no autoenviar; descartar al cambiar cuenta). Implementación y pruebas pendientes. Resultado incierto de una escritura: consultar `operacion_id` antes de reintentar.
+- Cambio de destino con traslado ya iniciado —propuesta pendiente de aprobación detallada—: operación atómica que cancela/cierra el episodio anterior, detiene su seguimiento, crea reemplazo con nuevo ID y contexto autorizado, inicia seguimiento nuevo y conserva historial/autores anteriores. Definir con precisión estado terminal y datos proyectados al nuevo receptor; el vínculo no concede acceso al episodio previo.
 - Esquemas OpenAPI, códigos HTTP, paginación, límites técnicos, ordenación estable y contratos exactos de versiones/eventos.
 - Frontend: Node 24 LTS/npm 11.19.0; dependencias actuales actualizadas y auditadas en AS-007. Runtime, dependencias y auditoría de Python/Django/Channels quedan pendientes antes de iniciar el backend.
 

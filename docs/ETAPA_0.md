@@ -21,6 +21,7 @@ Referencia: [diagnóstico del prototipo](ANALISIS_INICIAL.md) e Informe 2 aporta
 | D-009 | Arquitectura modular, modelo y contratos mínimos aprobados el 29/10/2026 | Monolito modular, contexto por episodio, API versionada, idempotencia, GPS independiente y correcciones trazables; detalle en ARQUITECTURA_PILOTO.md |
 | D-010 | Plazos de retención del piloto sintético aprobados el 29/10/2026 | Datos de aplicación: hasta 90 días tras cierre formal; auditoría: 12 meses tras cierre; logs técnicos: 30 días móviles; registros de idempotencia: mientras exista el registro relacionado. No cambia retención de copias aprobada en D-008 |
 | D-011 | Procedimiento de retención del piloto sintético aprobado el 29/10/2026 | Tarea programada local, modo de simulación, purga transaccional reejecutable, registro mínimo, restauración con reaplicación de purgas y criterios de aceptación; implementación/pruebas pendientes |
+| D-012 | Tratamiento del formulario no enviado al vencer sesión aprobado el 29/10/2026 | Conservar solo en memoria para la misma cuenta; al reautenticar, comprobar identidad y permisos; no enviar automáticamente; descartar si cambia la cuenta; implementación/pruebas pendientes |
 
 D-002 modifica el diseño de cuentas por unidad del Informe 2. D-003 exige adaptar el campo de rol único del diccionario: proponer conjuntos de permisos/grupos, sin un booleano que conceda acceso total. Mantener trazabilidad de estas diferencias al actualizar el informe.
 
@@ -528,7 +529,7 @@ Cada cuenta del piloto requiere correo institucional o de prueba verificado.
 
 **Recuperación:** respuesta pública genérica; enlace de un solo uso y vigencia de 30 minutos. Al completar restablecimiento se invalidan sesiones anteriores; no iniciar sesión automáticamente. Administración puede iniciar el proceso, no consultar ni establecer una contraseña que quede compartida.
 
-Pérdida de acceso al correo: procedimiento administrativo controlado, sin preguntas secretas ni cambio de correo no verificado. Detallar comprobaciones de identidad en AS-006 antes de habilitar esta vía. Elegir proveedor/configuración de correo antes de despliegue; desarrollo con buzón de pruebas para no enviar mensajes reales accidentalmente.
+Pérdida de acceso al correo: procedimiento administrativo controlado, sin preguntas secretas ni cambio de correo no verificado. **Propuesta pendiente de aprobación:** verificar por contacto institucional previo registrado y dejar constancia de verificador, método, fecha y resultado; no habilitar esta vía hasta acordar y probar el procedimiento. Elegir proveedor/configuración de correo antes de despliegue; desarrollo con Mailpit local para no enviar mensajes reales accidentalmente.
 
 ### Sesiones y vencimiento
 
@@ -545,7 +546,7 @@ Pérdida de acceso al correo: procedimiento administrativo controlado, sin pregu
 
 GPS automático, consultas periódicas y mensajes de conexión no renuevan indefinidamente la sesión. El mecanismo de interacción válida y comprobación de caducidad debe especificarse y probarse en servidor; no depender únicamente de temporizadores React.
 
-Al vencer: bloquear operaciones, ocultar datos protegidos y pedir autenticación. Informar situación del formulario pendiente, mantenerlo solo temporalmente en memoria y no mostrarlo a otra cuenta. Probar que reautenticación no mezcla datos ni reenvía operaciones bajo una identidad distinta. El contrato detallado de preservación/descarte del pendiente se define en AS-006.
+Al vencer: bloquear operaciones, ocultar datos protegidos y pedir autenticación. Conforme a D-012, un formulario no enviado puede mantenerse solo en memoria; tras reautenticación, comprobar misma cuenta y permisos antes de volver a mostrarlo. No reenviar automáticamente; si cambia la cuenta, descartarlo. Si una escritura ya fue enviada y su resultado es incierto, consultar su `operacion_id` antes de decidir un reintento. Probar que no se mezclan cuentas ni se ejecutan acciones bajo una identidad distinta.
 
 ### Revocación, reasignación y emergencia de seguridad
 
@@ -617,7 +618,7 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 | AS-002 | P0, AS-001 | Matriz de permisos aprobada, combinación de roles, delegación y asignación de unidad definidas | Definición aprobada (D-005); implementación/pruebas futuras |
 | AS-003 | P0, AS-001/002 | Estados, hitos, reintentos y excepciones con ejemplos de permitido/denegado | Definición aprobada (D-006); implementación/pruebas futuras |
 | AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Definición aprobada para piloto sintético (D-007); implementación/pruebas futuras |
-| AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas (D-008), plazos (D-010) y procedimiento (D-011) aprobados; opciones gratuitas comparadas sin selección compatible con Chile+$0; proveedores, custodia, otros detalles e implementación/pruebas pendientes |
+| AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas (D-008), plazos (D-010), procedimiento (D-011) y tratamiento de formularios en reautenticación (D-012) aprobados; opciones gratuitas comparadas sin selección compatible con Chile+$0; proveedores, custodia, recuperación de correo y otros detalles/implementación/pruebas pendientes |
 | AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Diseño mínimo aprobado (D-009); contratos detallados/implementación/pruebas pendientes |
 | AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Frontend actualizado y verificado; runtime/dependencias backend pendientes antes de su implementación |
 | AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Implementado y verificado (3 diagramas; 4 pruebas unitarias; sincronización entre pestañas) |
