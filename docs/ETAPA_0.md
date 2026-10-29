@@ -17,12 +17,13 @@ Referencia: [diagnóstico del prototipo](ANALISIS_INICIAL.md) e Informe 2 aporta
 | D-005 | Personas, unidades y permisos de la sección 3 aprobados el 29/10/2026 | Cuentas personales, colaboración por unidad, permisos adicionales separados y protecciones ante desactivación/reasignación |
 | D-006 | Ciclo de vida, hitos y excepciones de la sección 4 aprobados el 29/10/2026 | Sin estado `creada` separado; lectura explícita, inicio/cierre manuales, llegada excepcional y cambio de destino atómico |
 | D-007 | Datos y validaciones de la sección 5 aprobados el 29/10/2026 | Edad con unidades, datos desconocidos explícitos, vitales opcionales y envío sin triaje; reglas para piloto sintético, no validación clínica |
+| D-008 | Seguridad, sesiones, recuperación, auditoría y contingencia aprobadas el 29/10/2026 | Contraseñas de mínimo 15 caracteres; activación/recuperación por correo; sesión 30 min/12 h; revocación de emergencia y copias externas ensayadas |
 
 D-002 modifica el diseño de cuentas por unidad del Informe 2. D-003 exige adaptar el campo de rol único del diccionario: proponer conjuntos de permisos/grupos, sin un booleano que conceda acceso total. Mantener trazabilidad de estas diferencias al actualizar el informe.
 
 D-006 simplifica el modelo del Informe 2: crear y habilitar el episodio para el receptor son una sola operación transaccional; `creada_en` permanece como fecha, no como estado. El diagnóstico inicial describe la especificación anterior como antecedente histórico; para la implementación rigen los acuerdos aprobados de este documento.
 
-Las secciones 2 a 5 tienen **alcance, permisos, ciclo de vida y validaciones aprobados por el responsable del proyecto**. Los demás apartados mantienen su condición de propuesta salvo decisiones expresamente confirmadas. Estas aprobaciones no equivalen a validación clínica ni a funcionalidades implementadas.
+Las secciones 2 a 5 y las políticas de seguridad/contingencia de las secciones 6 y 7 están **aprobadas por el responsable del proyecto**. El diseño técnico restante mantiene su condición de propuesta salvo decisiones expresamente confirmadas. Estas aprobaciones no equivalen a controles implementados, validación clínica ni cumplimiento normativo certificado.
 
 ## 2. Objetivo y límites del entregable
 
@@ -137,10 +138,10 @@ Una cuenta con administración + urgencias puede utilizar ambas funciones dentro
 
 1. Solo administración institucional reasigna personal entre sus unidades; toda reasignación se audita.
 2. Al cambiar de unidad, la persona pierde acceso a la anterior y obtiene únicamente el acceso correspondiente a la nueva; su autoría histórica no cambia.
-3. Antes de retirar al último operador habilitado de una unidad con episodios activos, se exige un reemplazo habilitado o resolver esos episodios. Aplicar esta protección también a una desactivación ordinaria que retire al último operador.
+3. Antes de retirar al último operador habilitado de una unidad con episodios activos, se exige un reemplazo habilitado o resolver esos episodios. Aplicar esta protección también a una desactivación ordinaria que retire al último operador; la revocación de emergencia por compromiso sigue la excepción de seguridad de la sección 7.
 4. Desactivar una cuenta bloquea nuevas operaciones y revoca su acceso, incluso con sesión abierta; no elimina sus registros previos. El procedimiento de contención ante compromiso y la forma técnica de revocación se detallarán en AS-005.
 5. No se puede desactivar una ambulancia con episodios activos.
-6. No se puede desactivar al último administrador habilitado sin disponer de otro.
+6. No se puede desactivar ordinariamente al último administrador habilitado sin disponer de otro; ante compromiso aplica la revocación de emergencia controlada de la sección 7.
 7. Las conexiones WebSocket deben dejar de entregar información al revocar permisos o cambiar el ámbito de acceso.
 
 ### Criterios de aceptación de permisos
@@ -367,6 +368,8 @@ Pruebas futuras, todavía no ejecutadas sobre el sistema nuevo:
 
 ## 6. Integridad, conservación y contingencia
 
+Las políticas de protección de datos, auditoría, copias y contingencia se aprobaron en D-008 para el piloto sintético. El detalle técnico de integridad/corrección de mediciones sigue sujeto a AS-006.
+
 - PostgreSQL como fuente de verdad; FK protegidas, transacciones e índices por ámbito institucional/estado/fecha.
 - Paciente, unidad y creador deben pertenecer al operador correcto; receptor autorizado sobre destino.
 - UUID de operación para creación, mediciones, posiciones y cambios; concretar deduplicación de actualizaciones, no solo UUID del episodio.
@@ -377,17 +380,120 @@ Pruebas futuras, todavía no ejecutadas sobre el sistema nuevo:
 - Sin conexión: aviso visible, no confirmar entrega, reintentar de manera controlada. El canal alternativo institucional debe definirse antes de un piloto operacional; para defensa se documenta una contingencia simulada, no un servicio asistencial existente.
 - Auditoría: actor, institución/unidad pertinente, acción, objeto, fecha, resultado y correlación. Logs técnicos sin contraseñas, tokens ni relatos clínicos. Revisar minimización y retención separadamente.
 
-## 7. Base tecnológica y seguridad propuesta
+### Protección de datos y secretos aprobada
+
+- No persistir antecedentes clínicos en almacenamiento del navegador ni caché de servicio. Configurar respuestas protegidas para evitar almacenamiento en cachés compartidas.
+- Sin credenciales ni datos clínicos en URLs. Datos de demostración identificados como sintéticos.
+- PostgreSQL y Redis sin puertos públicos; acceso administrativo restringido y HTTPS con certificado válido.
+- Secretos fuera de Git e independientes entre ambientes. Revisar dependencias antes de exponer servicios.
+
+### Auditoría funcional y logs técnicos
+
+Registrar persona, institución/unidad cuando corresponda, objeto, acción, resultado, fecha del servidor e identificador de correlación/operación.
+
+Acciones mínimas: activación/desactivación de cuentas, permisos y asignaciones de unidad; creación/actualización de episodios; mediciones y triaje; lectura, preparación, llegada, cierre y cancelación; cambio de destino; desactivación de pacientes; recuperación de cuentas, revocación de sesiones y denegaciones relevantes de acceso.
+
+Los logs técnicos no incluyen contraseñas, enlaces de activación/recuperación, cookies, tokens ni relatos clínicos. Auditoría administrativa no revela antecedentes del paciente. Usuarios funcionales no editan ni eliminan auditoría. Proteger sus permisos y documentar que un administrador de infraestructura puede tener capacidad de alteración: no declarar inmutabilidad absoluta sin demostrarla.
+
+### Copias y restauración
+
+- Copia horaria de PostgreSQL, cifrada y almacenada fuera del servidor principal.
+- Custodiar claves separadamente; no incluirlas junto al respaldo o en Git.
+- Retención inicial de datos sintéticos: 24 copias horarias y 14 diarias.
+- Restauración semanal en entorno aislado durante aceptación.
+- RPO ≤1 h y RTO ≤4 h son metas a medir con ensayo completo, no garantías sin evidencia.
+
+**Pendiente antes del despliegue:** política de retención de datos de aplicación, auditoría y logs; proveedor/ubicación de copias y custodia de claves. La política de copias sintéticas no autoriza eliminar antecedentes clínicos reales.
+
+### Contingencia aprobada
+
+| Situación | Comportamiento esperado |
+|---|---|
+| Sin red móvil | Aviso visible, pendiente en memoria, no afirmar entrega |
+| Respuesta de envío perdida | Consultar/reintentar con el mismo identificador de operación |
+| WebSocket desconectado | Advertir y reconciliar por API mientras esté disponible |
+| GPS denegado/perdido | Continuar episodio con ubicación no disponible o desactualizada |
+| Servidor caído | Mostrar indisponibilidad, sin simular funcionamiento normal |
+| Base de datos no disponible | No confirmar escrituras; resultado sin confirmar si hay incertidumbre sobre persistencia |
+| Despliegue defectuoso | Prueba de humo y reversión a versión compatible |
+| Cuenta comprometida | Revocar, preservar evidencia y activar recuperación controlada |
+| Pérdida de datos/servidor | Restaurar copia verificada en entorno limpio y comprobar flujo esencial |
+
+Para defensa: entorno local verificado, datos sintéticos y evidencias grabadas como respaldo, identificadas como tales y nunca presentadas como ejecución en vivo. No implica contar con un canal asistencial real ni soporte 24/7.
+
+## 7. Base tecnológica y seguridad
+
+Las políticas siguientes están aprobadas (D-008, AS-005); su implementación y pruebas son futuras. Arquitectura detallada y selección de versiones/proveedores permanecen en AS-006/AS-007.
 
 - React/TypeScript existente; monolito modular Django + DRF + PostgreSQL.
 - Channels + Redis para eventos; ASGI, Nginx y Docker Compose para despliegue inicial.
 - Módulos: cuentas, instituciones, unidades, pacientes, emergencias, seguimiento, informes y auditoría. API y WebSocket comparten reglas de autorización.
-- Autenticación inicial por sesiones Django, mismo origen web, cookies HttpOnly/Secure, CSRF y validación de origen WebSocket. Definir caducidad por inactividad/absoluta y reautenticación para acciones sensibles antes de implementar.
-- Contraseñas con hash del framework, validadores y limitación de intentos; errores que no enumeren usuarios. Definir procedimiento de recuperación y cambio de contraseña, sin enviar contraseñas por correo ni almacenarlas en texto plano.
+- Autenticación por sesiones Django y mismo origen web; cookies HttpOnly/Secure/SameSite=Lax, CSRF y validación de origen/sesión/permisos WebSocket. Sin tokens de sesión en `localStorage`.
+- Contraseñas con hash del framework, validadores y limitación de intentos; errores que no enumeren usuarios. Reglas de activación, recuperación y cambio según los apartados siguientes.
 - Entornos separados: desarrollo, staging y entrega; secretos independientes fuera de Git. PostgreSQL/Redis en red privada, sin puertos públicos.
 - Modelar usuario personal y grupos/permisos antes de las primeras migraciones. Asignación de unidad mutable con historial de auditoría; no confundir permisos funcionales con `is_superuser`.
 - Fijar versiones mantenidas de Python/Django/Node y dependencias al ejecutar AS-007. Registrar compatibilidad y licencias, no copiar automáticamente las versiones antiguas del prototipo.
 - Escalar primero con consultas paginadas, índices y medición. Separar procesos/API/WebSocket o aumentar recursos cuando haya evidencia. No se justifica Kubernetes para la carga base del piloto.
+
+### Acceso y contraseñas
+
+- Usuario/contraseña personales, cuentas creadas por administración dentro de su ámbito, sin registro público.
+- Error genérico: «Credenciales inválidas o cuenta no disponible»; no revelar existencia de cuenta.
+- Limitar intentos por cuenta y origen. Umbral inicial configurable: cinco fallos en quince minutos activan espera temporal progresiva, sin bloqueo permanente que permita denegación de acceso a terceros. Detallar algoritmo y pruebas en diseño técnico.
+- Mínimo 15 caracteres; admitir frases, espacios, pegado y gestores. Máximo soportado de al menos 128 caracteres, sin truncamiento.
+- Rechazar contraseñas comunes y similares a datos de cuenta; sin cambios periódicos arbitrarios. Cambiar ante compromiso o recuperación.
+- Nunca guardar texto plano, registrar contraseñas en logs o enviarlas por correo.
+- Sin MFA obligatorio en piloto; reevaluarlo antes de uso clínico, especialmente administración y acceso remoto.
+
+### Activación y recuperación
+
+Cada cuenta del piloto requiere correo institucional o de prueba verificado.
+
+**Alta:** administración registra la cuenta; enlace de activación de un solo uso, vigencia de 24 horas; la persona establece contraseña propia. Al usarlo queda invalidado. Sin contraseñas compartidas/predeterminadas.
+
+**Recuperación:** respuesta pública genérica; enlace de un solo uso y vigencia de 30 minutos. Al completar restablecimiento se invalidan sesiones anteriores; no iniciar sesión automáticamente. Administración puede iniciar el proceso, no consultar ni establecer una contraseña que quede compartida.
+
+Pérdida de acceso al correo: procedimiento administrativo controlado, sin preguntas secretas ni cambio de correo no verificado. Detallar comprobaciones de identidad en AS-006 antes de habilitar esta vía. Elegir proveedor/configuración de correo antes de despliegue; desarrollo con buzón de pruebas para no enviar mensajes reales accidentalmente.
+
+### Sesiones y vencimiento
+
+| Control | Regla aprobada |
+|---|---|
+| Transporte desplegado | HTTPS y WSS |
+| Cookie | HttpOnly, Secure y SameSite=Lax; frontend/backend bajo el mismo origen |
+| Modificaciones | CSRF; autorización de servidor por operación |
+| WebSocket | Origen, sesión y permisos válidos; terminar entrega al revocar acceso |
+| Inactividad | Vencimiento tras 30 minutos sin interacción válida |
+| Duración absoluta | Máximo 12 horas desde inicio de sesión |
+| Aviso | Dos minutos antes del vencimiento por inactividad |
+| Logout | Invalidar sesión y terminar suscripciones asociadas |
+
+GPS automático, consultas periódicas y mensajes de conexión no renuevan indefinidamente la sesión. El mecanismo de interacción válida y comprobación de caducidad debe especificarse y probarse en servidor; no depender únicamente de temporizadores React.
+
+Al vencer: bloquear operaciones, ocultar datos protegidos y pedir autenticación. Informar situación del formulario pendiente, mantenerlo solo temporalmente en memoria y no mostrarlo a otra cuenta. Probar que reautenticación no mezcla datos ni reenvía operaciones bajo una identidad distinta. El contrato detallado de preservación/descarte del pendiente se define en AS-006.
+
+### Revocación, reasignación y emergencia de seguridad
+
+Desactivación, cambio de unidad o retiro de permisos obligan a revalidar cada operación, detener eventos no autorizados y retirar de interfaz información fuera del nuevo ámbito, conservando autoría histórica.
+
+**Excepción aprobada a las protecciones de continuidad de sección 3:** una cuenta comprometida puede revocarse de emergencia mediante procedimiento técnico controlado, aunque deje sin último operador o administrador habilitado. Registrar motivo, ejecutor y hora; preservar evidencia, activar contingencia y recuperar administración/asignar reemplazo de manera controlada. No mantener una cuenta comprometida habilitada por una regla de continuidad. No convertir esta excepción en un mecanismo ordinario de escalamiento de privilegios.
+
+### Aceptación de seguridad y recuperación
+
+Pruebas futuras, no resultados alcanzados:
+
+1. Usuario sin autenticar no consulta información protegida; autorización por objeto también en WebSocket.
+2. Cuenta desactivada pierde acceso con sesión/suscripción abierta; cambio de unidad retira acceso anterior.
+3. Solicitudes sin CSRF válido y WebSocket de origen no autorizado se rechazan.
+4. Enlaces de activación/recuperación usados o vencidos no funcionan; no quedan en logs.
+5. Recuperación invalida sesiones anteriores y no inicia sesión automáticamente.
+6. Actividad automática no evita vencimiento por inactividad; duración absoluta y aviso se verifican.
+7. Cambiar de usuario no expone formularios ni información anterior; permisos retirados dejan de entregar eventos.
+8. Limitación de intentos se activa y expira sin revelar cuentas ni bloquearlas permanentemente.
+9. Repositorio y logs no contienen secretos; auditoría funcional no es editable por usuarios ordinarios.
+10. Restauración aislada permite completar flujo esencial y medir RTO/RPO.
+
+**Pendientes de diseño/operación:** retención de aplicación/auditoría/logs; proveedor de correo y copias; verificación administrativa de identidad; mecanismo de revocación/interacción válida/formularios pendientes; alcance y vigencia de reautenticación para acciones sensibles si se incorpora. Ninguno se considera resuelto por aprobar estas políticas.
 
 ## 8. Calidad, automatización y metas
 
@@ -414,11 +520,11 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 
 | ID | Prioridad/dependencia | Entrega y aceptación | Estado |
 |---|---|---|---|
-| AS-001 | P0 | Línea base de alcance y decisiones; D-001–007 registradas; revisión de apartados restantes | Alcance, permisos, ciclo de vida y validaciones aprobados; definición restante en revisión |
+| AS-001 | P0 | Línea base de alcance y decisiones; D-001–008 registradas; revisión de apartados restantes | Políticas funcionales y de seguridad aprobadas; diseño/preparación pendientes |
 | AS-002 | P0, AS-001 | Matriz de permisos aprobada, combinación de roles, delegación y asignación de unidad definidas | Definición aprobada (D-005); implementación/pruebas futuras |
 | AS-003 | P0, AS-001/002 | Estados, hitos, reintentos y excepciones con ejemplos de permitido/denegado | Definición aprobada (D-006); implementación/pruebas futuras |
 | AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Definición aprobada para piloto sintético (D-007); implementación/pruebas futuras |
-| AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Propuesta |
+| AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas aprobadas (D-008); detalles operativos/técnicos y pruebas pendientes |
 | AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Propuesta |
 | AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Pendiente técnico |
 | AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Pendiente técnico |
@@ -459,7 +565,7 @@ docs(development): documenta entorno y cierre de etapa 0 [AS-010]
 
 Es una guía, no una obligación de exactamente diez commits: si una actualización exige migración incompatible, dividir por cambios comprobables; si dos ajustes documentales son inseparables, integrarlos juntos. No duplicar toda esta especificación en archivos diferentes: los siguientes commits pueden refinar secciones y enlazar detalles especializados.
 
-Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada, no implementación; AS-005–010 mantienen sus pendientes.
+Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada y AS-005 políticas aprobadas con detalles pendientes; no están implementados. AS-006–010 mantienen sus pendientes.
 
 ## 11. Condiciones para cerrar la etapa 0
 
@@ -470,11 +576,12 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [x] Matriz de permisos, delegación y unidad asignada aprobadas (D-005, 29/10/2026).
 - [x] Estados, excepciones, lectura y entrega técnica diferenciados y aprobados (D-006, 29/10/2026).
 - [x] Campos, límites, triaje pendiente y tratamiento de lactantes definidos para piloto sintético (D-007, 29/10/2026); validación clínica requerida antes de uso real.
-- [ ] Políticas de sesión, contraseñas y recuperación definidas.
+- [x] Políticas de sesión, contraseñas y recuperación aprobadas (D-008, 29/10/2026); detalles técnicos/operativos pendientes según secciones 6 y 7.
+- [ ] Retención de aplicación/auditoría/logs, proveedores y procedimientos operativos de seguridad definidos antes de despliegue.
 - [ ] Modelo/contratos mínimos y dependencias de tareas revisados.
 - [ ] Dependencias vulnerables tratadas o riesgo residual justificado antes de exponer servicios.
 - [ ] Pruebas repetibles y CI operativos con evidencia.
 - [ ] Entorno e instrucciones verificadas por otro integrante cuando sea posible.
 - [ ] Rúbrica de Nota 3, fecha de defensa y disponibilidad del equipo confirmadas.
 
-**Próxima revisión:** seguridad, sesiones, recuperación de cuentas, auditoría y contingencia (AS-005; secciones 6 y 7). Alcance, permisos, ciclo de vida y validaciones de formularios ya están aprobados para el piloto; faltan diseño técnico y preparación verificable de la etapa 0.
+**Próxima revisión:** arquitectura modular, modelo de datos y contratos mínimos de API/eventos (AS-006), incluyendo pendientes técnicos de integridad/seguridad. Las políticas del piloto ya están aprobadas; faltan diseño técnico y preparación verificable de la etapa 0.
