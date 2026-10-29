@@ -13,14 +13,17 @@ Referencia: [diagnóstico del prototipo](ANALISIS_INICIAL.md) e Informe 2 aporta
 | D-001 | Entregar un piloto desplegado con datos sintéticos | Funciona entre dispositivos con HTTPS, persistencia y controles; no se usa para atención real |
 | D-002 | Cuentas personales para personal de ambulancia | Cada acción identifica a una persona autenticada y a su unidad asignada; no se comparten contraseñas de ambulancia |
 | D-003 | Permisos administrativos y de urgencias combinables explícitamente | Una cuenta puede tener ambos; administrar usuarios no concede por sí solo acceso clínico |
+| D-004 | Alcance y exclusiones de la sección 2 aprobados el 29/10/2026 | Línea base del piloto para defensa; cambios posteriores requieren evaluación y aprobación explícita |
 
 D-002 modifica el diseño de cuentas por unidad del Informe 2. D-003 exige adaptar el campo de rol único del diccionario: proponer conjuntos de permisos/grupos, sin un booleano que conceda acceso total. Mantener trazabilidad de estas diferencias al actualizar el informe.
 
-Los apartados siguientes son **propuestas de línea base** hasta revisión del usuario. En particular, los límites clínicos y las excepciones operacionales no quedan aprobados por su inclusión aquí.
+La sección 2 tiene **alcance aprobado por el responsable del proyecto**. Los demás apartados mantienen su condición de propuesta salvo decisiones expresamente confirmadas. La aprobación de alcance no equivale a aprobación clínica, a permisos detallados acordados ni a funcionalidades implementadas.
 
 ## 2. Objetivo y límites del entregable
 
-### Objetivo propuesto
+**Estado: aprobado por el responsable del proyecto el 29/10/2026 (D-004).**
+
+### Objetivo aprobado
 
 Demostrar un traslado completo entre un móvil y un computador distintos: administración de unidad/cuentas, autenticación, registro, envío persistido, consulta del destino, actualización, lectura, preparación, llegada, cierre y consulta histórica. Mostrar también una desconexión y recuperación sin duplicados ni entrega ficticia.
 
@@ -35,13 +38,51 @@ Demostrar un traslado completo entre un móvil y un computador distintos: admini
 - Despliegue HTTPS/WSS, pruebas, monitoreo, copias y restauración ensayada.
 - Manuales, evidencias y versión identificada para defensa.
 
+### Límites funcionales aprobados
+
+| Área | Alcance comprometido y límite |
+|---|---|
+| Acceso y administración | Cuentas personales, inicio/cierre de sesión, permisos combinables explícitos, gestión/desactivación de usuarios y ambulancias y asignación de personal. Instituciones y primer administrador se provisionan técnicamente; sin registro público de hospitales |
+| Paciente y emergencia | Identidad conocida o desconocida, edad/sexo cuando se conozcan, motivo, síntomas, vitales opcionales individualmente y triaje profesional sin clasificación automática. Destino habilitado; ID, autor, unidad y fecha del servidor. Un paciente por episodio, con posibilidad de varios episodios de una misma persona |
+| Comunicación | Dispositivos distintos, notificaciones, actualización de antecedentes y nuevas mediciones, operaciones pendientes visibles, reintentos sin duplicación, detección de conflictos y reconciliación al reconectar |
+| Panel receptor | Episodios del destino autorizado, orden por triaje/antigüedad con regla exacta pendiente, detalle, lectura, preparación, llegada y cierre. No inferir llegada por ETA, GPS o apertura del detalle |
+| Ubicación | Permiso explícito, última posición, precisión disponible, fecha/frescura, advertencia de antigüedad y parada al terminar traslado. Primer plano; sin garantía con pantalla bloqueada. Distancia geodésica aproximada, no ruta ni ETA vial; falta de GPS no bloquea registro |
+| Histórico e informes | Listado paginado, filtros por fecha/estado/unidad/triaje según permisos, detalle histórico y cantidades por estado/triaje. Sin PDF/Excel ni analítica avanzada inicialmente |
+| Desactivación | Individual, autorizada y lógica sobre pacientes sintéticos, conservando episodios y auditoría. Condiciones detalladas pendientes; no borrado físico del historial |
+| Trazabilidad | Actor y fechas de creación, actualización, lectura, recepción, cancelación y cierre; historial de mediciones; permisos en API/WebSocket, credenciales protegidas y logs técnicos sin contenido sensible |
+| Despliegue y entrega | HTTPS/WSS, contenedores, configuración/secretos separados, persistencia, monitoreo básico, copia externa y restauración demostrada, pruebas, manuales y versión etiquetada. Proveedor/dominio/presupuesto requieren acuerdo previo a contratación |
+
+**Conectividad:** no hay modo offline persistente. Se puede mantener formulario pendiente en memoria mientras la página siga abierta, sin garantizar conservación al cerrar o recargar. No mostrar éxito si no existe confirmación del servidor.
+
+**Cambio de destino:** no se edita directamente el hospital después del envío. La vía acordada para un cambio antes de recepción es cancelar con motivo y crear otro episodio vinculado, conservando historial. Los permisos, validaciones, notificación al destino anterior y manejo de fallos de esta operación se concretarán en AS-002/AS-003; no habilitarla sin ese diseño. No implica permitir cancelar episodios ya recibidos o cerrados.
+
+**Catálogo de síntomas:** selección y ampliación controlada por personal autorizado. El texto ingresado no debe modificar automáticamente el catálogo. El permiso concreto se resolverá en AS-002.
+
 ### Fuera de esta versión
 
 Uso asistencial real, diagnósticos/triaje automáticos, prescripción, gestión de tratamientos, facturación, ficha hospitalaria completa, integración contractual HIS/FHIR, aplicaciones nativas, seguimiento GPS garantizado en segundo plano, ETA vial real, modo offline clínico persistente cifrado, Kubernetes, microservicios y alta disponibilidad distribuida.
 
+También quedan excluidos inicialmente exportaciones PDF/Excel, analítica predictiva, despacho automático/optimización de flota, administración hospitalaria de camas/recursos y operación/soporte 24/7. Registrar preparación para recepción no equivale a administrar disponibilidad de camas.
+
+Una exigencia posterior de la rúbrica o del equipo no amplía automáticamente este alcance: debe registrarse su impacto y aprobarse antes de comprometerla.
+
 ### Escenario de aceptación
 
 Un destino receptor para la demostración principal; una segunda institución sintética para pruebas de aislamiento. Incluir casos propios y ajenos y, en integración, un episodio autorizado entre operador y receptor distintos. Base de carga: 20 clientes concurrentes. Equipos, navegadores y versiones exactas se registran al ejecutar pruebas.
+
+### Demostración mínima acordada
+
+1. Administrador registra ambulancia y asigna una cuenta personal.
+2. Operador inicia sesión desde móvil, registra y envía una emergencia.
+3. Urgencias la consulta desde otro computador y confirma lectura/preparación.
+4. Operador agrega una medición que queda disponible para el receptor.
+5. Una desconexión se advierte y la recuperación no duplica operaciones.
+6. Urgencias confirma llegada física y cierre.
+7. El episodio sigue consultable tras reiniciar la aplicación.
+8. Un usuario ajeno al ámbito autorizado no puede acceder al episodio.
+9. Se aportan evidencias de pruebas, despliegue y restauración.
+
+Esta es una condición de aceptación futura, no un resultado alcanzado. Los 20 clientes son objetivo de prueba, no capacidad garantizada sin medición.
 
 ## 3. Personas, instituciones y unidades
 
@@ -100,7 +141,7 @@ Lectura y preparación son hitos separados, con actor/fecha. Primera lectura no 
 
 Si se pierde la respuesta después de guardar, reintentar con el mismo `operacion_id` y reconciliar por API. Si se pierde un evento WebSocket, el registro persistido debe seguir siendo recuperable. El fallo del aviso no borra la transacción.
 
-**Pendientes operacionales:** llegada sin inicio de traslado registrado; cambio de destino después del envío; cancelación por el receptor; traslado con varios pacientes. No implementar excepciones silenciosas. Propuesta inicial: un paciente por episodio y sin cambio de destino tras notificación hasta definir su autorización y trazabilidad.
+**Pendientes operacionales:** llegada sin inicio de traslado registrado y cancelación por el receptor. Para cambio de destino, el alcance aprobado excluye edición directa tras envío y prevé cancelación con motivo más nuevo episodio vinculado antes de recepción; faltan reglas y permisos de ejecución. Cada episodio contiene un paciente; no se modela una emergencia con varios pacientes en esta versión. No implementar excepciones silenciosas.
 
 ## 5. Datos y validación de formularios
 
@@ -176,7 +217,7 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 
 | ID | Prioridad/dependencia | Entrega y aceptación | Estado |
 |---|---|---|---|
-| AS-001 | P0 | Línea base de alcance y decisiones; D-001/002/003 registradas; revisión de apartados restantes | En revisión |
+| AS-001 | P0 | Línea base de alcance y decisiones; D-001–004 registradas; revisión de apartados restantes | Alcance aprobado; definición restante en revisión |
 | AS-002 | P0, AS-001 | Matriz de permisos aprobada, combinación de roles, delegación y asignación de unidad definidas | Propuesta |
 | AS-003 | P0, AS-001/002 | Estados, hitos, reintentos y excepciones con ejemplos de permitido/denegado | Propuesta |
 | AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Propuesta |
@@ -228,7 +269,7 @@ Este primer cambio documental se publica en rama de revisión; no integra autom�
 - [x] Objetivo de piloto desplegado confirmado (D-001).
 - [x] Cuentas personales confirmadas (D-002).
 - [x] Permisos combinables confirmados (D-003).
-- [ ] Alcance funcional/exclusiones y escenario de aceptación aprobados.
+- [x] Alcance funcional/exclusiones y escenario de aceptación aprobados (D-004, 29/10/2026).
 - [ ] Matriz de permisos, delegación y unidad asignada aprobadas.
 - [ ] Estados, excepciones, lectura y entrega técnica diferenciados y aprobados.
 - [ ] Campos, límites, triaje pendiente y tratamiento de lactantes resueltos o explícitamente excluidos con aprobación.
@@ -239,4 +280,4 @@ Este primer cambio documental se publica en rama de revisión; no integra autom�
 - [ ] Entorno e instrucciones verificadas por otro integrante cuando sea posible.
 - [ ] Rúbrica de Nota 3, fecha de defensa y disponibilidad del equipo confirmadas.
 
-**Próxima revisión:** aprobar alcance (sección 2), personas/unidades/permisos (sección 3) y después ciclo de vida (sección 4). No iniciar módulos clínicos con reglas pendientes que obliguen a rehacer el modelo.
+**Próxima revisión:** personas/unidades/permisos (sección 3, AS-002) y después ciclo de vida (sección 4, AS-003). El alcance ya está aprobado; no iniciar módulos clínicos con reglas pendientes que obliguen a rehacer el modelo.
