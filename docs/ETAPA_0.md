@@ -531,7 +531,8 @@ CI se ejecuta en cada pull request y en `main`: instalación desde lockfile, ver
 - Job frontend fija Node 24.20.0 y npm 11.19.0, usa `npm ci`, `npm audit`, tipos, pruebas unitarias, Mermaid, sincronización Playwright entre pestañas y build. Chromium se instala en el runner; Vite escucha solo en loopback y se detiene al acabar el paso.
 - Job de secretos obtiene historial completo para Gitleaks. No requiere permisos de escritura ni secretos de aplicación; cuentas de organización pueden requerir el secreto/licencia de Gitleaks según sus términos.
 - Validación local desde lockfile: audit (0 vulnerabilidades), lint, unitarias (4/4), Mermaid (3/3), build y sincronización (4→5 tarjetas); todas pasaron. YAML parseado correctamente. Fixture Mermaid inválido temporal hizo fallar `check:diagrams` con código 1 y archivo/línea; fixture retirado.
-- La ejecución en GitHub no puede evidenciarse sin abrir un PR o hacer push a `main`; ambos quedan fuera de este alcance. Por tanto, la verificación remota de una ejecución correcta y del fallo controlado sigue pendiente.
+- Primera ejecución del PR #1 (run `40888273971`) falló por el orden de instalación de Chromium y porque Gitleaks v3 requiere `GITHUB_TOKEN` en PR. Corrección en `ee09e82`: instalar Chromium antes de Mermaid y entregar el token automático, conservando solo `contents: read` y comentarios desactivados.
+- Ejecución GitHub del PR #1 aprobada: run `40889051802`, commit `ee09e82ecb74f5b82da8fbb45d4803f2ccaa1033`; jobs `Frontend checks` y `Secret scan` completados correctamente. [Ver ejecución](https://github.com/pasaldo/ambusync/actions/runs/40889051802). No se hizo merge ni se modificó `main`. El fallo controlado se verificó localmente con un fixture Mermaid inválido, no mediante un fallo artificial publicado en GitHub.
 
 ### Metas heredadas del Informe 2, no resultados alcanzados
 
@@ -558,7 +559,7 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 | AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Diseño mínimo aprobado (D-009); contratos detallados/implementación/pruebas pendientes |
 | AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Frontend actualizado y verificado; runtime/dependencias backend pendientes antes de su implementación |
 | AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Implementado y verificado (3 diagramas; 4 pruebas unitarias; sincronización entre pestañas) |
-| AS-009 | P1, AS-008 | CI en pull request y main; verificar una ejecución correcta y un fallo controlado | Workflow implementado y validado localmente; ejecución y evidencia GitHub pendientes (requieren PR o push a `main`) |
+| AS-009 | P1, AS-008 | CI en pull request y main; verificar una ejecución correcta y un fallo controlado | Workflow validado localmente y con ejecución GitHub exitosa en PR #1; fallo controlado local verificado |
 | AS-010 | P1, AS-006/009 | Entorno reproducible, estrategia de ramas/releases y checklist de aceptación de etapa | Propuesta |
 
 P0 = bloquea diseño seguro o elimina riesgo alto; P1 = prepara desarrollo reproducible. No significa que todas las tareas tengan que ejecutarse secuencialmente: AS-007 puede avanzar mientras se revisan reglas.
@@ -595,7 +596,7 @@ docs(development): documenta entorno y cierre de etapa 0 [AS-010]
 
 Es una guía, no una obligación de exactamente diez commits: si una actualización exige migración incompatible, dividir por cambios comprobables; si dos ajustes documentales son inseparables, integrarlos juntos. No duplicar toda esta especificación en archivos diferentes: los siguientes commits pueden refinar secciones y enlazar detalles especializados.
 
-Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada; AS-005 políticas y AS-006 diseño mínimo aprobados con detalles pendientes; no están implementados. AS-007 actualizó/verificó el frontend, con runtime backend pendiente; AS-008 pruebas frontend implementadas/verificadas; AS-009 tiene workflow localmente validado pero falta evidencia remota; AS-010 sigue pendiente.
+Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada; AS-005 políticas y AS-006 diseño mínimo aprobados con detalles pendientes; no están implementados. AS-007 actualizó/verificó el frontend, con runtime backend pendiente; AS-008 pruebas frontend implementadas/verificadas; AS-009 workflow implementado y ejecutado exitosamente en GitHub sobre PR #1; AS-010 sigue pendiente.
 
 ## 11. Condiciones para cerrar la etapa 0
 
@@ -612,8 +613,8 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [ ] Contratos técnicos detallados y excepciones pendientes resueltos antes de habilitar cada operación, según ARQUITECTURA_PILOTO.md.
 - [x] Dependencias vulnerables del frontend tratadas y auditadas (AS-007, npm audit: 0 vulnerabilidades); auditar también backend antes de exponer servicios.
 - [x] Pruebas frontend repetibles con evidencia (AS-008).
-- [ ] CI operativo en PR/main con evidencia (AS-009).
+- [x] CI operativo en PR con evidencia de ejecución exitosa y fallo controlado local (AS-009); no implica merge ni ejecución sobre `main`.
 - [ ] Entorno e instrucciones verificadas por otro integrante cuando sea posible.
 - [ ] Rúbrica de Nota 3, fecha de defensa y disponibilidad del equipo confirmadas.
 
-**Próximo apartado:** completar AS-009 cuando se autorice abrir un pull request o actualizar `main`, para obtener evidencia de ejecución de GitHub Actions. AS-008 y el workflow AS-009 quedaron verificados localmente; runtime/dependencias backend y otros pendientes operativos siguen abiertos. La etapa 0 no está cerrada.
+**Próximo apartado:** preparar el entorno, estrategia de ramas/releases y checklist de cierre (AS-010). AS-008 y AS-009 quedaron verificados en frontend; AS-009 cuenta con ejecución exitosa en el PR #1, que permanece sin integrar. Runtime/dependencias backend y otros pendientes operativos siguen abiertos. La etapa 0 no está cerrada.
