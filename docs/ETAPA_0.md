@@ -406,6 +406,25 @@ Los logs técnicos no incluyen contraseñas, enlaces de activación/recuperació
 
 **Pendiente antes del despliegue:** política de retención de datos de aplicación, auditoría y logs; proveedor/ubicación de copias y custodia de claves. La política de copias sintéticas no autoriza eliminar antecedentes clínicos reales.
 
+#### Propuesta de retención para el piloto sintético — pendiente de aprobación
+
+Esta propuesta separa los plazos por finalidad. Es una decisión del proyecto, no una exigencia legal ni una política ya aprobada. Aplica solo a datos sintéticos y no autoriza cargar información real.
+
+| Clase | Plazo propuesto | Disposición al vencer |
+|---|---|---|
+| Registros de aplicación (pacientes/episodios sintéticos, mediciones y posiciones) | Durante el piloto y hasta 90 días después de su cierre formal, cuya fecha registra el responsable | Purga controlada de registros y adjuntos; conservar únicamente métricas realmente agregadas y no reidentificables si se necesitan para el informe |
+| Auditoría funcional | Durante el piloto y 12 meses después del cierre formal | Purga controlada de los eventos y referencias vencidos; acceso restringido a personas autorizadas para seguridad/administración, sin edición ordinaria |
+| Logs técnicos | 30 días móviles desde su creación | Eliminación automática; registrar solo eventos técnicos necesarios, sin cuerpos de petición, relatos clínicos, credenciales, tokens, cookies ni enlaces de activación/recuperación |
+| Registro de idempotencia/procesamiento | Mientras exista el registro de aplicación relacionado | Mantener solo UUID de operación, fecha, resultado y referencia mínima; no guardar la respuesta completa. Purga junto con el registro relacionado para conservar deduplicación durante su vida útil |
+
+Los plazos de aplicación y auditoría se cuentan desde el cierre formal del piloto, no desde cada episodio, para preservar el historial sintético durante la evaluación y un periodo de revisión posterior. El responsable registra la fecha de cierre; si el piloto no se cierra, no se inicia ese contador y debe revisarse la necesidad de mantener los datos al menos cada 90 días.
+
+La copia de seguridad conserva por ahora la regla aprobada ya documentada (24 copias horarias y 14 diarias, cifradas, claves separadas y restauración semanal aislada). Al vencer un registro, puede permanecer en una copia hasta que rote, como máximo durante el plazo de retención de esas copias. Antes de volver a exponer una base restaurada, se reaplican las purgas vencidas. La selección de proveedor/ubicación y custodia técnica de claves queda fuera de esta propuesta.
+
+Excepción por incidente de seguridad: preservar solo los registros pertinentes con motivo, responsable, fecha de inicio y fecha de revisión; restringir acceso y eliminar el material retenido al cerrar la investigación, salvo decisión documentada que justifique otra retención. No se permiten excepciones indefinidas ni ampliaciones globales automáticas.
+
+Antes de implementar, definir el proceso periódico de detección/purga, autorización, registro del resultado y verificación de restauraciones. Estos controles y plazos deben revisarse con asesoría de privacidad/legal antes de cualquier cambio que permita datos reales; esta propuesta no implica cumplimiento normativo certificado.
+
 ### Contingencia aprobada
 
 | Situación | Comportamiento esperado |
@@ -514,7 +533,7 @@ Pruebas futuras, no resultados alcanzados:
 9. Repositorio y logs no contienen secretos; auditoría funcional no es editable por usuarios ordinarios.
 10. Restauración aislada permite completar flujo esencial y medir RTO/RPO.
 
-**Pendientes de diseño/operación:** retención de aplicación/auditoría/logs; proveedor de correo y copias; verificación administrativa de identidad; mecanismo de revocación/interacción válida/formularios pendientes; alcance y vigencia de reautenticación para acciones sensibles si se incorpora. Ninguno se considera resuelto por aprobar estas políticas.
+**Pendientes de diseño/operación:** aprobar e implementar la propuesta de retención de aplicación/auditoría/logs de la sección 6; proveedor de correo y copias; verificación administrativa de identidad; mecanismo de revocación/interacción válida/formularios pendientes; alcance y vigencia de reautenticación para acciones sensibles si se incorpora. Ninguno se considera resuelto por aprobar estas políticas.
 
 ## 8. Calidad, automatización y metas
 
@@ -563,7 +582,7 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 | AS-002 | P0, AS-001 | Matriz de permisos aprobada, combinación de roles, delegación y asignación de unidad definidas | Definición aprobada (D-005); implementación/pruebas futuras |
 | AS-003 | P0, AS-001/002 | Estados, hitos, reintentos y excepciones con ejemplos de permitido/denegado | Definición aprobada (D-006); implementación/pruebas futuras |
 | AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Definición aprobada para piloto sintético (D-007); implementación/pruebas futuras |
-| AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas aprobadas (D-008); detalles operativos/técnicos y pruebas pendientes |
+| AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas aprobadas (D-008); propuesta de retención documentada y pendiente de aprobación; proveedores, otros detalles e implementación/pruebas pendientes |
 | AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Diseño mínimo aprobado (D-009); contratos detallados/implementación/pruebas pendientes |
 | AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Frontend actualizado y verificado; runtime/dependencias backend pendientes antes de su implementación |
 | AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Implementado y verificado (3 diagramas; 4 pruebas unitarias; sincronización entre pestañas) |
