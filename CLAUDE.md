@@ -5,13 +5,14 @@ datos clínicos de la ambulancia a Urgencias en tiempo real. Dos roles: `/ambula
 claro, captura) y `/urgencias` (modo oscuro, tablero).
 
 **Stack:** Vite + React + TS + Tailwind + framer-motion + zustand + react-router + lucide
-(frontend). El backend Django + DRF + Channels (Fases 4–5 de la hoja de ruta) queda como
-trabajo futuro: el MVP demostrable vive completo en `frontend/`.
+(frontend). Hay un backend local inicial Django + DRF en `backend/`; Channels, WebSocket,
+integración con frontend y despliegue siguen como trabajo futuro. Ver `docs/ETAPA_1.md`.
 
 **Tiempo real:** store Zustand (`useCases`) sincronizado **entre pestañas** del mismo
 navegador (`store/sync.ts`: BroadcastChannel + localStorage de respaldo/persistencia). Abrir
 `/ambulancia` y `/urgencias` en dos ventanas muestra el caso en vivo. El countdown de ETA corre
-con `useNow`. Sincronización entre dispositivos = backend (Fases 4–5), trabajo futuro.
+con `useNow`. El backend local inicial está documentado en `docs/ETAPA_1.md`; la integración
+con la SPA y sincronización entre dispositivos siguen siendo trabajo futuro.
 
 **Diseño:** tokens en `AmbuSync_Roadmap_MVP.md` sección 3, implementados en
 `tailwind.config.js` y `src/index.css`. El color codifica triage (no decora). Acento cian

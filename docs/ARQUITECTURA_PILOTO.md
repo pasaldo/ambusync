@@ -2,7 +2,7 @@
 
 Fecha: 29/10/2026. Tarea: AS-006. Decisión: D-009.
 
-**Diseño aprobado por el responsable del proyecto. No implementado todavía.** Complementa [ETAPA_0.md](ETAPA_0.md); no introduce uso clínico real ni sustituye validación profesional. Proveedores, versiones y pendientes operativos se especifican antes de habilitar las funciones correspondientes.
+**Diseño aprobado por el responsable del proyecto. Implementación parcial:** el primer slice backend local se registra en [ETAPA_1.md](ETAPA_1.md); el resto de la arquitectura no está implementado. No introduce uso clínico real ni sustituye validación profesional. Proveedores, versiones y pendientes operativos se especifican antes de habilitar las funciones correspondientes.
 
 ## 1. Arquitectura general
 
@@ -186,11 +186,11 @@ Sin corrección ordinaria después de recepción/cierre; posteriores errores req
 - Verificación administrativa de identidad para pérdida de correo: acuerdo D-013, comprobar por contacto institucional previo registrado y dejar constancia del verificador, método, fecha y resultado; no preguntas secretas ni cambio a un correo no verificado. Implementación/pruebas pendientes. También falta definir revocación técnica de sesiones/suscripciones.
 - Formulario no enviado al vencer sesión: conducta acordada en D-012 (solo memoria; revalidar misma cuenta/permisos; no autoenviar; descartar al cambiar cuenta). Implementación y pruebas pendientes. Resultado incierto de una escritura: consultar `operacion_id` antes de reintentar.
 - Cambio de destino con traslado ya iniciado: comportamiento aprobado en D-014: operación atómica que cancela el episodio anterior, detiene su GPS, crea reemplazo con nuevo ID/contexto autorizado y seguimiento nuevo, y conserva historial/autores anteriores; el vínculo no concede acceso cruzado entre receptores. Esquemas exactos, estado terminal y datos proyectados deben concretarse en OpenAPI/pruebas antes de habilitarlo.
-- Esquemas OpenAPI, códigos HTTP, paginación, límites técnicos, ordenación estable y contratos exactos de versiones/eventos.
-- Frontend: Node 24 LTS/npm 11.19.0; dependencias actuales actualizadas y auditadas en AS-007. Runtime, dependencias y auditoría de Python/Django/Channels quedan pendientes antes de iniciar el backend.
-- Propuesta no aprobada para evaluación gratuita de licencias: Python 3.13, Django 5.2 LTS, PostgreSQL 18, y comparar Valkey con Redis para Channels; verificar compatibilidad exacta de DRF, Channels, Daphne y `channels_redis`, soporte de parches y licencias antes de decidir. No hay backend, lockfile ni auditoría Python. Componentes autoalojables no eliminan costos de hardware/hosting, energía, red, dominio ni operación; no contratar ni desplegar por esta propuesta.
+- Contratos OpenAPI y paginación de la primera rebanada están en `backend/openapi.json` y `docs/ETAPA_1.md`; errores/contratos de los flujos restantes, límites técnicos y versiones/eventos siguen pendientes.
+- Frontend: Node 24 LTS/npm 11.19.0. El backend fija Python 3.14.10/Django 5.2.18/DRF 3.18.3 en `backend/uv.lock`; no es selección para producción.
+- Channels/Valkey están fuera del runtime del primer slice: `channels_redis` publica pruebas hasta Python 3.13; el smoke test `group_add/send/receive/discard` pasó con Python 3.14.10/Channels 4.3.2/`channels_redis` 4.3.0/Valkey 9.0.3, sin ser garantía upstream completa. PostgreSQL 18.6 está instalado para el clúster local aislado. Autoalojar no elimina costos de hardware/hosting, energía, red, dominio ni operación; no contratar ni desplegar.
 
-El diseño mínimo queda aprobado; estos detalles siguen pendientes y deben resolverse antes de implementar/habilitar sus operaciones. No empezar con permisos o persistencia provisionales que contradigan los acuerdos.
+El diseño mínimo queda aprobado; estos detalles siguen pendientes y deben resolverse antes de implementar/habilitar las operaciones restantes. No empezar con permisos o persistencia provisionales que contradigan los acuerdos.
 
 ## 10. Evidencias futuras
 

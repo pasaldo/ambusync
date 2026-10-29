@@ -2,9 +2,11 @@
 
 Fecha: 29 de octubre de 2026. Tarea documental: AS-001.
 
-**Estado: definición en revisión. No equivale a etapa terminada ni a funcionalidades implementadas.**
+**Estado: definición en revisión. No equivale a etapa terminada; la implementación parcial de etapa 1 no cierra este checklist.**
 
-Referencia: [diagnóstico del prototipo](ANALISIS_INICIAL.md) e Informe 2 aportado por el equipo. Esta etapa organiza decisiones, criterios de aceptación y preparación técnica antes de desarrollar el backend. No reemplaza la validación clínica, académica o legal.
+La transición a desarrollo local de etapa 1 está autorizada bajo el alcance de [ETAPA_1.md](ETAPA_1.md). No cierra esta etapa ni habilita despliegue: el backend implementado es parcial y siguen pendientes controles y validaciones adicionales.
+
+Referencia: [diagnóstico del prototipo](ANALISIS_INICIAL.md) e Informe 2 aportado por el equipo. Esta etapa organiza decisiones, criterios de aceptación y preparación técnica para el desarrollo del backend. No reemplaza la validación clínica, académica o legal.
 
 ## 1. Decisiones confirmadas por el responsable del proyecto
 
@@ -266,7 +268,7 @@ Pruebas futuras, todavía no ejecutadas sobre el backend:
 
 ## 5. Datos y validación de formularios
 
-**Estado: aprobado por el responsable del proyecto el 29/10/2026 (D-007, AS-004). No implementado todavía.**
+**Estado: aprobado por el responsable del proyecto el 29/10/2026 (D-007, AS-004). El primer slice local ya conserva síntomas y mediciones vitales opcionales; el resto de los criterios se implementa y verifica gradualmente.**
 
 Estas reglas son para el piloto académico con datos sintéticos. Rangos y etiquetas clínicas deben validarse con profesionales antes de cualquier uso asistencial real. No se acredita seguridad clínica por aprobar esta especificación.
 
@@ -428,7 +430,7 @@ La copia de seguridad conserva la regla ya aprobada en D-008 (24 copias horarias
 
 **Procedimiento aprobado (D-011), aún no implementado:** ejecutar una tarea programada de retención con tecnología del sistema (p. ej., temporizador del sistema operativo; sin SaaS ni licencia adicional), con modo de simulación/reporte antes de purgar; respetar las fechas aprobadas de D-010 y purgar registros vencidos y adjuntos en transacción, conservando solo métricas agregadas no reidentificables si se requieren. Registrar actor/versión de la tarea, fecha, clases y cantidades afectadas, resultado y errores, sin duplicar datos personales en el log. La tarea será reejecutable sin efectos duplicados y no borrará auditoría antes de su plazo. Los registros de idempotencia se purgarán junto al registro relacionado; solo conservarán UUID, fecha, resultado y referencia mínima —sin respuesta completa— mientras ese registro exista. Si se restaura una copia, reaplicar purgas vencidas y comprobar el resultado antes de exponer el servicio. Ante incidente, cualquier suspensión de borrado requerirá alcance, motivo, responsable y fecha límite/revisión; no admitir excepciones indefinidas.
 
-**Criterios de aceptación aprobados para el procedimiento:** pruebas de límites antes/en la fecha/después del vencimiento para cada clase y zona horaria; verificación de adjuntos y relaciones; segundo ciclo idempotente; evidencia de registros eliminados/omitidos/errores; restauración de copia sintética que vuelve a introducir un registro vencido, seguida de purga y verificación antes de habilitar acceso. Su ejecución sigue pendiente y el backend aún no existe.
+**Criterios de aceptación aprobados para el procedimiento:** pruebas de límites antes/en la fecha/después del vencimiento para cada clase y zona horaria; verificación de adjuntos y relaciones; segundo ciclo idempotente; evidencia de registros eliminados/omitidos/errores; restauración de copia sintética que vuelve a introducir un registro vencido, seguida de purga y verificación antes de habilitar acceso. Su ejecución sigue pendiente; el backend inicial de etapa 1 todavía no implementa retención.
 
 Antes de cualquier cambio que permita datos reales, requerir revisión de privacidad/legal; D-010 y D-011 no la sustituyen.
 
@@ -490,8 +492,8 @@ Las políticas siguientes están aprobadas (D-008, AS-005); su implementación y
 - Contraseñas con hash del framework, validadores y limitación de intentos; errores que no enumeren usuarios. Reglas de activación, recuperación y cambio según los apartados siguientes.
 - Entornos separados: desarrollo, staging y entrega; secretos independientes fuera de Git. PostgreSQL/Redis en red privada, sin puertos públicos.
 - Modelar usuario personal y grupos/permisos antes de las primeras migraciones. Asignación de unidad mutable con historial de auditoría; no confundir permisos funcionales con `is_superuser`.
-- Runtime frontend fijado en AS-007: Node.js 24 LTS y npm 11.19.0. Versiones de Python/Django y dependencias backend se seleccionarán antes de iniciar ese backend; todavía no hay código backend ni manifiesto que auditar.
-- **Propuesta técnica backend (AS-007, no aprobada ni implementada):** preferir componentes autoalojables y de licencia abierta, sin servicios administrados ni cuotas de nube. Como línea conservadora para evaluar: Python 3.13 + Django 5.2 LTS + DRF/Channels/Daphne compatibles; PostgreSQL 18; evaluar Valkey como almacén de eventos en vez de asumir Redis 8, sujeto a prueba de compatibilidad con `channels_redis` y revisión de licencia. No fijar parches/versiones exactas aún: verificar matriz oficial de soporte, estado de seguridad, licencias, instalación reproducible y pruebas de integración al iniciar el backend. Redis 8 debe revisarse expresamente por sus cambios de licencia. Esta opción evita una suscripción de software, pero no hace gratuito el cómputo, electricidad, conectividad, dominio, TLS/operación ni almacenamiento; además, las copias siguen bloqueadas por el requisito Chile + $0. No crear infraestructura ni contratar servicios con esta propuesta.
+- Runtime frontend fijado en AS-007: Node.js 24 LTS y npm 11.19.0. El backend local inicial y sus dependencias fijadas se describen en [ETAPA_1.md](ETAPA_1.md); Channels/Valkey, endurecimiento, auditoría de despliegue y resto de contratos siguen pendientes.
+- **Base autorizada para evaluación backend local (29/10/2026; no es selección para producción):** Python 3.14 en su último parche + Django 5.2 LTS + DRF/Channels/Daphne compatibles; PostgreSQL 18; evaluar Valkey 7.2 compatible con protocolo y comandos Redis 7.2 antes de fijarlo para `channels_redis`. Se prioriza Python 3.14 por recibir instalador binario vigente y parches de seguridad; Django 5.2, DRF y Channels publican soporte para Python 3.14, pero `channels_redis` solo declara pruebas hasta Python 3.13. Esta brecha exige prueba de instalación y de integración real antes de fijar el runtime. Python 3.13.18 es solo fuente en Windows, y la 3.13.17 fue la última con instalador binario; no degradar seguridad para coincidir con su matriz. Usar componentes autoalojables/de licencia abierta, no servicios administrados ni cuotas de nube. Redis 8 no se elige: sus términos incluyen RSALv2, SSPLv1 o AGPLv3, no BSD. Software abierto no hace gratuito el cómputo, energía, conectividad, dominio u operación; copias y despliegue siguen bloqueados por Chile + $0. No crear infraestructura ni contratar servicios.
 - Escalar primero con consultas paginadas, índices y medición. Separar procesos/API/WebSocket o aumentar recursos cuando haya evidencia. No se justifica Kubernetes para la carga base del piloto.
 
 ### AS-007 — runtime y dependencias del frontend (29/10/2026)
@@ -503,8 +505,8 @@ Las políticas siguientes están aprobadas (D-008, AS-005); su implementación y
 - Verificaciones ejecutadas tras `npm ci`: `npm audit`, `npm run lint`, `npm run build`, `npm run test:sync` y `npm run check:diagrams`. Todas terminaron con código 0. La prueba de sincronización confirmó el caso entre las dos pestañas. El validador Mermaid encontró 0 diagramas, por lo que no comprobó diagramas existentes.
 - npm 11 avisó que el `postinstall` de `esbuild` no está en la lista de scripts permitidos y no lo ejecutó. El build y la prueba de sincronización sí pasaron usando el binario opcional de la plataforma; no se añadió una excepción de scripts.
 - `frontend/vite.config.ts` usa `server.host: true`: el servidor de desarrollo escucha en interfaces de red. No exponerlo públicamente; el despliegue previsto sirve la app por Nginx/HTTPS.
-- Alcance de AS-007 por ahora: frontend existente. La selección de runtime/dependencias Python/Django/Channels y su auditoría queda pendiente antes de crear el backend; no se declara backend implementado ni auditado.
-- Para backend, AS-007 tiene una línea de evaluación preliminar (Python 3.13/Django 5.2 LTS/PostgreSQL 18 y prueba Valkey frente a Redis); **no es selección aprobada**. Falta confirmar compatibilidad exacta de DRF, Channels, Daphne y `channels_redis`, revisar licencias/versiones de parche y medir costos de operación. El software abierto puede ser $0 de licencia; el hosting no se presume gratuito.
+- Alcance de AS-007 incluye frontend auditado y primer slice backend local. El backend usa versiones fijadas en `backend/uv.lock`; Channels/Valkey, endurecimiento y auditoría para exposición siguen pendientes.
+- La base backend solo está autorizada para evaluación local, no como selección de producción: Python 3.14.10/Django 5.2.18/DRF 3.18.3/PostgreSQL 18.4. La auditoría local reportó cero vulnerabilidades conocidas; revisar licencias antes de distribuir. Valkey aún requiere prueba con `channels_redis`. Software abierto puede ser $0 de licencia; hosting/operación no se presumen gratuitos.
 
 ### AS-008 — pruebas frontend repetibles y Mermaid (29/10/2026)
 
@@ -519,7 +521,7 @@ Las políticas siguientes están aprobadas (D-008, AS-005); su implementación y
 
 - Usuario/contraseña personales, cuentas creadas por administración dentro de su ámbito, sin registro público.
 - Error genérico: «Credenciales inválidas o cuenta no disponible»; no revelar existencia de cuenta.
-- Limitar intentos por cuenta y origen. Umbral inicial configurable: cinco fallos en quince minutos activan espera temporal progresiva, sin bloqueo permanente que permita denegación de acceso a terceros. Detallar algoritmo y pruebas en diseño técnico.
+- Limitar intentos por cuenta y origen. Implementación local inicial: cinco fallos en quince minutos; espera progresiva de 30 s, 1, 2, 5 y 15 min; HMAC de identificadores en vez de guardarlos en claro. Las pruebas del backend incluyen activación, progresión, expiración y respuesta genérica; proxy/despliegue aún requieren revisión.
 - Mínimo 15 caracteres; admitir frases, espacios, pegado y gestores. Máximo soportado de al menos 128 caracteres, sin truncamiento.
 - Rechazar contraseñas comunes y similares a datos de cuenta; sin cambios periódicos arbitrarios. Cambiar ante compromiso o recuperación.
 - Nunca guardar texto plano, registrar contraseñas en logs o enviarlas por correo.
@@ -548,7 +550,7 @@ Pérdida de acceso al correo: procedimiento administrativo controlado, sin pregu
 | Aviso | Dos minutos antes del vencimiento por inactividad |
 | Logout | Invalidar sesión y terminar suscripciones asociadas |
 
-GPS automático, consultas periódicas y mensajes de conexión no renuevan indefinidamente la sesión. El mecanismo de interacción válida y comprobación de caducidad debe especificarse y probarse en servidor; no depender únicamente de temporizadores React.
+GPS automático, consultas periódicas y mensajes de conexión no renuevan indefinidamente la sesión. El backend local inicial aplica los límites 30 min/12 h en servidor; las solicitudes solo renuevan inactividad con el encabezado de interacción humana acordado, y el cliente debe omitirlo en polling. Falta integrar el cliente y el aviso a 2 minutos; no depender únicamente de temporizadores React.
 
 Al vencer: bloquear operaciones, ocultar datos protegidos y pedir autenticación. Conforme a D-012, un formulario no enviado puede mantenerse solo en memoria; tras reautenticación, comprobar misma cuenta y permisos antes de volver a mostrarlo. No reenviar automáticamente; si cambia la cuenta, descartarlo. Si una escritura ya fue enviada y su resultado es incierto, consultar su `operacion_id` antes de decidir un reintento. Probar que no se mezclan cuentas ni se ejecutan acciones bajo una identidad distinta.
 
@@ -573,7 +575,7 @@ Pruebas futuras, no resultados alcanzados:
 9. Repositorio y logs no contienen secretos; auditoría funcional no es editable por usuarios ordinarios.
 10. Restauración aislada permite completar flujo esencial y medir RTO/RPO.
 
-**Pendientes de diseño/operación:** implementar y probar D-010/D-011; resolver proveedor de copias y custodia de claves; definir verificación administrativa de identidad; mecanismo de revocación/interacción válida/formularios pendientes; alcance y vigencia de reautenticación para acciones sensibles si se incorpora. Ninguno se considera resuelto solo por aprobar los plazos/procedimiento.
+**Pendientes de diseño/operación:** implementar y probar D-010/D-011; resolver proveedor de copias y custodia de claves; definir verificación administrativa de identidad; integrar al frontend el vencimiento/interacción y proteger formularios pendientes; invalidación de sesiones tras recuperación aún no implementada; alcance/vigencia de reautenticación para acciones sensibles si se incorpora. El primer slice ya incluye revocación administrativa auditada por comando, límites de sesión y rate-limit, sin cerrar todos los criterios de aceptación.
 
 ## 8. Calidad, automatización y metas
 
@@ -623,8 +625,8 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 | AS-003 | P0, AS-001/002 | Estados, hitos, reintentos y excepciones con ejemplos de permitido/denegado | Definición aprobada (D-006); implementación/pruebas futuras |
 | AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Definición aprobada para piloto sintético (D-007); implementación/pruebas futuras |
 | AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas (D-008), plazos (D-010), procedimiento (D-011), formularios (D-012) y verificación administrativa (D-013) aprobados; opciones gratuitas comparadas sin selección compatible con Chile+$0; proveedores, custodia y detalles/implementación/pruebas pendientes |
-| AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Diseño mínimo (D-009) y detalle de cambio de destino iniciado (D-014) aprobados; contratos técnicos restantes/implementación/pruebas pendientes |
-| AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Frontend actualizado y verificado; línea backend propuesta, no aprobada ni auditada; falta matriz de compatibilidad/costos antes de su implementación |
+| AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados | Diseño mínimo (D-009), detalle de cambio de destino (D-014) y contrato HTTP de la primera rebanada documentados; restantes contratos/pruebas pendientes |
+| AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Frontend y backend local inicial tienen lockfiles; `pip-audit` sin vulnerabilidades conocidas; PostgreSQL 18.6 y smoke test Channels/Valkey locales verificados. No equivale a revisión legal ni aprobación de producción |
 | AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Implementado y verificado (3 diagramas; 4 pruebas unitarias; sincronización entre pestañas) |
 | AS-009 | P1, AS-008 | CI en pull request y main; verificar una ejecución correcta y un fallo controlado | Workflow validado localmente y con ejecución GitHub exitosa en PR #1; fallo controlado local verificado |
 | AS-010 | P1, AS-006/009 | Entorno reproducible, estrategia de ramas/releases y checklist de aceptación de etapa | Guía documentada y comandos verificados en entorno actual; revisión por otro integrante pendiente |
@@ -663,7 +665,7 @@ docs(development): documenta entorno y cierre de etapa 0 [AS-010]
 
 Es una guía, no una obligación de exactamente diez commits: si una actualización exige migración incompatible, dividir por cambios comprobables; si dos ajustes documentales son inseparables, integrarlos juntos. No duplicar toda esta especificación en archivos diferentes: los siguientes commits pueden refinar secciones y enlazar detalles especializados.
 
-Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada; AS-005 políticas y AS-006 diseño mínimo aprobados con detalles pendientes; no están implementados. AS-007 actualizó/verificó el frontend, con runtime backend pendiente; AS-008 pruebas frontend implementadas/verificadas; AS-009 workflow implementado y ejecutado exitosamente en GitHub sobre PR #1; AS-010 guía implementada/verificada localmente, con revisión por otro integrante pendiente.
+Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada; AS-005 políticas y AS-006 diseño mínimo aprobados con detalles pendientes. AS-007 auditó frontend y fijó dependencias del primer slice backend; etapa 1 continúa. AS-008 pruebas frontend implementadas/verificadas; AS-009 workflow verificado sobre PR #1; AS-010 guía verificada localmente, con revisión por otro integrante pendiente.
 
 ## 11. Condiciones para cerrar la etapa 0
 
@@ -678,7 +680,7 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [ ] Implementar y probar retención D-010/D-011; resolver proveedor/ubicación de copias compatible con Chile y $0, custodia de claves y procedimiento de restauración antes del despliegue. Mailpit queda como patrón local; no se habilita entrega externa.
 - [x] Modelo/contratos mínimos y dependencias de tareas revisados (D-009, 29/10/2026).
 - [ ] Contratos técnicos detallados y excepciones pendientes resueltos antes de habilitar cada operación, según ARQUITECTURA_PILOTO.md.
-- [x] Dependencias vulnerables del frontend tratadas y auditadas (AS-007, npm audit: 0 vulnerabilidades); auditar también backend antes de exponer servicios.
+- [x] Dependencias vulnerables del frontend tratadas (`npm audit` 0); primer backend auditado localmente (`pip-audit` 0 vulnerabilidades conocidas). Reauditar antes de exponer servicios.
 - [x] Pruebas frontend repetibles con evidencia (AS-008).
 - [x] CI operativo en PR con evidencia de ejecución exitosa y fallo controlado local (AS-009); no implica merge ni ejecución sobre `main`.
 - [ ] Entorno e instrucciones verificadas por otro integrante cuando sea posible.

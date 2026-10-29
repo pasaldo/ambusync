@@ -1,6 +1,6 @@
 # Guía de desarrollo y contribución
 
-Esta guía describe el estado actual del repositorio, cómo preparar el frontend y cómo revisar cambios. La SPA es un prototipo con **datos sintéticos**; no está autorizado para atención clínica real. El backend y la infraestructura descritos en la arquitectura todavía no están implementados.
+Esta guía describe el estado actual del repositorio, cómo preparar frontend y backend local y cómo revisar cambios. La SPA es un prototipo con **datos sintéticos**; no está autorizado para atención clínica real. El backend implementa solo el primer slice local de etapa 1; Channels, WebSocket y despliegue siguen pendientes. Consulta [ETAPA_1.md](ETAPA_1.md) para su entorno y alcance.
 
 ## Preparar el entorno
 
@@ -87,7 +87,7 @@ Usa esta lista en la revisión final; la tabla de estado y evidencia de `docs/ET
 - [ ] Decisiones D-001–D-009 y límites sintéticos siguen vigentes y aprobados.
 - [ ] Dependencias del frontend auditadas; verificaciones locales y CI registradas.
 - [ ] Entorno reproducible probado desde checkout limpio; otra persona lo revisó cuando esté disponible.
-- [ ] Runtime, dependencias y auditoría del backend completados antes de implementarlo o exponer servicios.
+- [ ] Runtime/dependencias locales fijados y auditados; PostgreSQL 18.6 local verificado. El slice inicial no autoriza exposición; completar controles adicionales antes de cualquier despliegue.
 - [ ] Contratos técnicos, operación, seguridad, retención, correo, copias y restauración resueltos y verificados según el alcance.
 - [ ] Criterios de aceptación, pruebas de integración, rendimiento y restauración tienen resultados observados y evidencia; no se sustituyen por metas planeadas.
 - [ ] Rúbrica, calendario y disponibilidad del equipo confirmados; PRs pendientes resueltos según aprobación del responsable.
