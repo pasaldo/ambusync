@@ -15,10 +15,13 @@ Referencia: [diagnóstico del prototipo](ANALISIS_INICIAL.md) e Informe 2 aporta
 | D-003 | Permisos administrativos y de urgencias combinables explícitamente | Una cuenta puede tener ambos; administrar usuarios no concede por sí solo acceso clínico |
 | D-004 | Alcance y exclusiones de la sección 2 aprobados el 29/10/2026 | Línea base del piloto para defensa; cambios posteriores requieren evaluación y aprobación explícita |
 | D-005 | Personas, unidades y permisos de la sección 3 aprobados el 29/10/2026 | Cuentas personales, colaboración por unidad, permisos adicionales separados y protecciones ante desactivación/reasignación |
+| D-006 | Ciclo de vida, hitos y excepciones de la sección 4 aprobados el 29/10/2026 | Sin estado `creada` separado; lectura explícita, inicio/cierre manuales, llegada excepcional y cambio de destino atómico |
 
 D-002 modifica el diseño de cuentas por unidad del Informe 2. D-003 exige adaptar el campo de rol único del diccionario: proponer conjuntos de permisos/grupos, sin un booleano que conceda acceso total. Mantener trazabilidad de estas diferencias al actualizar el informe.
 
-Las secciones 2 y 3 tienen **alcance y reglas de personas/unidades/permisos aprobados por el responsable del proyecto**. Los demás apartados mantienen su condición de propuesta salvo decisiones expresamente confirmadas. Estas aprobaciones no equivalen a validación clínica ni a funcionalidades implementadas.
+D-006 simplifica el modelo del Informe 2: crear y habilitar el episodio para el receptor son una sola operación transaccional; `creada_en` permanece como fecha, no como estado. El diagnóstico inicial describe la especificación anterior como antecedente histórico; para la implementación rigen los acuerdos aprobados de este documento.
+
+Las secciones 2, 3 y 4 tienen **alcance, permisos y ciclo de vida aprobados por el responsable del proyecto**. Los demás apartados mantienen su condición de propuesta salvo decisiones expresamente confirmadas. Estas aprobaciones no equivalen a validación clínica ni a funcionalidades implementadas.
 
 ## 2. Objetivo y límites del entregable
 
@@ -55,7 +58,7 @@ Demostrar un traslado completo entre un móvil y un computador distintos: admini
 
 **Conectividad:** no hay modo offline persistente. Se puede mantener formulario pendiente en memoria mientras la página siga abierta, sin garantizar conservación al cerrar o recargar. No mostrar éxito si no existe confirmación del servidor.
 
-**Cambio de destino:** no se edita directamente el hospital después del envío. La vía acordada para un cambio antes de recepción es cancelar con motivo y crear otro episodio vinculado, conservando historial. Los permisos, validaciones, notificación al destino anterior y manejo de fallos de esta operación se concretarán en AS-002/AS-003; no habilitarla sin ese diseño. No implica permitir cancelar episodios ya recibidos o cerrados.
+**Cambio de destino:** no se edita directamente el hospital después del envío. La vía acordada para un cambio antes de recepción es cancelar con motivo y crear otro episodio vinculado en una sola transacción, conservando historial y aislamiento entre receptores. Los permisos y reglas aprobados se detallan en las secciones 3 y 4. No implica permitir cancelar episodios ya recibidos o cerrados.
 
 **Catálogo de síntomas:** selección y ampliación controlada por personal autorizado mediante el permiso adicional definido en la sección 3. El texto ingresado no debe modificar automáticamente el catálogo.
 
@@ -156,34 +159,102 @@ Estas pruebas se implementarán y ejecutarán en las etapas de backend/integraci
 
 ## 4. Ciclo de vida y significado de las confirmaciones
 
-### Propuesta de estados del episodio
+**Estado: aprobado por el responsable del proyecto el 29/10/2026 (D-006, AS-003). No implementado todavía.**
 
-| Estado/transición | Regla y responsable |
+### Estados del episodio
+
+```text
+Borrador → Notificada → En traslado → Recibida → Cerrada
+                │            │
+                └── Cancelada ┘
+```
+
+El diagrama muestra el flujo habitual; las rutas excepcionales aprobadas se detallan debajo.
+
+| Estado | Significado y reglas |
 |---|---|
-| Borrador | Solo memoria de la sesión; todavía no es un episodio confirmado por servidor |
-| `creada` | Registro validado y persistido con fecha/ID del servidor |
-| `creada → notificada` | Propuesta: episodio habilitado para consulta del receptor; evento emitido tras commit cuando sea posible. No acredita lectura ni llegada |
-| `notificada → en_traslado` | Persona de la unidad asignada confirma inicio |
-| `en_traslado → recibida` | Urgencias del destino confirma llegada física, autor y fecha |
-| `recibida → cerrada` | Urgencias cierra el episodio; no puede cerrar antes de llegada |
-| Activa → `cancelada` | Antes de recibida, motivo obligatorio y autor autorizado |
-| `cerrada` / `cancelada` | Terminales; sin reapertura, eliminación física ni edición ordinaria del historial |
+| Borrador | Formulario en memoria, corregible/descartable, no visible para urgencias. Sin botón independiente para guardar borradores en servidor. Puede perderse al cerrar/recargar |
+| `notificada` | «Enviar a urgencias» valida, persiste y habilita el episodio para el destino en una sola transacción, asignando ID, autor, unidad y fecha del servidor. No acredita que alguien lo haya visto o leído |
+| `en_traslado` | Persona de la unidad asignada confirma inicio manualmente o declara traslado ya iniciado al enviar. Continúan antecedentes/mediciones y seguimiento GPS con permiso |
+| `recibida` | Urgencias confirma llegada física con autor y fecha. Se detiene GPS, la ambulancia deja de modificar y el episodio pasa de entrantes a recibidos pendientes de cierre |
+| `cerrada` | Urgencias cierra manualmente tras recepción, con autor y fecha. Histórico autorizado; sin edición ordinaria, reapertura ni borrado del historial |
+| `cancelada` | Unidad asignada cancela antes de recepción con motivo, autor y fecha. Se detiene GPS, se comunica el cambio al receptor y deja de ser entrante activo; historial conservado |
 
-Lectura y preparación son hitos separados, con actor/fecha. Primera lectura no se sobrescribe; cada acuse puede registrarse en auditoría. Una repetición con el mismo identificador de operación devuelve el resultado anterior; una segunda transición distinta que ya no procede se rechaza sin repetir sus efectos.
+No existe `creada` como estado separado; se conserva `creada_en`. Después del commit se intenta avisar por WebSocket. Si el aviso falla, el episodio sigue consultable por API; no se borra ni se declara leído. Mensaje recomendado al emisor: «Guardado en servidor · pendiente de lectura».
+
+Capturar una primera posición al enviar si hay permiso; comenzar seguimiento periódico al iniciar traslado, incluido el caso declarado como ya iniciado. La falta de GPS no bloquea registro ni traslado. No se infiere llegada a partir de ubicación, vencimiento del ETA o apertura de detalle.
+
+### Lectura y preparación como hitos
+
+| Hito | Regla aprobada |
+|---|---|
+| Lectura confirmada | Urgencias pulsa «Confirmar lectura»; abrir el detalle no confirma automáticamente. Conservar primer lector y primera fecha |
+| Preparación registrada | Urgencias pulsa «Registrar preparación» después de lectura. No equivale a box disponible ni inicio de atención |
+
+Pueden ocurrir antes o durante el traslado, sin reemplazar su estado. No se exigen lectura/preparación para confirmar una llegada real ni se inventan hitos retrospectivos. Cada acción se audita. Los reintentos de una misma operación no duplican efectos.
+
+### Transiciones y responsables
+
+| Transición | Responsable y condición |
+|---|---|
+| Borrador → `notificada` | Ambulancia; datos válidos, unidad asignada y destino habilitado |
+| Borrador → `en_traslado` | Ambulancia al enviar con «Traslado ya iniciado»; mismas validaciones y persistencia atómica |
+| `notificada → en_traslado` | Ambulancia de la unidad asignada; versión vigente |
+| `en_traslado → recibida` | Urgencias del destino; confirma llegada física |
+| `notificada → recibida` | Urgencias del destino; llegada física, motivo de excepción y auditoría de inicio no registrado |
+| `recibida → cerrada` | Urgencias del destino; recepción previamente registrada y cierre manual |
+| `notificada` / `en_traslado → cancelada` | Ambulancia de la unidad asignada; antes de recepción, motivo obligatorio |
+| `cerrada` / `cancelada → otro estado` | Rechazado en operación ordinaria |
+
+Administración y cuentas técnicas no sustituyen los permisos funcionales. Cada transición comprueba autorización, versión y estado en servidor. Un reintento con el mismo identificador de operación devuelve su resultado anterior sin duplicar efectos; una nueva operación incompatible con el estado actual se rechaza.
+
+### Excepciones y concurrencia
+
+**Llegada sin inicio registrado:** permitir `notificada → recibida`, exigir motivo y conservar evidencia de la excepción. No crear una hora de salida ficticia. La falta de lectura/preparación tampoco impide confirmar llegada.
+
+**Traslado ya iniciado al enviar:** opción explícita «Traslado ya iniciado». Crear directamente `en_traslado`, registrando cuándo el servidor recibió la declaración. No presentar ese instante como hora real de salida si se desconoce; creación y declaración son datos distintos.
+
+**Cambio de hospital tras envío:** acción «Cambiar destino» de la unidad autorizada, antes de recepción:
+
+1. Solicitar nuevo destino y motivo.
+2. Validar destino habilitado, permisos, versión y estado vigente.
+3. Cancelar el anterior y crear el reemplazo vinculado **en una sola transacción**.
+4. Conservar paciente y copiar únicamente antecedentes pertinentes; no copiar lectura/preparación como si el nuevo receptor las hubiera confirmado.
+5. Conservar el anterior cancelado para el receptor original y habilitar el reemplazo para el nuevo receptor; emitir avisos tras commit y reconciliar por API si se pierden.
+6. Si falla la transacción, no cancelar el original ni crear un reemplazo parcial. Reintentos no crean reemplazos duplicados.
+
+El vínculo no concede al nuevo receptor acceso al episodio anterior ni a información interna del otro establecimiento. La especificación técnica de copia/proyección de antecedentes y tratamiento del seguimiento del reemplazo se detallará en AS-006, respetando estos límites.
+
+**Recepción y cancelación simultáneas:** serializar la decisión mediante transacción y comprobación de versión/estado. Si recepción confirma primero, rechazar cancelación; si cancelación confirma primero, rechazar recepción del episodio cancelado y mostrar conflicto. Nunca guardar ambos resultados como compatibles. Aplicar la misma protección a cambio de destino frente a recepción.
+
+**Corrección tras cierre:** fuera de edición ordinaria de esta versión. Sin botón de reapertura ni modificación silenciosa. Una futura rectificación deberá preservar original, motivo, autor y fecha; no se considera implementada por este acuerdo.
 
 ### Estado del envío, separado del episodio
 
 | Indicador visible | Significado |
 |---|---|
-| Pendiente | No hay confirmación autoritativa; puede existir una operación cuyo resultado se perdió |
+| Pendiente de envío | Formulario sin confirmación del servidor |
+| Enviando | Solicitud en curso |
+| Resultado sin confirmar | Respuesta perdida; el servidor podría haber guardado la operación |
 | Guardado en servidor | Persistencia confirmada; no equivale a leído por urgencias |
-| Fallido | Rechazo conocido y explicado; un timeout por sí solo no demuestra rechazo |
+| Rechazado | Error concreto informado por el servidor, por ejemplo validación o permisos; un timeout no demuestra rechazo |
 | Leído por urgencias | Acuse explícito del usuario receptor |
-| Recibido | Llegada física confirmada, nunca inferida del ETA o de abrir una tarjeta |
 
 Si se pierde la respuesta después de guardar, reintentar con el mismo `operacion_id` y reconciliar por API. Si se pierde un evento WebSocket, el registro persistido debe seguir siendo recuperable. El fallo del aviso no borra la transacción.
 
-**Pendientes operacionales:** llegada sin inicio de traslado registrado y detalle de ejecución del cambio de destino. La sección 3 ya determina que solo ambulancia de la unidad asignada puede cancelar antes de recepción con motivo; urgencias no cancela unilateralmente. El cambio de destino excluye edición directa tras envío y prevé cancelación más nuevo episodio vinculado antes de recepción; faltan reglas de transición, notificación y manejo de fallos. Cada episodio contiene un paciente; no se modela una emergencia con varios pacientes en esta versión. No implementar excepciones silenciosas.
+### Criterios de aceptación del ciclo de vida
+
+Pruebas futuras, todavía no ejecutadas sobre el backend:
+
+- No se puede cerrar sin recepción, cancelar tras recepción ni reabrir estados terminales.
+- Abrir detalle no confirma lectura; preparación requiere lectura y no cambia estado del traslado.
+- GPS y ETA no confirman llegada; recepción detiene seguimiento y edición por ambulancia.
+- Llegada sin inicio registrado exige motivo y no inventa fecha de salida.
+- «Traslado ya iniciado» crea el episodio en el estado correcto, con fechas diferenciadas.
+- Cancelación conserva historial y se refleja en el receptor, incluso tras reconexión.
+- Reintentos no duplican episodios, hitos, cancelaciones ni reemplazos.
+- Cambio de destino confirma cancelación/reemplazo juntos o no modifica ninguno; ningún receptor accede al historial privado del otro por el vínculo.
+- Versiones obsoletas y recepción/cancelación simultáneas producen un resultado único y conflicto visible para la operación incompatible.
 
 ## 5. Datos y validación de formularios
 
@@ -259,9 +330,9 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 
 | ID | Prioridad/dependencia | Entrega y aceptación | Estado |
 |---|---|---|---|
-| AS-001 | P0 | Línea base de alcance y decisiones; D-001–005 registradas; revisión de apartados restantes | Alcance y permisos aprobados; definición restante en revisión |
+| AS-001 | P0 | Línea base de alcance y decisiones; D-001–006 registradas; revisión de apartados restantes | Alcance, permisos y ciclo de vida aprobados; definición restante en revisión |
 | AS-002 | P0, AS-001 | Matriz de permisos aprobada, combinación de roles, delegación y asignación de unidad definidas | Definición aprobada (D-005); implementación/pruebas futuras |
-| AS-003 | P0, AS-001/002 | Estados, hitos, reintentos y excepciones con ejemplos de permitido/denegado | Propuesta |
+| AS-003 | P0, AS-001/002 | Estados, hitos, reintentos y excepciones con ejemplos de permitido/denegado | Definición aprobada (D-006); implementación/pruebas futuras |
 | AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Propuesta |
 | AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Propuesta |
 | AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Propuesta |
@@ -304,7 +375,7 @@ docs(development): documenta entorno y cierre de etapa 0 [AS-010]
 
 Es una guía, no una obligación de exactamente diez commits: si una actualización exige migración incompatible, dividir por cambios comprobables; si dos ajustes documentales son inseparables, integrarlos juntos. No duplicar toda esta especificación en archivos diferentes: los siguientes commits pueden refinar secciones y enlazar detalles especializados.
 
-Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 tiene definición aprobada, no implementación; AS-003–010 mantienen sus pendientes.
+Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 y AS-003 tienen definición aprobada, no implementación; AS-004–010 mantienen sus pendientes.
 
 ## 11. Condiciones para cerrar la etapa 0
 
@@ -313,7 +384,7 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [x] Permisos combinables confirmados (D-003).
 - [x] Alcance funcional/exclusiones y escenario de aceptación aprobados (D-004, 29/10/2026).
 - [x] Matriz de permisos, delegación y unidad asignada aprobadas (D-005, 29/10/2026).
-- [ ] Estados, excepciones, lectura y entrega técnica diferenciados y aprobados.
+- [x] Estados, excepciones, lectura y entrega técnica diferenciados y aprobados (D-006, 29/10/2026).
 - [ ] Campos, límites, triaje pendiente y tratamiento de lactantes resueltos o explícitamente excluidos con aprobación.
 - [ ] Políticas de sesión, contraseñas y recuperación definidas.
 - [ ] Modelo/contratos mínimos y dependencias de tareas revisados.
@@ -322,4 +393,4 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [ ] Entorno e instrucciones verificadas por otro integrante cuando sea posible.
 - [ ] Rúbrica de Nota 3, fecha de defensa y disponibilidad del equipo confirmadas.
 
-**Próxima revisión:** ciclo de vida, hitos y excepciones (sección 4, AS-003). Alcance y permisos ya están aprobados; no iniciar módulos clínicos con reglas pendientes que obliguen a rehacer el modelo.
+**Próxima revisión:** datos y validación de formularios (sección 5, AS-004): obligatoriedad, límites, datos desconocidos, lactantes y triaje pendiente. Alcance, permisos y ciclo de vida ya están aprobados; no iniciar módulos clínicos con reglas pendientes que obliguen a rehacer el modelo.
