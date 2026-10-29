@@ -182,6 +182,7 @@ Sin corrección ordinaria después de recepción/cierre; posteriores errores req
 ## 9. Pendientes explícitos y condiciones de implementación
 
 - Proveedores de correo/copias y retención de aplicación, auditoría, logs y registro de operaciones procesadas.
+- Requisito comunicado para servicios externos/copias: jurisdicción Chile y costo recurrente $0. No hay opción de almacenamiento externo que cumpla ambos requisitos confirmada; no desplegar ni cambiar jurisdicción para usar una cuota gratuita incompatible.
 - Verificación administrativa de identidad y revocación técnica de sesiones/suscripciones.
 - Formulario durante reautenticación: preservación/descarte sin exposición a otra cuenta ni reenvío bajo identidad distinta.
 - Detalle del reemplazo si traslado ya está iniciado: estado, seguimiento y proyección autorizada de antecedentes.
