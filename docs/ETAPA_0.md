@@ -14,10 +14,11 @@ Referencia: [diagnóstico del prototipo](ANALISIS_INICIAL.md) e Informe 2 aporta
 | D-002 | Cuentas personales para personal de ambulancia | Cada acción identifica a una persona autenticada y a su unidad asignada; no se comparten contraseñas de ambulancia |
 | D-003 | Permisos administrativos y de urgencias combinables explícitamente | Una cuenta puede tener ambos; administrar usuarios no concede por sí solo acceso clínico |
 | D-004 | Alcance y exclusiones de la sección 2 aprobados el 29/10/2026 | Línea base del piloto para defensa; cambios posteriores requieren evaluación y aprobación explícita |
+| D-005 | Personas, unidades y permisos de la sección 3 aprobados el 29/10/2026 | Cuentas personales, colaboración por unidad, permisos adicionales separados y protecciones ante desactivación/reasignación |
 
 D-002 modifica el diseño de cuentas por unidad del Informe 2. D-003 exige adaptar el campo de rol único del diccionario: proponer conjuntos de permisos/grupos, sin un booleano que conceda acceso total. Mantener trazabilidad de estas diferencias al actualizar el informe.
 
-La sección 2 tiene **alcance aprobado por el responsable del proyecto**. Los demás apartados mantienen su condición de propuesta salvo decisiones expresamente confirmadas. La aprobación de alcance no equivale a aprobación clínica, a permisos detallados acordados ni a funcionalidades implementadas.
+Las secciones 2 y 3 tienen **alcance y reglas de personas/unidades/permisos aprobados por el responsable del proyecto**. Los demás apartados mantienen su condición de propuesta salvo decisiones expresamente confirmadas. Estas aprobaciones no equivalen a validación clínica ni a funcionalidades implementadas.
 
 ## 2. Objetivo y límites del entregable
 
@@ -56,7 +57,7 @@ Demostrar un traslado completo entre un móvil y un computador distintos: admini
 
 **Cambio de destino:** no se edita directamente el hospital después del envío. La vía acordada para un cambio antes de recepción es cancelar con motivo y crear otro episodio vinculado, conservando historial. Los permisos, validaciones, notificación al destino anterior y manejo de fallos de esta operación se concretarán en AS-002/AS-003; no habilitarla sin ese diseño. No implica permitir cancelar episodios ya recibidos o cerrados.
 
-**Catálogo de síntomas:** selección y ampliación controlada por personal autorizado. El texto ingresado no debe modificar automáticamente el catálogo. El permiso concreto se resolverá en AS-002.
+**Catálogo de síntomas:** selección y ampliación controlada por personal autorizado mediante el permiso adicional definido en la sección 3. El texto ingresado no debe modificar automáticamente el catálogo.
 
 ### Fuera de esta versión
 
@@ -86,16 +87,20 @@ Esta es una condición de aceptación futura, no un resultado alcanzado. Los 20 
 
 ## 3. Personas, instituciones y unidades
 
+**Estado: aprobado por el responsable del proyecto el 29/10/2026 (D-005, AS-002). No implementado todavía.**
+
+### Organización y ámbito de acceso
+
 - La institución puede ser operadora, receptora o ambas.
 - Una ambulancia pertenece a una institución y su código es único dentro de ella.
-- Cada persona tiene cuenta propia, institución y permisos explícitos.
+- Cada persona tiene credenciales propias, una institución de pertenencia, permisos explícitos y estado activo/desactivado. No se comparten contraseñas de unidad.
 - Para operar como ambulancia necesita una unidad activa asignada de su institución.
-- Propuesta inicial: una unidad activa por operador en un momento dado; varias personas pueden estar asignadas a la misma unidad. Registrar autor y unidad en cada operación y auditar reasignaciones.
-- Propuesta de alcance: el operador consulta/actualiza episodios activos de su unidad actual, aunque otro integrante los haya creado. No obtiene acceso a otras unidades ni a todo el historial institucional.
+- Una unidad activa por operador en un momento dado; varias personas pueden estar asignadas a la misma unidad. Registrar autor y unidad en cada operación y auditar reasignaciones.
+- El operador consulta/actualiza episodios activos de su unidad actual, aunque otro integrante los haya creado. Puede consultar las confirmaciones de lectura/preparación, pero no efectuarlas por urgencias. No obtiene acceso a otras unidades ni a todo el historial institucional.
 - El receptor consulta únicamente episodios dirigidos a su institución. Una transferencia comparte el episodio, no todo el historial del paciente.
 - La desactivación de una cuenta o retiro de permisos debe impedir nuevas operaciones y terminar/revalidar suscripciones activas. No basta con ocultar controles en React.
 
-### Matriz de permisos propuesta
+### Matriz de permisos aprobada
 
 | Operación | Ambulancia | Urgencias | Administración institucional |
 |---|---|---|---|
@@ -105,12 +110,49 @@ Esta es una condición de aceptación futura, no un resultado alcanzado. Los 20 
 | Registrar posición/inicio de traslado | Unidad asignada y episodio activo | Consultar posición autorizada | No por defecto |
 | Confirmar lectura/preparación | No | Sí, destino correspondiente | No por defecto |
 | Registrar llegada/cierre | No | Sí, destino correspondiente | No por defecto |
-| Cancelar antes de llegada | Propuesta: unidad asignada, con motivo | Pendiente de decisión | No por defecto |
-| Consultar informes clínicos | No por defecto | Propuesta: permiso adicional de informes, limitado al destino | No por defecto |
-| Desactivar paciente de prueba | No | Propuesta: permiso adicional, ámbito autorizado, sin episodio activo | No por defecto |
-| Acceder a auditoría | No por defecto | Según permiso y alcance de objeto | Propuesta: auditoría administrativa sin contenido clínico |
+| Cancelar antes de recepción | Unidad asignada, con motivo obligatorio | No | No por defecto |
+| Consultar histórico e informes clínicos | No por defecto | Con permiso adicional de informes, limitado al destino | No por defecto |
+| Desactivar paciente de prueba | No | Con permiso adicional, ámbito autorizado y sin episodio activo | No por defecto |
+| Acceder a auditoría administrativa | No por defecto | No por defecto | Sí, institución propia, sin contenido clínico |
+| Gestionar catálogo de síntomas | Solo con permiso adicional y dentro de su institución | Solo con permiso adicional y dentro de su institución | Solo con permiso adicional y dentro de su institución |
 
-Una cuenta con administración + urgencias acumula solo los permisos expresamente otorgados y dentro de su ámbito. Prohibir autoescalamiento de privilegios. El primer administrador se provisiona mediante procedimiento controlado; no hay registro público ni contraseñas predeterminadas versionadas. Las cuentas técnicas de infraestructura se separan de las cuentas funcionales.
+«No por defecto» significa que se necesita otro permiso explícito; administrar usuarios no concede acceso clínico. Ningún permiso concede acceso fuera del ámbito autorizado.
+
+### Responsabilidades y permisos adicionales
+
+- **Administración institucional:** gestiona y desactiva cuentas/ambulancias propias, asigna y retira personal, restablece acceso por procedimiento controlado y consulta auditoría administrativa. No administra otras instituciones, no modifica episodios ni confirma llegadas/cierres sin el permiso funcional correspondiente.
+- **Ambulancia:** crea episodios para su unidad asignada, actualiza antecedentes y agrega mediciones durante el traslado, registra posición/inicio y cancela antes de recepción con motivo. No suplanta unidades, no cambia directamente destino tras envío y no edita episodios cerrados/cancelados.
+- **Urgencias:** consulta antecedentes, mediciones y posición de episodios del destino; registra lectura, preparación, llegada y cierre. No sobrescribe mediciones del emisor ni cancela unilateralmente. Ante errores solicita corrección al operador; el procedimiento de contingencia se documentará en AS-003/AS-005.
+- **Informes:** permiso adicional al de urgencias para consultar histórico, filtros y resúmenes del destino autorizado.
+- **Desactivación de pacientes de prueba:** permiso adicional al de urgencias; solo pacientes sintéticos dentro del ámbito autorizado, sin episodios activos y conservando episodios/auditoría. No habilita borrado físico.
+- **Gestión de síntomas:** permiso adicional explícito para agregar/desactivar elementos del catálogo institucional, con una base inicial común. No modifica catálogos ajenos ni altera síntomas ya registrados en episodios.
+
+Una cuenta con administración + urgencias puede utilizar ambas funciones dentro de su ámbito; cada acción conserva autoría. El «maestro» es una cuenta personal con permisos administrativos, no una cuenta compartida ni un superusuario técnico. Se prohíbe autoescalamiento: solo se conceden permisos cuya delegación esté autorizada, nunca privilegios superiores a esa autorización. El primer administrador se provisiona mediante procedimiento controlado; no hay registro público ni contraseñas predeterminadas versionadas. Las cuentas técnicas de infraestructura se separan de las cuentas funcionales.
+
+### Reasignación y desactivación
+
+1. Solo administración institucional reasigna personal entre sus unidades; toda reasignación se audita.
+2. Al cambiar de unidad, la persona pierde acceso a la anterior y obtiene únicamente el acceso correspondiente a la nueva; su autoría histórica no cambia.
+3. Antes de retirar al último operador habilitado de una unidad con episodios activos, se exige un reemplazo habilitado o resolver esos episodios. Aplicar esta protección también a una desactivación ordinaria que retire al último operador.
+4. Desactivar una cuenta bloquea nuevas operaciones y revoca su acceso, incluso con sesión abierta; no elimina sus registros previos. El procedimiento de contención ante compromiso y la forma técnica de revocación se detallarán en AS-005.
+5. No se puede desactivar una ambulancia con episodios activos.
+6. No se puede desactivar al último administrador habilitado sin disponer de otro.
+7. Las conexiones WebSocket deben dejar de entregar información al revocar permisos o cambiar el ámbito de acceso.
+
+### Criterios de aceptación de permisos
+
+Estas pruebas se implementarán y ejecutarán en las etapas de backend/integración; su definición no constituye un resultado aprobado:
+
+- Un operador de la unidad A no consulta ni modifica episodios de B, incluso con ID conocido.
+- Urgencias no obtiene episodios de otro hospital mediante API, informes o suscripciones.
+- Un administrador sin permisos clínicos no obtiene antecedentes de pacientes.
+- Un usuario no se concede privilegios ni administra instituciones ajenas.
+- Una cuenta desactivada deja de operar con sesiones/suscripciones previamente abiertas.
+- Las cuentas combinadas ejecutan solo acciones explícitamente concedidas y dentro de su ámbito.
+- Una persona puede continuar un episodio de su unidad creado por otro integrante y queda identificada como autora de sus propias acciones.
+- Reasignar personal revoca acceso a la unidad anterior; no altera la autoría previa.
+- Se rechazan desactivaciones de ambulancias con episodios activos y del último administrador; se protege la continuidad al retirar al último operador de una unidad activa.
+- Sin permiso adicional se rechaza consulta de informes, desactivación de pacientes y gestión del catálogo; con permiso se mantienen las restricciones institucionales e históricas.
 
 ## 4. Ciclo de vida y significado de las confirmaciones
 
@@ -141,7 +183,7 @@ Lectura y preparación son hitos separados, con actor/fecha. Primera lectura no 
 
 Si se pierde la respuesta después de guardar, reintentar con el mismo `operacion_id` y reconciliar por API. Si se pierde un evento WebSocket, el registro persistido debe seguir siendo recuperable. El fallo del aviso no borra la transacción.
 
-**Pendientes operacionales:** llegada sin inicio de traslado registrado y cancelación por el receptor. Para cambio de destino, el alcance aprobado excluye edición directa tras envío y prevé cancelación con motivo más nuevo episodio vinculado antes de recepción; faltan reglas y permisos de ejecución. Cada episodio contiene un paciente; no se modela una emergencia con varios pacientes en esta versión. No implementar excepciones silenciosas.
+**Pendientes operacionales:** llegada sin inicio de traslado registrado y detalle de ejecución del cambio de destino. La sección 3 ya determina que solo ambulancia de la unidad asignada puede cancelar antes de recepción con motivo; urgencias no cancela unilateralmente. El cambio de destino excluye edición directa tras envío y prevé cancelación más nuevo episodio vinculado antes de recepción; faltan reglas de transición, notificación y manejo de fallos. Cada episodio contiene un paciente; no se modela una emergencia con varios pacientes en esta versión. No implementar excepciones silenciosas.
 
 ## 5. Datos y validación de formularios
 
@@ -154,7 +196,7 @@ Validación doble: React ayuda al usuario; Django decide y protege. Rechazar err
 | Edad | Entero de 0–130 años o desconocida (`null`); falta acordar meses/días para lactantes. Nunca usar cero para desconocido |
 | Sexo | F/M/X según diccionario; no informado separado como `null`, sin preselección automática. Confirmar significado de X y etiquetas |
 | Motivo | Obligatorio al enviar; propuesta 3–2.000 caracteres tras recortar extremos; admitir números y puntuación clínica |
-| Síntomas | Selección múltiple y alta controlada en catálogo; propuesta de descripción 1–120 caracteres, sin duplicados normalizados. Definir quién puede ampliar catálogo |
+| Síntomas | Selección múltiple; alta/desactivación mediante permiso adicional de gestión de catálogo institucional aprobado en sección 3. Propuesta pendiente de límites: descripción 1–120 caracteres, sin duplicados normalizados |
 | Notas adicionales | Campo separado de síntomas si se conserva; propuesta máximo 2.000 caracteres y acceso igual al episodio |
 | Signos vitales | Opcionales individualmente; ausente no genera medición ni se reemplaza por cero. Conservar valor, unidad, fecha y autor por medición |
 | SpO2 | Propuesta del Informe 2: 0–100 % |
@@ -217,8 +259,8 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 
 | ID | Prioridad/dependencia | Entrega y aceptación | Estado |
 |---|---|---|---|
-| AS-001 | P0 | Línea base de alcance y decisiones; D-001–004 registradas; revisión de apartados restantes | Alcance aprobado; definición restante en revisión |
-| AS-002 | P0, AS-001 | Matriz de permisos aprobada, combinación de roles, delegación y asignación de unidad definidas | Propuesta |
+| AS-001 | P0 | Línea base de alcance y decisiones; D-001–005 registradas; revisión de apartados restantes | Alcance y permisos aprobados; definición restante en revisión |
+| AS-002 | P0, AS-001 | Matriz de permisos aprobada, combinación de roles, delegación y asignación de unidad definidas | Definición aprobada (D-005); implementación/pruebas futuras |
 | AS-003 | P0, AS-001/002 | Estados, hitos, reintentos y excepciones con ejemplos de permitido/denegado | Propuesta |
 | AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Propuesta |
 | AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Propuesta |
@@ -262,7 +304,7 @@ docs(development): documenta entorno y cierre de etapa 0 [AS-010]
 
 Es una guía, no una obligación de exactamente diez commits: si una actualización exige migración incompatible, dividir por cambios comprobables; si dos ajustes documentales son inseparables, integrarlos juntos. No duplicar toda esta especificación en archivos diferentes: los siguientes commits pueden refinar secciones y enlazar detalles especializados.
 
-Este primer cambio documental se publica en rama de revisión; no integra automáticamente propuestas pendientes en `main` ni afirma que AS-002–010 estén completadas.
+Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 tiene definición aprobada, no implementación; AS-003–010 mantienen sus pendientes.
 
 ## 11. Condiciones para cerrar la etapa 0
 
@@ -270,7 +312,7 @@ Este primer cambio documental se publica en rama de revisión; no integra autom�
 - [x] Cuentas personales confirmadas (D-002).
 - [x] Permisos combinables confirmados (D-003).
 - [x] Alcance funcional/exclusiones y escenario de aceptación aprobados (D-004, 29/10/2026).
-- [ ] Matriz de permisos, delegación y unidad asignada aprobadas.
+- [x] Matriz de permisos, delegación y unidad asignada aprobadas (D-005, 29/10/2026).
 - [ ] Estados, excepciones, lectura y entrega técnica diferenciados y aprobados.
 - [ ] Campos, límites, triaje pendiente y tratamiento de lactantes resueltos o explícitamente excluidos con aprobación.
 - [ ] Políticas de sesión, contraseñas y recuperación definidas.
@@ -280,4 +322,4 @@ Este primer cambio documental se publica en rama de revisión; no integra autom�
 - [ ] Entorno e instrucciones verificadas por otro integrante cuando sea posible.
 - [ ] Rúbrica de Nota 3, fecha de defensa y disponibilidad del equipo confirmadas.
 
-**Próxima revisión:** personas/unidades/permisos (sección 3, AS-002) y después ciclo de vida (sección 4, AS-003). El alcance ya está aprobado; no iniciar módulos clínicos con reglas pendientes que obliguen a rehacer el modelo.
+**Próxima revisión:** ciclo de vida, hitos y excepciones (sección 4, AS-003). Alcance y permisos ya están aprobados; no iniciar módulos clínicos con reglas pendientes que obliguen a rehacer el modelo.
