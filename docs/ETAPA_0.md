@@ -447,6 +447,15 @@ Las políticas siguientes están aprobadas (D-008, AS-005); su implementación y
 - `frontend/vite.config.ts` usa `server.host: true`: el servidor de desarrollo escucha en interfaces de red. No exponerlo públicamente; el despliegue previsto sirve la app por Nginx/HTTPS.
 - Alcance de AS-007 por ahora: frontend existente. La selección de runtime/dependencias Python/Django/Channels y su auditoría queda pendiente antes de crear el backend; no se declara backend implementado ni auditado.
 
+### AS-008 — pruebas frontend repetibles y Mermaid (29/10/2026)
+
+- Causa corregida: el validador buscaba LF exacto, solo leía README y dependía de Mermaid en CDN; con CRLF encontraba cero aunque había tres diagramas.
+- `npm run check:diagrams` ahora recorre README y Markdown bajo `docs/`, acepta CRLF/LF, informa archivo/línea, falla con cero bloques, fences Mermaid sin cierre o sintaxis inválida; carga Mermaid 12.2.0 local en Chromium servido temporalmente por loopback, sin CDN ni servidor Vite.
+- `npm run test:unit` usa `node:test`; cuatro casos cubren extracción CRLF, tipos usados por README, propagación de error y validación vacía.
+- `npm run test:sync` cambió pausas fijas por esperas de elementos/estado visibles y cierra Chromium en `finally`. No guarda capturas ni deja archivos del test.
+- Prueba negativa del validador con un Markdown temporal inválido: código de salida 1 con archivo/línea y error de sintaxis; fixture retirado después. Validador real: 3/3 diagramas válidos. `test:sync`: tablero de 4 a 5 tarjetas y caso visible en la segunda pestaña.
+- Verificación tras `npm ci`: `npm audit` (0 vulnerabilidades), `npm run test:unit` (4/4), `npm run check:diagrams` (3/3), `npm run lint`, `npm run build` y `npm run test:sync`; todos pasaron. AS-009 (CI) sigue fuera de esta tarea.
+
 ### Acceso y contraseñas
 
 - Usuario/contraseña personales, cuentas creadas por administración dentro de su ámbito, sin registro público.
@@ -539,7 +548,7 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 | AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas aprobadas (D-008); detalles operativos/técnicos y pruebas pendientes |
 | AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Diseño mínimo aprobado (D-009); contratos detallados/implementación/pruebas pendientes |
 | AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Frontend actualizado y verificado; runtime/dependencias backend pendientes antes de su implementación |
-| AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Pendiente técnico |
+| AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Implementado y verificado (3 diagramas; 4 pruebas unitarias; sincronización entre pestañas) |
 | AS-009 | P1, AS-008 | CI en pull request y main; verificar una ejecución correcta y un fallo controlado | Pendiente técnico |
 | AS-010 | P1, AS-006/009 | Entorno reproducible, estrategia de ramas/releases y checklist de aceptación de etapa | Propuesta |
 
@@ -577,7 +586,7 @@ docs(development): documenta entorno y cierre de etapa 0 [AS-010]
 
 Es una guía, no una obligación de exactamente diez commits: si una actualización exige migración incompatible, dividir por cambios comprobables; si dos ajustes documentales son inseparables, integrarlos juntos. No duplicar toda esta especificación en archivos diferentes: los siguientes commits pueden refinar secciones y enlazar detalles especializados.
 
-Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada; AS-005 políticas y AS-006 diseño mínimo aprobados con detalles pendientes; no están implementados. AS-007 actualizó/verificó el frontend; la selección de runtime y dependencias backend y AS-008–010 siguen pendientes.
+Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada; AS-005 políticas y AS-006 diseño mínimo aprobados con detalles pendientes; no están implementados. AS-007 actualizó/verificó el frontend, con runtime backend pendiente; AS-008 pruebas frontend implementadas/verificadas; AS-009–010 siguen pendientes.
 
 ## 11. Condiciones para cerrar la etapa 0
 
@@ -593,8 +602,9 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [x] Modelo/contratos mínimos y dependencias de tareas revisados (D-009, 29/10/2026).
 - [ ] Contratos técnicos detallados y excepciones pendientes resueltos antes de habilitar cada operación, según ARQUITECTURA_PILOTO.md.
 - [x] Dependencias vulnerables del frontend tratadas y auditadas (AS-007, npm audit: 0 vulnerabilidades); auditar también backend antes de exponer servicios.
-- [ ] Pruebas repetibles y CI operativos con evidencia.
+- [x] Pruebas frontend repetibles con evidencia (AS-008).
+- [ ] CI operativo en PR/main con evidencia (AS-009).
 - [ ] Entorno e instrucciones verificadas por otro integrante cuando sea posible.
 - [ ] Rúbrica de Nota 3, fecha de defensa y disponibilidad del equipo confirmadas.
 
-**Próximo apartado:** pruebas frontend repetibles y corrección del validador Mermaid (AS-008), seguido de CI (AS-009). La parte frontend de AS-007 está verificada; runtime/dependencias backend y otros pendientes operativos siguen abiertos. La etapa 0 no está cerrada.
+**Próximo apartado:** CI para validar tipos, pruebas y build en pull requests y `main` (AS-009). AS-008 quedó verificado para el frontend; runtime/dependencias backend y otros pendientes operativos siguen abiertos. La etapa 0 no está cerrada.

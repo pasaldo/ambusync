@@ -1,58 +1,46 @@
-// Verifica la sincronización entre pestañas: una pestaña /ambulancia transmite
-// y otra pestaña /urgencias lo recibe en vivo (BroadcastChannel + localStorage).
 import { chromium } from "playwright";
 
 const BASE = process.env.BASE_URL || "http://localhost:5173";
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 const browser = await chromium.launch();
-const ctx = await browser.newContext(); // mismo contexto = comparten origen/BC/localStorage
-const er = await ctx.newPage();
-const amb = await ctx.newPage();
 
-// Pestaña Urgencias (siembra demo)
-await er.goto(`${BASE}/urgencias`, { waitUntil: "networkidle" });
-await sleep(700);
-const before = await er.locator("button.group").count();
-console.log("Tarjetas en Urgencias al inicio:", before);
+try {
+  const context = await browser.newContext();
+  const er = await context.newPage();
+  const ambulance = await context.newPage();
 
-// Pestaña Ambulancia: completa el wizard y transmite
-await amb.goto(`${BASE}/ambulancia`, { waitUntil: "networkidle" });
-await sleep(400);
-await amb.locator("button.group").first().click();
-await amb.waitForSelector("#cc", { state: "visible" });
-await amb.fill("#alias", "Paciente Sync");
-await amb.fill("#cc", "Prueba de sincronización entre pestañas");
-await amb.getByRole("button", { name: "Continuar" }).click();
-await sleep(300);
-// Vitales mínimas (clics con re-render entre medio)
-await amb.locator('button[aria-label="Aumentar FC"]').click();
-await sleep(120);
-await amb.locator('button[aria-label="Aumentar SatO₂"]').click();
-await sleep(120);
-await amb.getByRole("button", { name: "Continuar" }).click();
-await sleep(300);
-await amb.getByText("Crítico", { exact: true }).click();
-await amb.getByRole("button", { name: "Continuar" }).click(); // → destino
-await sleep(250);
-await amb.getByRole("button", { name: "Continuar" }).click(); // → resumen
-await sleep(250);
-await amb.getByRole("button", { name: "Transmitir al hospital" }).click();
-console.log("Transmitido desde /ambulancia. Esperando en /urgencias…");
+  await er.goto(`${BASE}/urgencias`, { waitUntil: "networkidle" });
+  const cards = er.locator("button.group");
+  await cards.first().waitFor({ state: "visible" });
+  const before = await cards.count();
+  console.log("Tarjetas en Urgencias al inicio:", before);
 
-// La pestaña de Urgencias debe mostrar al nuevo paciente SIN recargar.
-// (El botón Transmitir corre el pulso ~1600ms antes de crear el caso.)
-await sleep(2800);
-const appeared = await er
-  .getByText("Paciente Sync", { exact: false })
-  .first()
-  .isVisible()
-  .catch(() => false);
-const after = await er.locator("button.group").count();
+  await ambulance.goto(`${BASE}/ambulancia`, { waitUntil: "networkidle" });
+  await ambulance.getByRole("button", { name: "Nueva emergencia" }).click();
+  await ambulance.locator("#cc").waitFor({ state: "visible" });
+  await ambulance.fill("#alias", "Paciente Sync");
+  await ambulance.fill("#cc", "Prueba de sincronización entre pestañas");
 
-console.log("Tarjetas en Urgencias después:", after);
-console.log(appeared ? "✓ El caso apareció en vivo en la otra pestaña" : "✗ NO apareció");
+  await ambulance.getByRole("button", { name: "Continuar" }).click();
+  await ambulance.getByRole("heading", { name: "Signos vitales" }).waitFor({ state: "visible" });
+  await ambulance.locator('button[aria-label="Aumentar FC"]').click();
+  await ambulance.locator('button[aria-label="Aumentar SatO₂"]').click();
 
-await er.screenshot({ path: "../docs/screenshots/_sync-er.png" });
-await browser.close();
-process.exit(appeared && after > before ? 0 : 1);
+  await ambulance.getByRole("button", { name: "Continuar" }).click();
+  await ambulance.getByRole("heading", { name: "Clasificación de triage" }).waitFor({ state: "visible" });
+  await ambulance.getByText("Crítico", { exact: true }).click();
+
+  await ambulance.getByRole("button", { name: "Continuar" }).click();
+  await ambulance.getByRole("heading", { name: "Destino y ETA" }).waitFor({ state: "visible" });
+  await ambulance.getByRole("button", { name: "Continuar" }).click();
+  await ambulance.getByRole("heading", { name: "Resumen" }).waitFor({ state: "visible" });
+  await ambulance.getByRole("button", { name: "Transmitir al hospital" }).click();
+
+  await er.getByText("Paciente Sync", { exact: false }).first().waitFor({ state: "visible", timeout: 10000 });
+  const after = await cards.count();
+  console.log("Tarjetas en Urgencias después:", after);
+
+  if (after <= before) throw new Error("La transmisión no agregó un caso al tablero");
+  console.log("✓ El caso apareció en vivo en la otra pestaña");
+} finally {
+  await browser.close();
+}
