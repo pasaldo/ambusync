@@ -6,6 +6,8 @@ Repositorio de trabajo independiente: **[pasaldo/ambusync](https://github.com/pa
 Se conserva el historial del [prototipo original](https://github.com/brypro/ambusync).
 El diagnóstico, las pruebas iniciales y el plan de evolución están en
 **[docs/ANALISIS_INICIAL.md](docs/ANALISIS_INICIAL.md)**.
+La definición de alcance, reglas y tareas de preparación se encuentra en
+**[docs/ETAPA_0.md](docs/ETAPA_0.md)**; contiene decisiones confirmadas y propuestas pendientes de aprobación.
 La aplicación sigue siendo un prototipo de demostración, no un sistema clínico productivo.
 
 > Transmite la información clínica del paciente desde la **ambulancia** al **servicio de
