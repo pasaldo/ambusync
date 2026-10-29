@@ -1,5 +1,13 @@
 # AmbuSync
 
+## Continuidad del proyecto — Nota 3
+
+Repositorio de trabajo independiente: **[pasaldo/ambusync](https://github.com/pasaldo/ambusync)** (privado).
+Se conserva el historial del [prototipo original](https://github.com/brypro/ambusync).
+El diagnóstico, las pruebas iniciales y el plan de evolución están en
+**[docs/ANALISIS_INICIAL.md](docs/ANALISIS_INICIAL.md)**.
+La aplicación sigue siendo un prototipo de demostración, no un sistema clínico productivo.
+
 > Transmite la información clínica del paciente desde la **ambulancia** al **servicio de
 > urgencia** en tiempo real, para que el hospital anticipe la recepción y prepare recursos
 > antes del arribo.
