@@ -16,12 +16,13 @@ Referencia: [diagnóstico del prototipo](ANALISIS_INICIAL.md) e Informe 2 aporta
 | D-004 | Alcance y exclusiones de la sección 2 aprobados el 29/10/2026 | Línea base del piloto para defensa; cambios posteriores requieren evaluación y aprobación explícita |
 | D-005 | Personas, unidades y permisos de la sección 3 aprobados el 29/10/2026 | Cuentas personales, colaboración por unidad, permisos adicionales separados y protecciones ante desactivación/reasignación |
 | D-006 | Ciclo de vida, hitos y excepciones de la sección 4 aprobados el 29/10/2026 | Sin estado `creada` separado; lectura explícita, inicio/cierre manuales, llegada excepcional y cambio de destino atómico |
+| D-007 | Datos y validaciones de la sección 5 aprobados el 29/10/2026 | Edad con unidades, datos desconocidos explícitos, vitales opcionales y envío sin triaje; reglas para piloto sintético, no validación clínica |
 
 D-002 modifica el diseño de cuentas por unidad del Informe 2. D-003 exige adaptar el campo de rol único del diccionario: proponer conjuntos de permisos/grupos, sin un booleano que conceda acceso total. Mantener trazabilidad de estas diferencias al actualizar el informe.
 
 D-006 simplifica el modelo del Informe 2: crear y habilitar el episodio para el receptor son una sola operación transaccional; `creada_en` permanece como fecha, no como estado. El diagnóstico inicial describe la especificación anterior como antecedente histórico; para la implementación rigen los acuerdos aprobados de este documento.
 
-Las secciones 2, 3 y 4 tienen **alcance, permisos y ciclo de vida aprobados por el responsable del proyecto**. Los demás apartados mantienen su condición de propuesta salvo decisiones expresamente confirmadas. Estas aprobaciones no equivalen a validación clínica ni a funcionalidades implementadas.
+Las secciones 2 a 5 tienen **alcance, permisos, ciclo de vida y validaciones aprobados por el responsable del proyecto**. Los demás apartados mantienen su condición de propuesta salvo decisiones expresamente confirmadas. Estas aprobaciones no equivalen a validación clínica ni a funcionalidades implementadas.
 
 ## 2. Objetivo y límites del entregable
 
@@ -49,7 +50,7 @@ Demostrar un traslado completo entre un móvil y un computador distintos: admini
 | Acceso y administración | Cuentas personales, inicio/cierre de sesión, permisos combinables explícitos, gestión/desactivación de usuarios y ambulancias y asignación de personal. Instituciones y primer administrador se provisionan técnicamente; sin registro público de hospitales |
 | Paciente y emergencia | Identidad conocida o desconocida, edad/sexo cuando se conozcan, motivo, síntomas, vitales opcionales individualmente y triaje profesional sin clasificación automática. Destino habilitado; ID, autor, unidad y fecha del servidor. Un paciente por episodio, con posibilidad de varios episodios de una misma persona |
 | Comunicación | Dispositivos distintos, notificaciones, actualización de antecedentes y nuevas mediciones, operaciones pendientes visibles, reintentos sin duplicación, detección de conflictos y reconciliación al reconectar |
-| Panel receptor | Episodios del destino autorizado, orden por triaje/antigüedad con regla exacta pendiente, detalle, lectura, preparación, llegada y cierre. No inferir llegada por ETA, GPS o apertura del detalle |
+| Panel receptor | Episodios del destino autorizado, orden por triaje/antigüedad según sección 5, detalle, lectura, preparación, llegada y cierre. No inferir llegada por ETA, GPS o apertura del detalle |
 | Ubicación | Permiso explícito, última posición, precisión disponible, fecha/frescura, advertencia de antigüedad y parada al terminar traslado. Primer plano; sin garantía con pantalla bloqueada. Distancia geodésica aproximada, no ruta ni ETA vial; falta de GPS no bloquea registro |
 | Histórico e informes | Listado paginado, filtros por fecha/estado/unidad/triaje según permisos, detalle histórico y cantidades por estado/triaje. Sin PDF/Excel ni analítica avanzada inicialmente |
 | Desactivación | Individual, autorizada y lógica sobre pacientes sintéticos, conservando episodios y auditoría. Condiciones detalladas pendientes; no borrado físico del historial |
@@ -258,28 +259,111 @@ Pruebas futuras, todavía no ejecutadas sobre el backend:
 
 ## 5. Datos y validación de formularios
 
-Validación doble: React ayuda al usuario; Django decide y protege. Rechazar errores con campo y explicación; no corregir silenciosamente una medición clínica.
+**Estado: aprobado por el responsable del proyecto el 29/10/2026 (D-007, AS-004). No implementado todavía.**
 
-| Dato | Regla propuesta |
+Estas reglas son para el piloto académico con datos sintéticos. Rangos y etiquetas clínicas deben validarse con profesionales antes de cualquier uso asistencial real. No se acredita seguridad clínica por aprobar esta especificación.
+
+### Principios de validación
+
+- React ayuda al usuario; Django valida y protege, incluso ante solicitudes manipuladas fuera de la interfaz.
+- Desconocido no equivale a cero. No completar automáticamente datos clínicos faltantes ni sustituir valores críticos por valores normales.
+- Errores por campo, con explicación de cómo corregirlos y conservación de los datos válidos del formulario.
+- No realizar diagnóstico, asignación automática de triaje ni validación semántica clínica basada en palabras clave.
+- Rechazar caracteres de control no pertinentes al campo; admitir los saltos de línea necesarios en campos de texto multilínea, sin alterar silenciosamente el relato.
+
+### Datos del paciente
+
+| Campo | Obligatorio | Regla aprobada |
+|---|---|---|
+| Nombre/alias | No | Hasta 160 caracteres. Identidad desconocida se indica explícitamente y se muestra como «Paciente no identificado», sin almacenar esa etiqueta como nombre real |
+| Edad | No | Valor entero y unidad años/meses/días, o desconocida sin valor ni unidad |
+| Sexo registrado | No | F = femenino, M = masculino, X = indeterminado; no informado = `null`, distinto de X. Sin preselección ni inferencia a partir de nombre u otros datos |
+| RUT/documento | Fuera del alcance inicial | No necesario para demostrar el flujo; no introducir identificadores reales |
+
+Nombre/alias admite Unicode, tildes, espacios, guiones y apóstrofes; quitar espacios exteriores y rechazar caracteres de control. No usar una regla rígida de «solo letras», pues se admiten alias sintéticos.
+
+| Unidad de edad | Valores aceptados |
 |---|---|
-| Identidad | Nombre/alias opcional si se desconoce; mostrar «Paciente no identificado» sin convertirlo en nombre real |
-| Nombre/alias | Hasta 160 caracteres, espacios normalizados; admitir Unicode, tildes, guiones y apóstrofes; no una expresión de «solo letras» rígida |
-| Edad | Entero de 0–130 años o desconocida (`null`); falta acordar meses/días para lactantes. Nunca usar cero para desconocido |
-| Sexo | F/M/X según diccionario; no informado separado como `null`, sin preselección automática. Confirmar significado de X y etiquetas |
-| Motivo | Obligatorio al enviar; propuesta 3–2.000 caracteres tras recortar extremos; admitir números y puntuación clínica |
-| Síntomas | Selección múltiple; alta/desactivación mediante permiso adicional de gestión de catálogo institucional aprobado en sección 3. Propuesta pendiente de límites: descripción 1–120 caracteres, sin duplicados normalizados |
-| Notas adicionales | Campo separado de síntomas si se conserva; propuesta máximo 2.000 caracteres y acceso igual al episodio |
-| Signos vitales | Opcionales individualmente; ausente no genera medición ni se reemplaza por cero. Conservar valor, unidad, fecha y autor por medición |
-| SpO2 | Propuesta del Informe 2: 0–100 % |
-| Glasgow | Propuesta del Informe 2: entero de 3–15 |
-| Otros signos | Rechazar no numéricos/no finitos y unidades incorrectas. Rangos clínicos requieren validación profesional; no inventar límites que excluyan valores críticos plausibles |
-| Triaje | 1–5, registrado por profesional autorizado; sin algoritmo ni valor automático por defecto. Confirmar si se admite envío «sin clasificar» |
-| Unidad | Activa y asignada; no código libre elegido para suplantar otra unidad |
-| Destino | Institución receptora activa; no nombre libre sin FK |
-| Fecha/hora | Creación/transiciones con hora servidor UTC; presentación `America/Santiago`. Separar hora de medición/captura y hora de recepción |
-| Coordenadas | Latitud −90 a 90, longitud −180 a 180, precisión no negativa si se informa; pareja completa |
+| Años | Enteros de 0 a 130 |
+| Meses | Enteros de 0 a 11 |
+| Días | Enteros de 0 a 30 |
+| Desconocida | Sin valor ni unidad |
 
-El registro no debe bloquearse por falta de GPS. No mostrar ubicación antigua como vigente. Distancia Haversine aproximada, no ruta vial ni promesa de llegada. Si faltan coordenadas válidas del destino, indicar distancia no disponible.
+Mostrar siempre la unidad, por ejemplo «8 meses». Cero es una edad informada, no desconocida. Esta representación es aproximada: no convertir días/meses a años ni derivar una fecha de nacimiento ficticia. La etiqueta clínica X queda sujeta a revisión profesional antes del uso real.
+
+### Motivo, síntomas y notas
+
+| Campo | Obligatorio | Regla aprobada |
+|---|---|---|
+| Motivo de consulta | Sí, para enviar | 3–2.000 caracteres después de quitar espacios exteriores; admitir números y puntuación clínica. Rechazar vacío/solo espacios; no intentar diagnosticar el texto |
+| Síntomas | No | Selección múltiple de catálogo institucional, sin repetir el mismo síntoma dentro del episodio |
+| Descripción de catálogo | Sí, al crear un síntoma | 1–120 caracteres; sin duplicados por diferencias simples de mayúsculas o espacios; alta/desactivación solo con permiso adicional aprobado |
+| Notas adicionales | No | Campo separado de síntomas, hasta 2.000 caracteres; antecedentes, alergias conocidas y contexto pertinente; mismo acceso que el episodio |
+
+Los síntomas desactivados siguen visibles en el histórico, pero no se ofrecen en nuevas selecciones. Texto libre no modifica automáticamente el catálogo. Notas no constituyen un módulo de prescripción o gestión de tratamientos.
+
+### Signos vitales
+
+Ninguna medición es obligatoria para enviar. Ausencia se muestra como «No medido», no como normal y no genera fila de medición ni valor cero.
+
+| Medición | Unidad | Regla aprobada |
+|---|---|---|
+| Frecuencia cardíaca | lpm | Número entero, no negativo |
+| Presión sistólica | mmHg | Número entero, no negativo |
+| Presión diastólica | mmHg | Número entero, no negativo |
+| SpO2 | % | Número de 0 a 100 |
+| Frecuencia respiratoria | rpm | Número entero, no negativo |
+| Temperatura | °C | Número con hasta un decimal |
+| Glasgow | puntos | Entero de 3 a 15 |
+
+Rechazar valores no numéricos, no finitos o unidades incorrectas. No añadir otros rangos clínicos restrictivos sin validación profesional ni reemplazar silenciosamente valores fuera de rango. Cada medición conserva valor, unidad, fecha de medición y autor. Se admite sistólica o diastólica por separado; mostrar explícitamente el componente no medido.
+
+Las nuevas mediciones se agregan al historial, no sobrescriben anteriores. La corrección de un error deberá especificarse como operación trazable que preserve el original; su contrato detallado sigue pendiente en el diseño de integridad/AS-006. Colores y advertencias no asignan triaje ni diagnóstico.
+
+### Triaje y presentación del tablero
+
+- Categorías C1 a C5, seleccionadas explícitamente por operador autorizado, o «Sin clasificar».
+- Se permite enviar sin clasificación. Sin categoría preseleccionada ni clasificación por signos vitales.
+- Mostrar «Sin clasificar» destacado y en sección claramente identificada pendiente de revisión; nunca tratarlo como C5 ni representar ausencia como menor gravedad.
+- En clasificados: C1 primero, C5 al final; dentro de cada categoría, el episodio más antiguo primero.
+- Auditar autor y fecha de registro/modificación del triaje.
+- Este orden es de presentación, no decisión automatizada de atención. Los contratos técnicos de ordenación estable se concretan en AS-006.
+
+### Unidad, destino, fechas y ubicación
+
+| Dato | Regla aprobada |
+|---|---|
+| Unidad | Activa, de institución propia y asignada al usuario; no texto libre. El servidor comprueba nuevamente la asignación al guardar |
+| Destino | Institución receptora habilitada, obligatoria al enviar; selección por referencia válida, no nombre libre. Cambio posterior según sección 4 |
+| Fechas del episodio | Creación, lectura, preparación, recepción, cancelación y cierre con hora servidor; instantes con zona horaria, UTC y presentación `America/Santiago` |
+| Fechas de captura | Conservar hora de medición/posición y distinguirla de recepción en servidor. Advertir inconsistencias de reloj del dispositivo; no inventar hora real para corregirlas |
+| Coordenadas | Latitud −90 a 90 y longitud −180 a 180, ambas presentes; precisión no negativa si se informa. `(0, 0)` es válido y no equivale automáticamente a dato ausente |
+
+Sin permiso o señal GPS, indicar «Ubicación no disponible» y permitir continuar. Mostrar antigüedad y advertir muestras de más de 30 segundos; no presentar posición antigua como vigente. Distancia Haversine aproximada, no ruta vial ni promesa de llegada. Si falta origen o destino válido, indicar distancia no disponible.
+
+### Mínimo obligatorio para enviar
+
+1. Usuario autenticado y habilitado, con permiso de ambulancia.
+2. Unidad activa asignada y hospital receptor habilitado.
+3. Motivo de consulta válido.
+4. Los datos efectivamente proporcionados cumplen sus validaciones.
+
+Nombre, edad, sexo, síntomas, notas, signos vitales, triaje y GPS no son obligatorios para enviar. Mostrar ausencias explícitamente: «No informado» no equivale a «Sin problemas».
+
+### Criterios de aceptación de formularios
+
+Pruebas futuras, todavía no ejecutadas sobre el sistema nuevo:
+
+- Se envía un paciente de identidad/edad desconocidas sin inventar nombre, edad o sexo.
+- Se distingue «8 meses» de «8 años» y se validan unidades/rangos; edad 999 es rechazada.
+- Motivo vacío/solo espacios no permite enviar; se respetan máximos y errores por campo.
+- Un signo no medido no se guarda como cero; se puede enviar sin mediciones.
+- SpO2 101, Glasgow 16, frecuencias/presiones negativas y valores no finitos son rechazados.
+- Se admite una sola componente de presión y se identifica la faltante.
+- Un episodio sin triaje permanece sin clasificar, destacado y separado de C5.
+- El servidor rechaza unidad/destino manipulados fuera del ámbito permitido.
+- Los errores conservan los datos válidos del formulario; texto libre no modifica catálogo.
+- GPS ausente no bloquea envío, `(0, 0)` no se descarta como ausencia y no se calcula distancia sin coordenadas válidas.
 
 ## 6. Integridad, conservación y contingencia
 
@@ -330,10 +414,10 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 
 | ID | Prioridad/dependencia | Entrega y aceptación | Estado |
 |---|---|---|---|
-| AS-001 | P0 | Línea base de alcance y decisiones; D-001–006 registradas; revisión de apartados restantes | Alcance, permisos y ciclo de vida aprobados; definición restante en revisión |
+| AS-001 | P0 | Línea base de alcance y decisiones; D-001–007 registradas; revisión de apartados restantes | Alcance, permisos, ciclo de vida y validaciones aprobados; definición restante en revisión |
 | AS-002 | P0, AS-001 | Matriz de permisos aprobada, combinación de roles, delegación y asignación de unidad definidas | Definición aprobada (D-005); implementación/pruebas futuras |
 | AS-003 | P0, AS-001/002 | Estados, hitos, reintentos y excepciones con ejemplos de permitido/denegado | Definición aprobada (D-006); implementación/pruebas futuras |
-| AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Propuesta |
+| AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Definición aprobada para piloto sintético (D-007); implementación/pruebas futuras |
 | AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Propuesta |
 | AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Propuesta |
 | AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Pendiente técnico |
@@ -375,7 +459,7 @@ docs(development): documenta entorno y cierre de etapa 0 [AS-010]
 
 Es una guía, no una obligación de exactamente diez commits: si una actualización exige migración incompatible, dividir por cambios comprobables; si dos ajustes documentales son inseparables, integrarlos juntos. No duplicar toda esta especificación en archivos diferentes: los siguientes commits pueden refinar secciones y enlazar detalles especializados.
 
-Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 y AS-003 tienen definición aprobada, no implementación; AS-004–010 mantienen sus pendientes.
+Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada, no implementación; AS-005–010 mantienen sus pendientes.
 
 ## 11. Condiciones para cerrar la etapa 0
 
@@ -385,7 +469,7 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [x] Alcance funcional/exclusiones y escenario de aceptación aprobados (D-004, 29/10/2026).
 - [x] Matriz de permisos, delegación y unidad asignada aprobadas (D-005, 29/10/2026).
 - [x] Estados, excepciones, lectura y entrega técnica diferenciados y aprobados (D-006, 29/10/2026).
-- [ ] Campos, límites, triaje pendiente y tratamiento de lactantes resueltos o explícitamente excluidos con aprobación.
+- [x] Campos, límites, triaje pendiente y tratamiento de lactantes definidos para piloto sintético (D-007, 29/10/2026); validación clínica requerida antes de uso real.
 - [ ] Políticas de sesión, contraseñas y recuperación definidas.
 - [ ] Modelo/contratos mínimos y dependencias de tareas revisados.
 - [ ] Dependencias vulnerables tratadas o riesgo residual justificado antes de exponer servicios.
@@ -393,4 +477,4 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [ ] Entorno e instrucciones verificadas por otro integrante cuando sea posible.
 - [ ] Rúbrica de Nota 3, fecha de defensa y disponibilidad del equipo confirmadas.
 
-**Próxima revisión:** datos y validación de formularios (sección 5, AS-004): obligatoriedad, límites, datos desconocidos, lactantes y triaje pendiente. Alcance, permisos y ciclo de vida ya están aprobados; no iniciar módulos clínicos con reglas pendientes que obliguen a rehacer el modelo.
+**Próxima revisión:** seguridad, sesiones, recuperación de cuentas, auditoría y contingencia (AS-005; secciones 6 y 7). Alcance, permisos, ciclo de vida y validaciones de formularios ya están aprobados para el piloto; faltan diseño técnico y preparación verificable de la etapa 0.
