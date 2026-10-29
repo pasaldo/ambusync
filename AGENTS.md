@@ -19,6 +19,7 @@
 - `npm run shots` también requiere el servidor y Playwright, y sobrescribe capturas en `docs/screenshots/`; ejecútalo solo cuando quieras regenerar esas imágenes.
 - `npm run check:diagrams` valida los bloques Mermaid de `README.md` y `docs/` usando el paquete local; falla si no encuentra diagramas o detecta sintaxis inválida. Requiere Chromium de Playwright, no el servidor de desarrollo ni acceso al CDN.
 - Para preparar Chromium una vez en un entorno nuevo: `npx playwright install chromium`.
+- La guía reproducible de entorno, ramas, releases y checklist está en `docs/GUIA_DESARROLLO.md`; la fuente de verdad del estado de cierre es la sección 11 de `docs/ETAPA_0.md`.
 
 ## Cambios en documentación
 

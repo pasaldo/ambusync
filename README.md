@@ -8,6 +8,8 @@ El diagnóstico, las pruebas iniciales y el plan de evolución están en
 **[docs/ANALISIS_INICIAL.md](docs/ANALISIS_INICIAL.md)**.
 La definición de alcance, reglas y tareas de preparación se encuentra en
 **[docs/ETAPA_0.md](docs/ETAPA_0.md)**; contiene decisiones confirmadas y propuestas pendientes de aprobación.
+La preparación reproducible del frontend, el flujo de revisión y el checklist de cierre están en
+**[docs/GUIA_DESARROLLO.md](docs/GUIA_DESARROLLO.md)**.
 La aplicación sigue siendo un prototipo de demostración, no un sistema clínico productivo.
 
 > Transmite la información clínica del paciente desde la **ambulancia** al **servicio de
@@ -82,15 +84,16 @@ queda como trabajo futuro.
 
 ## Cómo correrlo
 
-Requiere **Node.js 24 LTS** y **npm 11.19.0**. La versión de Node está fijada en `.nvmrc` y `frontend/package.json` declara el rango compatible.
+Requiere **Node.js 24.20.0** y **npm 11.19.0**. La versión de Node está fijada en `.nvmrc` y `frontend/package.json` declara el rango compatible.
 
 ```bash
 cd frontend
-npm install
-npm run dev
+npm ci
+npx playwright install chromium
+npm run dev -- --host 127.0.0.1
 ```
 
-Abre <http://localhost:5173>. En escritorio verás el marco de teléfono; en móvil ocupa toda la pantalla.
+Abre <http://127.0.0.1:5173>. En escritorio verás el marco de teléfono; en móvil ocupa toda la pantalla. No expongas el servidor de desarrollo a una red pública.
 
 Otros comandos:
 
