@@ -20,6 +20,7 @@ Referencia: [diagnóstico del prototipo](ANALISIS_INICIAL.md) e Informe 2 aporta
 | D-008 | Seguridad, sesiones, recuperación, auditoría y contingencia aprobadas el 29/10/2026 | Contraseñas de mínimo 15 caracteres; activación/recuperación por correo; sesión 30 min/12 h; revocación de emergencia y copias externas ensayadas |
 | D-009 | Arquitectura modular, modelo y contratos mínimos aprobados el 29/10/2026 | Monolito modular, contexto por episodio, API versionada, idempotencia, GPS independiente y correcciones trazables; detalle en ARQUITECTURA_PILOTO.md |
 | D-010 | Plazos de retención del piloto sintético aprobados el 29/10/2026 | Datos de aplicación: hasta 90 días tras cierre formal; auditoría: 12 meses tras cierre; logs técnicos: 30 días móviles; registros de idempotencia: mientras exista el registro relacionado. No cambia retención de copias aprobada en D-008 |
+| D-011 | Procedimiento de retención del piloto sintético aprobado el 29/10/2026 | Tarea programada local, modo de simulación, purga transaccional reejecutable, registro mínimo, restauración con reaplicación de purgas y criterios de aceptación; implementación/pruebas pendientes |
 
 D-002 modifica el diseño de cuentas por unidad del Informe 2. D-003 exige adaptar el campo de rol único del diccionario: proponer conjuntos de permisos/grupos, sin un booleano que conceda acceso total. Mantener trazabilidad de estas diferencias al actualizar el informe.
 
@@ -405,9 +406,9 @@ Los logs técnicos no incluyen contraseñas, enlaces de activación/recuperació
 - Restauración semanal en entorno aislado durante aceptación.
 - RPO ≤1 h y RTO ≤4 h son metas a medir con ensayo completo, no garantías sin evidencia.
 
-**Pendiente antes del despliegue:** implementar y probar el procedimiento de retención aprobado en D-010; proveedor/ubicación de copias y custodia de claves. La política de copias sintéticas no autoriza eliminar antecedentes clínicos reales.
+**Pendiente antes del despliegue:** implementar y probar el procedimiento aprobado en D-011; resolver proveedor/ubicación de copias y custodia de claves. La política de copias sintéticas no autoriza eliminar antecedentes clínicos reales.
 
-#### Plazos de retención aprobados y procedimiento pendiente
+#### Plazos y procedimiento de retención aprobados; implementación pendiente
 
 El responsable aprobó los plazos de esta tabla (D-010). Son una decisión del proyecto para datos sintéticos, no una exigencia legal ni cumplimiento normativo; no autorizan cargar información real.
 
@@ -422,11 +423,11 @@ El plazo de aplicación y auditoría se cuenta desde el cierre formal del piloto
 
 La copia de seguridad conserva la regla ya aprobada en D-008 (24 copias horarias y 14 diarias, cifradas, claves separadas y restauración semanal aislada); D-010 no la modifica.
 
-**Procedimiento operativo todavía propuesto, no aprobado ni implementado:** ejecutar una tarea programada de retención con tecnología del sistema (p. ej., temporizador del sistema operativo; sin SaaS ni licencia adicional), con modo de simulación/reporte antes de purgar; respetar las fechas aprobadas de D-010 y purgar registros vencidos y adjuntos en transacción, conservando solo métricas agregadas no reidentificables si se requieren. Registrar actor/versión de la tarea, fecha, clases y cantidades afectadas, resultado y errores, sin duplicar datos personales en el log. La tarea será reejecutable sin efectos duplicados y no borrará auditoría antes de su plazo. Los registros de idempotencia se purgarían junto al registro relacionado; solo conservarían UUID, fecha, resultado y referencia mínima —sin respuesta completa— mientras ese registro exista. Si se restaura una copia, reaplicar purgas vencidas y comprobar el resultado antes de exponer el servicio. Ante incidente, cualquier suspensión de borrado requerirá alcance, motivo, responsable y fecha límite/revisión; no admitir excepciones indefinidas.
+**Procedimiento aprobado (D-011), aún no implementado:** ejecutar una tarea programada de retención con tecnología del sistema (p. ej., temporizador del sistema operativo; sin SaaS ni licencia adicional), con modo de simulación/reporte antes de purgar; respetar las fechas aprobadas de D-010 y purgar registros vencidos y adjuntos en transacción, conservando solo métricas agregadas no reidentificables si se requieren. Registrar actor/versión de la tarea, fecha, clases y cantidades afectadas, resultado y errores, sin duplicar datos personales en el log. La tarea será reejecutable sin efectos duplicados y no borrará auditoría antes de su plazo. Los registros de idempotencia se purgarán junto al registro relacionado; solo conservarán UUID, fecha, resultado y referencia mínima —sin respuesta completa— mientras ese registro exista. Si se restaura una copia, reaplicar purgas vencidas y comprobar el resultado antes de exponer el servicio. Ante incidente, cualquier suspensión de borrado requerirá alcance, motivo, responsable y fecha límite/revisión; no admitir excepciones indefinidas.
 
-**Criterios de aceptación propuestos para el procedimiento:** pruebas de límites antes/en la fecha/después del vencimiento para cada clase y zona horaria; verificación de adjuntos y relaciones; segundo ciclo idempotente; evidencia de registros eliminados/omitidos/errores; restauración de copia sintética que vuelve a introducir un registro vencido, seguida de purga y verificación antes de habilitar acceso. Todo sigue pendiente de aprobación y backend inexistente.
+**Criterios de aceptación aprobados para el procedimiento:** pruebas de límites antes/en la fecha/después del vencimiento para cada clase y zona horaria; verificación de adjuntos y relaciones; segundo ciclo idempotente; evidencia de registros eliminados/omitidos/errores; restauración de copia sintética que vuelve a introducir un registro vencido, seguida de purga y verificación antes de habilitar acceso. Su ejecución sigue pendiente y el backend aún no existe.
 
-Como salvaguarda operativa aún pendiente de aprobación: ante un incidente, preservar solo registros pertinentes con motivo, responsable y fecha de revisión; restringir el acceso y liberar la retención al cerrar la investigación, salvo decisión documentada. No permitir excepciones indefinidas ni ampliaciones globales automáticas. Antes de cualquier cambio que permita datos reales, requerir revisión de privacidad/legal; D-010 no la sustituye.
+Antes de cualquier cambio que permita datos reales, requerir revisión de privacidad/legal; D-010 y D-011 no la sustituyen.
 
 #### Opciones gratuitas de correo y copias — evaluación no vinculante (29/10/2026)
 
@@ -567,7 +568,7 @@ Pruebas futuras, no resultados alcanzados:
 9. Repositorio y logs no contienen secretos; auditoría funcional no es editable por usuarios ordinarios.
 10. Restauración aislada permite completar flujo esencial y medir RTO/RPO.
 
-**Pendientes de diseño/operación:** implementar y probar los plazos de retención D-010 y aprobar su procedimiento operativo; proveedor de correo y copias; verificación administrativa de identidad; mecanismo de revocación/interacción válida/formularios pendientes; alcance y vigencia de reautenticación para acciones sensibles si se incorpora. Ninguno se considera resuelto solo por aprobar los plazos.
+**Pendientes de diseño/operación:** implementar y probar D-010/D-011; resolver proveedor de copias y custodia de claves; definir verificación administrativa de identidad; mecanismo de revocación/interacción válida/formularios pendientes; alcance y vigencia de reautenticación para acciones sensibles si se incorpora. Ninguno se considera resuelto solo por aprobar los plazos/procedimiento.
 
 ## 8. Calidad, automatización y metas
 
@@ -616,7 +617,7 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 | AS-002 | P0, AS-001 | Matriz de permisos aprobada, combinación de roles, delegación y asignación de unidad definidas | Definición aprobada (D-005); implementación/pruebas futuras |
 | AS-003 | P0, AS-001/002 | Estados, hitos, reintentos y excepciones con ejemplos de permitido/denegado | Definición aprobada (D-006); implementación/pruebas futuras |
 | AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Definición aprobada para piloto sintético (D-007); implementación/pruebas futuras |
-| AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas aprobadas (D-008); plazos de retención aprobados (D-010); opciones gratuitas comparadas sin selección; procedimiento, proveedores, otros detalles e implementación/pruebas pendientes |
+| AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas (D-008), plazos (D-010) y procedimiento (D-011) aprobados; opciones gratuitas comparadas sin selección compatible con Chile+$0; proveedores, custodia, otros detalles e implementación/pruebas pendientes |
 | AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Diseño mínimo aprobado (D-009); contratos detallados/implementación/pruebas pendientes |
 | AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Frontend actualizado y verificado; runtime/dependencias backend pendientes antes de su implementación |
 | AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Implementado y verificado (3 diagramas; 4 pruebas unitarias; sincronización entre pestañas) |
@@ -669,7 +670,7 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [x] Estados, excepciones, lectura y entrega técnica diferenciados y aprobados (D-006, 29/10/2026).
 - [x] Campos, límites, triaje pendiente y tratamiento de lactantes definidos para piloto sintético (D-007, 29/10/2026); validación clínica requerida antes de uso real.
 - [x] Políticas de sesión, contraseñas y recuperación aprobadas (D-008, 29/10/2026); detalles técnicos/operativos pendientes según secciones 6 y 7.
-- [ ] Implementar y probar la retención aprobada en D-010; aprobar procedimientos operativos, proveedor de correo/copias y custodia de claves antes del despliegue.
+- [ ] Implementar y probar retención D-010/D-011; resolver proveedor/ubicación de copias compatible con Chile y $0, custodia de claves y procedimiento de restauración antes del despliegue. Mailpit queda como patrón local; no se habilita entrega externa.
 - [x] Modelo/contratos mínimos y dependencias de tareas revisados (D-009, 29/10/2026).
 - [ ] Contratos técnicos detallados y excepciones pendientes resueltos antes de habilitar cada operación, según ARQUITECTURA_PILOTO.md.
 - [x] Dependencias vulnerables del frontend tratadas y auditadas (AS-007, npm audit: 0 vulnerabilidades); auditar también backend antes de exponer servicios.
