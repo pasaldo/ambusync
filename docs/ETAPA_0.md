@@ -18,12 +18,13 @@ Referencia: [diagnóstico del prototipo](ANALISIS_INICIAL.md) e Informe 2 aporta
 | D-006 | Ciclo de vida, hitos y excepciones de la sección 4 aprobados el 29/10/2026 | Sin estado `creada` separado; lectura explícita, inicio/cierre manuales, llegada excepcional y cambio de destino atómico |
 | D-007 | Datos y validaciones de la sección 5 aprobados el 29/10/2026 | Edad con unidades, datos desconocidos explícitos, vitales opcionales y envío sin triaje; reglas para piloto sintético, no validación clínica |
 | D-008 | Seguridad, sesiones, recuperación, auditoría y contingencia aprobadas el 29/10/2026 | Contraseñas de mínimo 15 caracteres; activación/recuperación por correo; sesión 30 min/12 h; revocación de emergencia y copias externas ensayadas |
+| D-009 | Arquitectura modular, modelo y contratos mínimos aprobados el 29/10/2026 | Monolito modular, contexto por episodio, API versionada, idempotencia, GPS independiente y correcciones trazables; detalle en ARQUITECTURA_PILOTO.md |
 
 D-002 modifica el diseño de cuentas por unidad del Informe 2. D-003 exige adaptar el campo de rol único del diccionario: proponer conjuntos de permisos/grupos, sin un booleano que conceda acceso total. Mantener trazabilidad de estas diferencias al actualizar el informe.
 
 D-006 simplifica el modelo del Informe 2: crear y habilitar el episodio para el receptor son una sola operación transaccional; `creada_en` permanece como fecha, no como estado. El diagnóstico inicial describe la especificación anterior como antecedente histórico; para la implementación rigen los acuerdos aprobados de este documento.
 
-Las secciones 2 a 5 y las políticas de seguridad/contingencia de las secciones 6 y 7 están **aprobadas por el responsable del proyecto**. El diseño técnico restante mantiene su condición de propuesta salvo decisiones expresamente confirmadas. Estas aprobaciones no equivalen a controles implementados, validación clínica ni cumplimiento normativo certificado.
+Las secciones 2 a 5, las políticas de seguridad/contingencia y el diseño mínimo de [ARQUITECTURA_PILOTO.md](ARQUITECTURA_PILOTO.md) están **aprobados por el responsable del proyecto**. Los detalles técnicos y operativos señalados como pendientes no quedan resueltos por estas aprobaciones. No equivalen a controles implementados, validación clínica ni cumplimiento normativo certificado.
 
 ## 2. Objetivo y límites del entregable
 
@@ -319,7 +320,7 @@ Ninguna medición es obligatoria para enviar. Ausencia se muestra como «No medi
 
 Rechazar valores no numéricos, no finitos o unidades incorrectas. No añadir otros rangos clínicos restrictivos sin validación profesional ni reemplazar silenciosamente valores fuera de rango. Cada medición conserva valor, unidad, fecha de medición y autor. Se admite sistólica o diastólica por separado; mostrar explícitamente el componente no medido.
 
-Las nuevas mediciones se agregan al historial, no sobrescriben anteriores. La corrección de un error deberá especificarse como operación trazable que preserve el original; su contrato detallado sigue pendiente en el diseño de integridad/AS-006. Colores y advertencias no asignan triaje ni diagnóstico.
+Las nuevas mediciones se agregan al historial, no sobrescriben anteriores. Corrección aprobada en D-009: antes de recepción, persona autorizada de la unidad registra nueva medición vinculada y motivo; original rectificada se conserva y el panel distingue valor vigente. Sin corrección ordinaria después de recepción/cierre. Detalles de concurrencia y contratos en [ARQUITECTURA_PILOTO.md](ARQUITECTURA_PILOTO.md). Colores y advertencias no asignan triaje ni diagnóstico.
 
 ### Triaje y presentación del tablero
 
@@ -368,13 +369,13 @@ Pruebas futuras, todavía no ejecutadas sobre el sistema nuevo:
 
 ## 6. Integridad, conservación y contingencia
 
-Las políticas de protección de datos, auditoría, copias y contingencia se aprobaron en D-008 para el piloto sintético. El detalle técnico de integridad/corrección de mediciones sigue sujeto a AS-006.
+Las políticas de protección de datos, auditoría, copias y contingencia se aprobaron en D-008 para el piloto sintético. D-009 aprueba el diseño mínimo de integridad/corrección de mediciones en [ARQUITECTURA_PILOTO.md](ARQUITECTURA_PILOTO.md); sus contratos técnicos detallados siguen pendientes.
 
 - PostgreSQL como fuente de verdad; FK protegidas, transacciones e índices por ámbito institucional/estado/fecha.
 - Paciente, unidad y creador deben pertenecer al operador correcto; receptor autorizado sobre destino.
 - UUID de operación para creación, mediciones, posiciones y cambios; concretar deduplicación de actualizaciones, no solo UUID del episodio.
 - Versión por episodio para rechazar edición obsoleta; nunca ganar un conflicto sobrescribiendo todo el registro silenciosamente.
-- Propuesta inicial: mediciones históricas no se reemplazan; una corrección registra vínculo/motivo/autor manteniendo el original.
+- Mediciones históricas no se reemplazan; corrección autorizada antes de recepción registra vínculo/motivo/autor y conserva original rectificada según D-009.
 - Desactivación lógica de pacientes de prueba sin destruir historial, sujeta a permisos y ausencia de episodios activos. No habilitar eliminación masiva del tablero productivo.
 - No persistir antecedentes clínicos en `localStorage`, `sessionStorage`, IndexedDB ni caché de service worker en este piloto. Mantener pendiente en memoria; advertir pérdida al recargar/cerrar.
 - Sin conexión: aviso visible, no confirmar entrega, reintentar de manera controlada. El canal alternativo institucional debe definirse antes de un piloto operacional; para defensa se documenta una contingencia simulada, no un servicio asistencial existente.
@@ -423,7 +424,7 @@ Para defensa: entorno local verificado, datos sintéticos y evidencias grabadas 
 
 ## 7. Base tecnológica y seguridad
 
-Las políticas siguientes están aprobadas (D-008, AS-005); su implementación y pruebas son futuras. Arquitectura detallada y selección de versiones/proveedores permanecen en AS-006/AS-007.
+Las políticas siguientes están aprobadas (D-008, AS-005); su implementación y pruebas son futuras. Arquitectura/modelo/contratos mínimos aprobados en D-009, AS-006: [ARQUITECTURA_PILOTO.md](ARQUITECTURA_PILOTO.md). Contratos detallados, proveedores y versiones mantienen pendientes explícitos.
 
 - React/TypeScript existente; monolito modular Django + DRF + PostgreSQL.
 - Channels + Redis para eventos; ASGI, Nginx y Docker Compose para despliegue inicial.
@@ -520,12 +521,12 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 
 | ID | Prioridad/dependencia | Entrega y aceptación | Estado |
 |---|---|---|---|
-| AS-001 | P0 | Línea base de alcance y decisiones; D-001–008 registradas; revisión de apartados restantes | Políticas funcionales y de seguridad aprobadas; diseño/preparación pendientes |
+| AS-001 | P0 | Línea base de alcance y decisiones; D-001–009 registradas; revisión de apartados restantes | Políticas y diseño mínimo aprobados; detalles y preparación técnica pendientes |
 | AS-002 | P0, AS-001 | Matriz de permisos aprobada, combinación de roles, delegación y asignación de unidad definidas | Definición aprobada (D-005); implementación/pruebas futuras |
 | AS-003 | P0, AS-001/002 | Estados, hitos, reintentos y excepciones con ejemplos de permitido/denegado | Definición aprobada (D-006); implementación/pruebas futuras |
 | AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Definición aprobada para piloto sintético (D-007); implementación/pruebas futuras |
 | AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas aprobadas (D-008); detalles operativos/técnicos y pruebas pendientes |
-| AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Propuesta |
+| AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Diseño mínimo aprobado (D-009); contratos detallados/implementación/pruebas pendientes |
 | AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Pendiente técnico |
 | AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Pendiente técnico |
 | AS-009 | P1, AS-008 | CI en pull request y main; verificar una ejecución correcta y un fallo controlado | Pendiente técnico |
@@ -565,7 +566,7 @@ docs(development): documenta entorno y cierre de etapa 0 [AS-010]
 
 Es una guía, no una obligación de exactamente diez commits: si una actualización exige migración incompatible, dividir por cambios comprobables; si dos ajustes documentales son inseparables, integrarlos juntos. No duplicar toda esta especificación en archivos diferentes: los siguientes commits pueden refinar secciones y enlazar detalles especializados.
 
-Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada y AS-005 políticas aprobadas con detalles pendientes; no están implementados. AS-006–010 mantienen sus pendientes.
+Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada; AS-005 políticas y AS-006 diseño mínimo aprobados con detalles pendientes; no están implementados. AS-007–010 mantienen sus pendientes.
 
 ## 11. Condiciones para cerrar la etapa 0
 
@@ -578,10 +579,11 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [x] Campos, límites, triaje pendiente y tratamiento de lactantes definidos para piloto sintético (D-007, 29/10/2026); validación clínica requerida antes de uso real.
 - [x] Políticas de sesión, contraseñas y recuperación aprobadas (D-008, 29/10/2026); detalles técnicos/operativos pendientes según secciones 6 y 7.
 - [ ] Retención de aplicación/auditoría/logs, proveedores y procedimientos operativos de seguridad definidos antes de despliegue.
-- [ ] Modelo/contratos mínimos y dependencias de tareas revisados.
+- [x] Modelo/contratos mínimos y dependencias de tareas revisados (D-009, 29/10/2026).
+- [ ] Contratos técnicos detallados y excepciones pendientes resueltos antes de habilitar cada operación, según ARQUITECTURA_PILOTO.md.
 - [ ] Dependencias vulnerables tratadas o riesgo residual justificado antes de exponer servicios.
 - [ ] Pruebas repetibles y CI operativos con evidencia.
 - [ ] Entorno e instrucciones verificadas por otro integrante cuando sea posible.
 - [ ] Rúbrica de Nota 3, fecha de defensa y disponibilidad del equipo confirmadas.
 
-**Próxima revisión:** arquitectura modular, modelo de datos y contratos mínimos de API/eventos (AS-006), incluyendo pendientes técnicos de integridad/seguridad. Las políticas del piloto ya están aprobadas; faltan diseño técnico y preparación verificable de la etapa 0.
+**Próximo apartado:** entorno, runtimes y dependencias soportadas (AS-007), seguido de pruebas repetibles y CI (AS-008/009). Las políticas y el diseño mínimo están aprobados; faltan contratos detallados, decisiones operativas y preparación técnica verificable. La etapa 0 no está cerrada.
