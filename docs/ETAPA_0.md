@@ -426,6 +426,35 @@ La copia de seguridad conserva la regla ya aprobada en D-008 (24 copias horarias
 
 Como salvaguarda operativa aún pendiente de aprobación: ante un incidente, preservar solo registros pertinentes con motivo, responsable y fecha de revisión; restringir el acceso y liberar la retención al cerrar la investigación, salvo decisión documentada. No permitir excepciones indefinidas ni ampliaciones globales automáticas. Antes de cualquier cambio que permita datos reales, requerir revisión de privacidad/legal; D-010 no la sustituye.
 
+#### Opciones gratuitas de correo y copias — evaluación no vinculante (29/10/2026)
+
+Se compararon cuotas publicadas en fuentes oficiales a la fecha indicada. Las cuotas pueden cambiar; «gratis» no incluye necesariamente dominio, ejecución de tareas, impuestos ni el coste de sobrepasar límites. No se creó ninguna cuenta ni se eligió proveedor. Esta evaluación es solo para el piloto sintético.
+
+**Correo transaccional**
+
+| Opción | Cuota gratuita verificada | Límites y adecuación |
+|---|---|---|
+| [Mailpit](https://mailpit.axllent.org/about/) | Software local gratuito y de código abierto; captura SMTP en interfaz local y no entrega mensajes a destinatarios reales | Recomendado para desarrollo, pruebas y demostraciones sintéticas. No satisface entrega externa de activación/recuperación |
+| [Resend Free](https://resend.com/pricing) | $0; 3.000 mensajes al mes, máximo 100 al día; conserva emails/logs 30 días | Entrega real requiere un dominio propio verificado; registrar/comprar el dominio puede costar. Los datos de cuenta, metadata y logs permanecen en EE. UU. aunque se elija una región de envío ([regiones](https://resend.com/docs/dashboard/domains/regions)); el dominio de prueba está limitado al correo de la cuenta |
+| [Brevo Free](https://help.brevo.com/hc/en-us/articles/208580669-FAQs-What-are-the-limits-of-the-Free-plan) | $0 sin límite temporal; 300 envíos al día; correo transaccional por [SMTP/API](https://help.brevo.com/hc/en-us/articles/7924908994450-Send-transactional-emails-using-Brevo-SMTP) | Los mensajes gratuitos llevan la marca «Sent with Brevo»; al exceder el límite, hasta 1.000 transaccionales quedan en cola y otros no se entregan. Para un remitente de dominio propio hay que autenticarlo ([guía](https://help.brevo.com/hc/en-us/articles/12163873383186-Authenticate-your-domain-with-Brevo-Brevo-code-DKIM-DMARC)) |
+
+Para el estado actual, Mailpit evita transferir direcciones y enlaces a terceros. Resend y Brevo son candidatos únicamente si más adelante se requiere entrega externa, existe dominio autorizado y se revisan región, privacidad, términos y conservación del contenido. No enviar correos reales a personal ni incluir datos clínicos; incluso una dirección de correo es dato personal. Los mensajes de activación/reset y sus tokens requieren tratamiento seguro.
+
+**Almacenamiento de copias**
+
+| Opción | Cuota gratis verificada | Coste al superar la cuota / seguridad |
+|---|---|---|
+| [Backblaze B2](https://www.backblaze.com/cloud-storage/pricing) | Primeros 10 GB de almacenamiento; salida de datos gratis hasta 3× el promedio mensual almacenado; operaciones API A/B/C gratuitas según [tarifa por clase](https://www.backblaze.com/cloud-storage/transaction-pricing) | Después de los 10 GB, $0,005/GB-mes (aprox. $5/TB-mes); salida superior a 3×: $0,01/GB. Las operaciones D tienen 2.500 llamadas diarias gratuitas y luego $0,004/10.000. [Caps y alertas](https://www.backblaze.com/docs/cloud-storage-data-caps-and-alerts) permiten limitar gasto diario por almacenamiento, descargas y transacciones; sin configurar límites, pueden acumularse cargos. Ofrece cifrado B2 con clave del proveedor (SSE-B2) o clave del cliente (SSE-C), pero metadatos no cifrados por SSE quedan visibles ([guía](https://www.backblaze.com/docs/cloud-storage-server-side-encryption)) |
+| [Cloudflare R2 Standard](https://developers.cloudflare.com/r2/pricing/) | 10 GB-mes, 1 millón de operaciones A y 10 millones B al mes; salida a Internet gratis | Sobre cuota: $0,015/GB-mes, $4,50/millón A y $0,36/millón B. Cifrado en reposo AES-256 automático, con claves administradas por Cloudflare ([seguridad](https://developers.cloudflare.com/r2/reference/data-security/)); para custodia propia, requeriría cifrar antes de subir |
+
+R2 selecciona ubicación automática cercana a quien crea el bucket; los *location hints* son solo orientativos. Sus restricciones jurisdiccionales sí fijan jurisdicción, pero el bucket no puede cambiarse después de creado ([ubicación](https://developers.cloudflare.com/r2/buckets/data-location/)). La ubicación y condiciones contractuales de B2 deben confirmarse directamente antes de elegirlo. Ninguna cuota gratuita se toma como garantía de residencia de datos o cumplimiento legal.
+
+**Recomendación para evaluación, aún no decisión:** usar Mailpit en desarrollo/pruebas. Para copias, probar B2 como primera opción por 10 GB gratuitos, egress incluido y caps configurables; mantener R2 como alternativa si la cuota de operaciones/salida sin cargo y la ubicación encajan mejor. El tamaño de la base/backend aún no existe, por lo que no se puede afirmar que los 38 puntos de copia (24 horarios + 14 diarios) quepan en 10 GB ni calcular el coste de exceso. Medir el volumen real con compresión/deduplicación y ensayo de restauración antes de seleccionar.
+
+Para custodia independiente se propone [restic](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html): cifra en el cliente y soporta almacenes S3 compatibles; advierte que perder la contraseña vuelve irrecuperable el repositorio. Para B2, restic recomienda usar la API S3 compatible por limitaciones conocidas del backend B2 nativo. Mantener contraseña/llaves en un gestor cifrado aparte del servidor y del bucket, con recuperación bajo control del proyecto; [KeePassXC](https://keepassxc.org/) es una opción local, gratuita y sin nube, pero requiere copias/recuperación seguras propias. No se ha escogido herramienta ni definido custodios.
+
+**Pendiente de decisión:** confirmar dominio autorizado y destinatarios de prueba antes de valorar correo externo; región/jurisdicción requerida, proveedor, método y custodios de claves, topes de gasto, tamaño real de copias y procedimiento de restauración. No se crearán cuentas ni se subirán datos hasta aprobar estos puntos.
+
 ### Contingencia aprobada
 
 | Situación | Comportamiento esperado |
@@ -583,7 +612,7 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 | AS-002 | P0, AS-001 | Matriz de permisos aprobada, combinación de roles, delegación y asignación de unidad definidas | Definición aprobada (D-005); implementación/pruebas futuras |
 | AS-003 | P0, AS-001/002 | Estados, hitos, reintentos y excepciones con ejemplos de permitido/denegado | Definición aprobada (D-006); implementación/pruebas futuras |
 | AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Definición aprobada para piloto sintético (D-007); implementación/pruebas futuras |
-| AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas aprobadas (D-008); plazos de retención aprobados (D-010); procedimiento, proveedores, otros detalles e implementación/pruebas pendientes |
+| AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas aprobadas (D-008); plazos de retención aprobados (D-010); opciones gratuitas comparadas sin selección; procedimiento, proveedores, otros detalles e implementación/pruebas pendientes |
 | AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Diseño mínimo aprobado (D-009); contratos detallados/implementación/pruebas pendientes |
 | AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Frontend actualizado y verificado; runtime/dependencias backend pendientes antes de su implementación |
 | AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Implementado y verificado (3 diagramas; 4 pruebas unitarias; sincronización entre pestañas) |
