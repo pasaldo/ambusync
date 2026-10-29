@@ -524,6 +524,15 @@ Frontend: tipos, pruebas unitarias, compilación y pruebas de flujo según impac
 
 CI se ejecuta en cada pull request y en `main`: instalación desde lockfile, verificaciones, pruebas y build; escaneo de dependencias/secretos. No desplegar producción automáticamente en cada push de una rama. Corregir el falso éxito del validador Mermaid y aislar pruebas Playwright de datos/servicios externos cuando sea posible.
 
+### AS-009 — CI frontend (29/10/2026)
+
+- `.github/workflows/frontend-ci.yml` se activa en pull requests y `push` a `main`; no configura despliegue. `GITHUB_TOKEN` queda limitado a `contents: read`; Gitleaks no publica comentarios ni artefactos.
+- Referencias de Actions confirmadas contra etiquetas oficiales y fijadas por SHA: `actions/checkout` v7.0.1 (`3d3c42e5aac5ba805825da76410c181273ba90b1`), `actions/setup-node` v7.1.0 (`949feb2413d6458794dcd2491c4babbbce0c15c1`), `gitleaks/gitleaks-action` v3.0.0 (`e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e`).
+- Job frontend fija Node 24.20.0 y npm 11.19.0, usa `npm ci`, `npm audit`, tipos, pruebas unitarias, Mermaid, sincronización Playwright entre pestañas y build. Chromium se instala en el runner; Vite escucha solo en loopback y se detiene al acabar el paso.
+- Job de secretos obtiene historial completo para Gitleaks. No requiere permisos de escritura ni secretos de aplicación; cuentas de organización pueden requerir el secreto/licencia de Gitleaks según sus términos.
+- Validación local desde lockfile: audit (0 vulnerabilidades), lint, unitarias (4/4), Mermaid (3/3), build y sincronización (4→5 tarjetas); todas pasaron. YAML parseado correctamente. Fixture Mermaid inválido temporal hizo fallar `check:diagrams` con código 1 y archivo/línea; fixture retirado.
+- La ejecución en GitHub no puede evidenciarse sin abrir un PR o hacer push a `main`; ambos quedan fuera de este alcance. Por tanto, la verificación remota de una ejecución correcta y del fallo controlado sigue pendiente.
+
 ### Metas heredadas del Informe 2, no resultados alcanzados
 
 - ≥90 % de 100 envíos visibles en panel en <3 s con 20 clientes y conectividad normal.
@@ -549,7 +558,7 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 | AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Diseño mínimo aprobado (D-009); contratos detallados/implementación/pruebas pendientes |
 | AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Frontend actualizado y verificado; runtime/dependencias backend pendientes antes de su implementación |
 | AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Implementado y verificado (3 diagramas; 4 pruebas unitarias; sincronización entre pestañas) |
-| AS-009 | P1, AS-008 | CI en pull request y main; verificar una ejecución correcta y un fallo controlado | Pendiente técnico |
+| AS-009 | P1, AS-008 | CI en pull request y main; verificar una ejecución correcta y un fallo controlado | Workflow implementado y validado localmente; ejecución y evidencia GitHub pendientes (requieren PR o push a `main`) |
 | AS-010 | P1, AS-006/009 | Entorno reproducible, estrategia de ramas/releases y checklist de aceptación de etapa | Propuesta |
 
 P0 = bloquea diseño seguro o elimina riesgo alto; P1 = prepara desarrollo reproducible. No significa que todas las tareas tengan que ejecutarse secuencialmente: AS-007 puede avanzar mientras se revisan reglas.
@@ -586,7 +595,7 @@ docs(development): documenta entorno y cierre de etapa 0 [AS-010]
 
 Es una guía, no una obligación de exactamente diez commits: si una actualización exige migración incompatible, dividir por cambios comprobables; si dos ajustes documentales son inseparables, integrarlos juntos. No duplicar toda esta especificación en archivos diferentes: los siguientes commits pueden refinar secciones y enlazar detalles especializados.
 
-Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada; AS-005 políticas y AS-006 diseño mínimo aprobados con detalles pendientes; no están implementados. AS-007 actualizó/verificó el frontend, con runtime backend pendiente; AS-008 pruebas frontend implementadas/verificadas; AS-009–010 siguen pendientes.
+Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada; AS-005 políticas y AS-006 diseño mínimo aprobados con detalles pendientes; no están implementados. AS-007 actualizó/verificó el frontend, con runtime backend pendiente; AS-008 pruebas frontend implementadas/verificadas; AS-009 tiene workflow localmente validado pero falta evidencia remota; AS-010 sigue pendiente.
 
 ## 11. Condiciones para cerrar la etapa 0
 
@@ -607,4 +616,4 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [ ] Entorno e instrucciones verificadas por otro integrante cuando sea posible.
 - [ ] Rúbrica de Nota 3, fecha de defensa y disponibilidad del equipo confirmadas.
 
-**Próximo apartado:** CI para validar tipos, pruebas y build en pull requests y `main` (AS-009). AS-008 quedó verificado para el frontend; runtime/dependencias backend y otros pendientes operativos siguen abiertos. La etapa 0 no está cerrada.
+**Próximo apartado:** completar AS-009 cuando se autorice abrir un pull request o actualizar `main`, para obtener evidencia de ejecución de GitHub Actions. AS-008 y el workflow AS-009 quedaron verificados localmente; runtime/dependencias backend y otros pendientes operativos siguen abiertos. La etapa 0 no está cerrada.
