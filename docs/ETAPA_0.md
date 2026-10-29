@@ -539,6 +539,7 @@ CI se ejecuta en cada pull request y en `main`: instalación desde lockfile, ver
 - Se creó [`GUIA_DESARROLLO.md`](GUIA_DESARROLLO.md) con pasos para Node 24.20.0/npm 11.19.0, `npm ci`, Chromium, arranque local seguro, comandos de validación, ramas/PRs, releases y checklist de cierre.
 - README apunta a la guía y su inicio rápido usa `npm ci`, fija versiones exactas y limita Vite a loopback. `AGENTS.md` enlaza la guía y define `ETAPA_0.md` sección 11 como fuente de verdad del checklist.
 - Validación reproducible ejecutada desde este entorno con Node v24.20.0/npm 11.19.0: `npm ci`, instalación de Chromium, `npm audit` (0 vulnerabilidades), lint, unitarias (4/4), Mermaid (3/3), build y sincronización Playwright (tablero 4→5 tarjetas); todo pasó. La verificación por otro integrante sigue pendiente y no se declara hecha.
+- Revisión técnica independiente del agente en checkout limpio del commit `4c72b09`: repitió todos los comandos anteriores y obtuvo los mismos resultados. Aclaró en la guía la instalación de dependencias de sistema de Playwright en Linux. No equivale a revisión humana por otro integrante.
 - No se creó release, no se integró el PR #1 ni se modificó `main`. La etapa 0 sigue abierta por los pendientes indicados en su sección 11.
 
 ### Metas heredadas del Informe 2, no resultados alcanzados

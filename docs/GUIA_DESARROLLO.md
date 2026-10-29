@@ -25,6 +25,8 @@ npm ci
 npx playwright install chromium
 ```
 
+En Linux/Ubuntu instala también las dependencias del sistema (puede requerir permisos de administrador): `npx playwright install --with-deps chromium`. CI usa esta variante. En Windows y macOS, `npx playwright install chromium` es suficiente para descargar el navegador.
+
 No sustituyas `npm ci` por `npm install` para preparar una revisión: `ci` instala estrictamente lo fijado en `package-lock.json` y no lo actualiza.
 
 ## Ejecutar la SPA
