@@ -10,10 +10,11 @@
 ## Frontend y comandos
 
 - El único manifiesto de paquetes está en `frontend/package.json`; el lockfile correspondiente es `frontend/package-lock.json`. Instala de forma reproducible desde `frontend/` con `npm ci`.
+- Usa Node 24.20.0 (`.nvmrc`) y npm 11.19.0 (`packageManager`); `engines.node` restringe el frontend a Node 24.
 - El arranque es `frontend/src/main.tsx` → `frontend/src/App.tsx`; las rutas `/ambulancia` y `/urgencias` muestran el flujo de ambulancia y el tablero de urgencias.
 - El store Zustand (`frontend/src/store/useCases.ts`) se sincroniza entre pestañas del mismo navegador mediante `frontend/src/store/sync.ts` (BroadcastChannel y respaldo `localStorage`); no es sincronización entre dispositivos ni backend.
 - Desde `frontend/`: `npm run dev` inicia Vite en el puerto `5173`; `npm run build` ejecuta `tsc -b` y luego Vite; `npm run lint` ejecuta `tsc --noEmit` (no hay script ESLint configurado).
-- `npm run test:sync` requiere el servidor en `http://localhost:5173` (o `BASE_URL`) y Playwright; prueba transmisión entre dos pestañas del mismo contexto.
+- `npm run test:sync` requiere el servidor en `http://localhost:5173` (o `BASE_URL`) y Playwright; prueba transmisión entre dos pestañas del mismo contexto y sobrescribe `docs/screenshots/_sync-er.png`.
 - `npm run shots` también requiere el servidor y Playwright, y sobrescribe capturas en `docs/screenshots/`; ejecútalo solo cuando quieras regenerar esas imágenes.
 - `npm run check:diagrams` verifica los diagramas Mermaid de la documentación.
 

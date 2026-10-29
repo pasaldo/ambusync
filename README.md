@@ -82,7 +82,7 @@ queda como trabajo futuro.
 
 ## Cómo correrlo
 
-Requiere **Node.js 18+**.
+Requiere **Node.js 24 LTS** y **npm 11.19.0**. La versión de Node está fijada en `.nvmrc` y `frontend/package.json` declara el rango compatible.
 
 ```bash
 cd frontend

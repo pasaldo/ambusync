@@ -186,7 +186,7 @@ Sin corrección ordinaria después de recepción/cierre; posteriores errores req
 - Formulario durante reautenticación: preservación/descarte sin exposición a otra cuenta ni reenvío bajo identidad distinta.
 - Detalle del reemplazo si traslado ya está iniciado: estado, seguimiento y proyección autorizada de antecedentes.
 - Esquemas OpenAPI, códigos HTTP, paginación, límites técnicos, ordenación estable y contratos exactos de versiones/eventos.
-- Versiones soportadas, configuración por ambiente y dependencias verificadas en AS-007.
+- Frontend: Node 24 LTS/npm 11.19.0; dependencias actuales actualizadas y auditadas en AS-007. Runtime, dependencias y auditoría de Python/Django/Channels quedan pendientes antes de iniciar el backend.
 
 El diseño mínimo queda aprobado; estos detalles siguen pendientes y deben resolverse antes de implementar/habilitar sus operaciones. No empezar con permisos o persistencia provisionales que contradigan los acuerdos.
 

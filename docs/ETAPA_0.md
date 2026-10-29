@@ -433,8 +433,19 @@ Las políticas siguientes están aprobadas (D-008, AS-005); su implementación y
 - Contraseñas con hash del framework, validadores y limitación de intentos; errores que no enumeren usuarios. Reglas de activación, recuperación y cambio según los apartados siguientes.
 - Entornos separados: desarrollo, staging y entrega; secretos independientes fuera de Git. PostgreSQL/Redis en red privada, sin puertos públicos.
 - Modelar usuario personal y grupos/permisos antes de las primeras migraciones. Asignación de unidad mutable con historial de auditoría; no confundir permisos funcionales con `is_superuser`.
-- Fijar versiones mantenidas de Python/Django/Node y dependencias al ejecutar AS-007. Registrar compatibilidad y licencias, no copiar automáticamente las versiones antiguas del prototipo.
+- Runtime frontend fijado en AS-007: Node.js 24 LTS y npm 11.19.0. Versiones de Python/Django y dependencias backend se seleccionarán antes de iniciar ese backend; todavía no hay código backend ni manifiesto que auditar.
 - Escalar primero con consultas paginadas, índices y medición. Separar procesos/API/WebSocket o aumentar recursos cuando haya evidencia. No se justifica Kubernetes para la carga base del piloto.
+
+### AS-007 — runtime y dependencias del frontend (29/10/2026)
+
+- Runtime: Node.js 24.20.0 (`.nvmrc`, línea 24 LTS); `frontend/package.json` declara `engines.node: ^24.0.0` y `packageManager: npm@11.19.0`. El entorno verificado ejecutó Node 24.20.0/npm 11.19.0. Node 18+, que figuraba antes en README, ya no es la línea soportada del proyecto.
+- Actualizaciones directas: Vite `^5.4.3` → `^7.3.7`; React Router DOM `^6.26.2` → `^7.18.5`; PostCSS `^8.4.45` → `^8.5.32`. Se actualizó también `package-lock.json` para resolver vulnerabilidades transitivas.
+- El `npm audit --package-lock-only` previo reportó 10 paquetes vulnerables (5 altas, 5 moderadas, 0 críticas): `baseline-browser-mapping`, `browserslist`, `esbuild`, `nanoid`, `postcss`, `postcss-selector-parser`, `react-router`, `react-router-dom`, `source-map-js` y `vite`. Tras actualizar, `npm audit` informó 0 vulnerabilidades.
+- La migración a React Router 7 requirió retirar la prop `future` de `BrowserRouter` en `frontend/src/main.tsx`; el chequeo de tipos pasó después del ajuste.
+- Verificaciones ejecutadas tras `npm ci`: `npm audit`, `npm run lint`, `npm run build`, `npm run test:sync` y `npm run check:diagrams`. Todas terminaron con código 0. La prueba de sincronización confirmó el caso entre las dos pestañas. El validador Mermaid encontró 0 diagramas, por lo que no comprobó diagramas existentes.
+- npm 11 avisó que el `postinstall` de `esbuild` no está en la lista de scripts permitidos y no lo ejecutó. El build y la prueba de sincronización sí pasaron usando el binario opcional de la plataforma; no se añadió una excepción de scripts.
+- `frontend/vite.config.ts` usa `server.host: true`: el servidor de desarrollo escucha en interfaces de red. No exponerlo públicamente; el despliegue previsto sirve la app por Nginx/HTTPS.
+- Alcance de AS-007 por ahora: frontend existente. La selección de runtime/dependencias Python/Django/Channels y su auditoría queda pendiente antes de crear el backend; no se declara backend implementado ni auditado.
 
 ### Acceso y contraseñas
 
@@ -527,7 +538,7 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 | AS-004 | P0, AS-001/003 | Campos, obligatoriedad y límites aprobados; discrepancias clínicas identificadas | Definición aprobada para piloto sintético (D-007); implementación/pruebas futuras |
 | AS-005 | P0, AS-002 | Sesiones, recuperación, auditoría, amenazas y datos sintéticos definidos | Políticas aprobadas (D-008); detalles operativos/técnicos y pruebas pendientes |
 | AS-006 | P1, AS-002/003/004/005 | Diseño modular/modelo y contratos mínimos de API/eventos documentados, sin backend aún | Diseño mínimo aprobado (D-009); contratos detallados/implementación/pruebas pendientes |
-| AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Pendiente técnico |
+| AS-007 | P0, independiente del cierre de reglas clínicas | Runtime y dependencias soportadas; auditoría revisada; actualizaciones verificadas sin `fix --force` indiscriminado | Frontend actualizado y verificado; runtime/dependencias backend pendientes antes de su implementación |
 | AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Pendiente técnico |
 | AS-009 | P1, AS-008 | CI en pull request y main; verificar una ejecución correcta y un fallo controlado | Pendiente técnico |
 | AS-010 | P1, AS-006/009 | Entorno reproducible, estrategia de ramas/releases y checklist de aceptación de etapa | Propuesta |
@@ -566,7 +577,7 @@ docs(development): documenta entorno y cierre de etapa 0 [AS-010]
 
 Es una guía, no una obligación de exactamente diez commits: si una actualización exige migración incompatible, dividir por cambios comprobables; si dos ajustes documentales son inseparables, integrarlos juntos. No duplicar toda esta especificación en archivos diferentes: los siguientes commits pueden refinar secciones y enlazar detalles especializados.
 
-Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada; AS-005 políticas y AS-006 diseño mínimo aprobados con detalles pendientes; no están implementados. AS-007–010 mantienen sus pendientes.
+Los acuerdos documentales se publican en la rama de revisión; no integran automáticamente propuestas pendientes en `main`. AS-002 a AS-004 tienen definición aprobada; AS-005 políticas y AS-006 diseño mínimo aprobados con detalles pendientes; no están implementados. AS-007 actualizó/verificó el frontend; la selección de runtime y dependencias backend y AS-008–010 siguen pendientes.
 
 ## 11. Condiciones para cerrar la etapa 0
 
@@ -581,9 +592,9 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [ ] Retención de aplicación/auditoría/logs, proveedores y procedimientos operativos de seguridad definidos antes de despliegue.
 - [x] Modelo/contratos mínimos y dependencias de tareas revisados (D-009, 29/10/2026).
 - [ ] Contratos técnicos detallados y excepciones pendientes resueltos antes de habilitar cada operación, según ARQUITECTURA_PILOTO.md.
-- [ ] Dependencias vulnerables tratadas o riesgo residual justificado antes de exponer servicios.
+- [x] Dependencias vulnerables del frontend tratadas y auditadas (AS-007, npm audit: 0 vulnerabilidades); auditar también backend antes de exponer servicios.
 - [ ] Pruebas repetibles y CI operativos con evidencia.
 - [ ] Entorno e instrucciones verificadas por otro integrante cuando sea posible.
 - [ ] Rúbrica de Nota 3, fecha de defensa y disponibilidad del equipo confirmadas.
 
-**Próximo apartado:** entorno, runtimes y dependencias soportadas (AS-007), seguido de pruebas repetibles y CI (AS-008/009). Las políticas y el diseño mínimo están aprobados; faltan contratos detallados, decisiones operativas y preparación técnica verificable. La etapa 0 no está cerrada.
+**Próximo apartado:** pruebas frontend repetibles y corrección del validador Mermaid (AS-008), seguido de CI (AS-009). La parte frontend de AS-007 está verificada; runtime/dependencias backend y otros pendientes operativos siguen abiertos. La etapa 0 no está cerrada.
