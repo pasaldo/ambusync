@@ -122,9 +122,20 @@ class EmergencyCreateSerializer(serializers.Serializer):
 
 
 class ArrivalConfirmationSerializer(serializers.Serializer):
+    operation_id = serializers.UUIDField()
+    expected_version = serializers.IntegerField(min_value=1)
     reason = serializers.CharField(
         max_length=2000, allow_blank=True, required=False, trim_whitespace=True
     )
+
+
+class EmergencyOperationSerializer(serializers.Serializer):
+    operation_id = serializers.UUIDField()
+    expected_version = serializers.IntegerField(min_value=1)
+
+
+class EmergencyCancellationSerializer(EmergencyOperationSerializer):
+    reason = serializers.CharField(min_length=3, max_length=2000, trim_whitespace=True)
 
 
 def emergency_representation(emergency):
@@ -162,7 +173,16 @@ def emergency_representation(emergency):
         "transfer_declared_at": (
             emergency.transfer_declared_at.isoformat() if emergency.transfer_declared_at else None
         ),
+        "transfer_declared_by_id": (
+            str(emergency.transfer_declared_by_id) if emergency.transfer_declared_by_id else None
+        ),
         "arrived_at": emergency.arrived_at.isoformat() if emergency.arrived_at else None,
+        "arrived_by_id": str(emergency.arrived_by_id) if emergency.arrived_by_id else None,
         "arrival_reason": emergency.arrival_reason,
+        "cancelled_at": emergency.cancelled_at.isoformat() if emergency.cancelled_at else None,
+        "cancelled_by_id": str(emergency.cancelled_by_id) if emergency.cancelled_by_id else None,
+        "cancellation_reason": emergency.cancellation_reason,
+        "closed_at": emergency.closed_at.isoformat() if emergency.closed_at else None,
+        "closed_by_id": str(emergency.closed_by_id) if emergency.closed_by_id else None,
         "version": emergency.version,
     }

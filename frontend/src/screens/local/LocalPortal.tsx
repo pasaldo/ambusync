@@ -4,12 +4,15 @@ import { Activity, Ambulance, HeartPulse, LogOut, RefreshCw, Server } from "luci
 import { AdminAccountsPanel } from "@/screens/local/AdminAccountsPanel";
 import {
   BackendApiError,
+  cancelEmergency,
+  closeEmergency,
   createEmergency,
   getCurrentUser,
   listDestinations,
   listEmergencies,
   logout,
   markEmergencyArrived,
+  startEmergencyTransfer,
   type BackendEmergency,
   type BackendUser,
   type Destination,
@@ -191,7 +194,7 @@ export function LocalPortal() {
     if (user.groups.includes("ambulance")) {
       listDestinations().then(setDestinations).catch((requestError) => setError(displayError(requestError)));
     }
-    if (user.groups.includes("urgencias")) {
+    if (user.groups.includes("ambulance") || user.groups.includes("urgencias")) {
       const refreshList = () => listEmergencies().then(setEmergencies).catch((requestError) => {
         if (isUnauthenticated(requestError)) expireSession();
         else setError(displayError(requestError));
@@ -268,6 +271,7 @@ export function LocalPortal() {
           : {}),
       });
       setLastCreated(created);
+      setEmergencies((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       setDraft(emptyDraft());
       setMessage("Episodio guardado en el backend local.");
     } catch (submitError) {
@@ -279,15 +283,36 @@ export function LocalPortal() {
   }
 
   async function confirmArrival(emergencyId: string, reason: string) {
+    const emergency = emergencies.find((item) => item.id === emergencyId);
+    if (!emergency) return;
+    await runTransition(() => markEmergencyArrived(emergency, reason), "Llegada a Urgencias registrada.");
+  }
+
+  async function runTransition(operation: () => Promise<BackendEmergency>, successMessage: string) {
     setError("");
     try {
-      const updated = await markEmergencyArrived(emergencyId, reason);
+      const updated = await operation();
       setEmergencies((current) => current.map((item) => item.id === updated.id ? updated : item));
-      setMessage("Llegada a Urgencias registrada.");
+      setMessage(successMessage);
     } catch (requestError) {
       if (requestError instanceof BackendApiError && requestError.status === 401) expireSession();
       else setError(displayError(requestError));
     }
+  }
+
+  async function refreshEmergencies() {
+    try {
+      setEmergencies(await listEmergencies());
+    } catch (requestError) {
+      if (isUnauthenticated(requestError)) expireSession();
+      else setError(displayError(requestError));
+    }
+  }
+
+  function cancelFromAmbulance(emergency: BackendEmergency) {
+    const reason = window.prompt("Indica el motivo de cancelación (datos sintéticos):");
+    if (reason === null || reason.trim().length < 3) return;
+    void runTransition(() => cancelEmergency(emergency, reason.trim()), "Episodio cancelado.");
   }
 
   return (
@@ -342,7 +367,19 @@ export function LocalPortal() {
                 <p className="mt-6 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">La cuenta inició sesión, pero no tiene un rol operativo disponible en este entorno.</p>
               ) : role === "ambulance" && canAmbulance ? (
                 <section className="mt-5">
-                  <h2 className="text-lg font-bold">Nueva emergencia</h2>
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-lg font-bold">Episodios de la unidad</h2>
+                    <button onClick={() => void refreshEmergencies()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><RefreshCw className="h-4 w-4" /> Actualizar</button>
+                  </div>
+                  {emergencies.length > 0 && <div className="mt-3 space-y-2">{emergencies.map((item) => <div key={item.id} className="rounded-xl border border-white/10 bg-ink/60 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2"><strong>{item.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{emergencyStatusLabel(item.status)}</span></div>
+                    <p className="mt-1 text-sm text-muted-dark">{item.reason} · {item.destination_name}</p>
+                    {(item.status === "notificada" || item.status === "en_traslado") && <div className="mt-3 flex flex-wrap gap-2">
+                      {item.status === "notificada" && <button onClick={() => void runTransition(() => startEmergencyTransfer(item), "Inicio de traslado registrado.")} className="rounded-lg bg-signal px-3 py-2 text-sm font-semibold text-ink">Iniciar traslado</button>}
+                      <button onClick={() => cancelFromAmbulance(item)} className="rounded-lg border border-rose-300/30 px-3 py-2 text-sm text-rose-100">Cancelar episodio</button>
+                    </div>}
+                  </div>)}</div>}
+                  <h2 className="mt-6 text-lg font-bold">Nueva emergencia</h2>
                   <p className="mt-1 text-sm text-muted-dark">La unidad se toma de la asignación del servidor. Las mediciones son opcionales y se conservan individualmente.</p>
                   {destinations.length === 0 ? (
                     <p className="mt-4 rounded-lg bg-white/5 p-3 text-sm text-muted-dark">No hay destinos receptores habilitados para esta cuenta.</p>
@@ -412,7 +449,7 @@ export function LocalPortal() {
                 <section className="mt-5">
                   <div className="flex items-end justify-between gap-3">
                     <div><h2 className="text-lg font-bold">Episodios autorizados</h2><p className="mt-1 text-sm text-muted-dark">Actualización periódica local; sin WebSocket.</p></div>
-                    <button onClick={() => void listEmergencies().then(setEmergencies).catch((requestError) => setError(displayError(requestError)))} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><RefreshCw className="h-4 w-4" /> Actualizar</button>
+                    <button onClick={() => void refreshEmergencies()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><RefreshCw className="h-4 w-4" /> Actualizar</button>
                   </div>
                   {sortedEmergencies.length === 0 ? <p className="mt-5 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios en el ámbito de esta cuenta.</p> : (
                     <div className="mt-4 space-y-2">{sortedEmergencies.map((item) => <button key={item.id} onClick={() => setSelectedId(item.id)} className="w-full rounded-xl border border-white/10 bg-ink/60 p-4 text-left transition hover:border-signal/40 hover:bg-white/5">
@@ -420,7 +457,7 @@ export function LocalPortal() {
                       <span className="mt-1 block text-sm text-muted-dark">{item.reason}</span><span className="mt-2 block text-xs text-muted-dark">{item.destination_name} · {item.ambulance_code} · {new Date(item.created_at).toLocaleString()}</span>
                     </button>)}</div>
                   )}
-                  {selected && <EmergencyDetail emergency={selected} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} />}
+                  {selected && <EmergencyDetail emergency={selected} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} onCloseEmergency={() => void runTransition(() => closeEmergency(selected), "Episodio cerrado.")} />}
                 </section>
               ) : role === "administration" && canAdminister ? (
                 <AdminAccountsPanel currentUserId={user.id} institutionName={user.institutions[0]?.name ?? ""} />
@@ -446,10 +483,12 @@ function RoleButton({ active, onClick, icon, children }: { active: boolean; onCl
 function emergencyStatusLabel(status: BackendEmergency["status"]) {
   if (status === "en_traslado") return "En traslado";
   if (status === "llegado") return "Llegado a Urgencias";
+  if (status === "cancelada") return "Cancelada";
+  if (status === "cerrada") return "Cerrada";
   return "Notificada";
 }
 
-function EmergencyDetail({ emergency, onClose, onMarkArrived }: { emergency: BackendEmergency; onClose: () => void; onMarkArrived: (reason: string) => void }) {
+function EmergencyDetail({ emergency, onClose, onMarkArrived, onCloseEmergency }: { emergency: BackendEmergency; onClose: () => void; onMarkArrived: (reason: string) => void; onCloseEmergency: () => void }) {
   const ageUnit = emergency.patient.age_unit === "years" ? "años" : emergency.patient.age_unit === "months" ? "meses" : emergency.patient.age_unit === "days" ? "días" : "";
   function confirmArrival() {
     let reason = "";
@@ -469,7 +508,11 @@ function EmergencyDetail({ emergency, onClose, onMarkArrived }: { emergency: Bac
       <p className="mt-2 text-sm text-muted-dark">Síntomas: {emergency.symptoms.length ? emergency.symptoms.join(", ") : "No informados"}</p>
       <div className="mt-4"><h4 className="text-sm font-semibold">Mediciones vitales</h4>{emergency.vital_measurements.length ? <ul className="mt-2 space-y-1 text-sm text-muted-dark">{emergency.vital_measurements.map((measurement, index) => <li key={`${measurement.kind}-${index}`}>{measurement.kind}: <strong className="text-white">{measurement.value} {measurement.unit}</strong> · {new Date(measurement.measured_at).toLocaleString()}</li>)}</ul> : <p className="mt-1 text-sm text-muted-dark">No medidas</p>}</div>
       {emergency.notes && <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white/5 p-3 text-sm">{emergency.notes}</p>}
-      {emergency.status === "llegado" ? <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Llegada registrada: {emergency.arrived_at ? new Date(emergency.arrived_at).toLocaleString() : "hora no disponible"}{emergency.arrival_reason ? ` · Motivo: ${emergency.arrival_reason}` : ""}</p> : <button onClick={confirmArrival} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-semibold text-ink"><Activity className="h-4 w-4" />Marcar como llegado a Urgencias</button>}
+      {emergency.arrived_at && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Llegada registrada: {new Date(emergency.arrived_at).toLocaleString()}{emergency.arrival_reason ? ` · Motivo: ${emergency.arrival_reason}` : ""}</p>}
+      {(emergency.status === "notificada" || emergency.status === "en_traslado") && <button onClick={confirmArrival} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-semibold text-ink"><Activity className="h-4 w-4" />Marcar como llegado a Urgencias</button>}
+      {emergency.status === "llegado" && <button onClick={onCloseEmergency} className="mt-3 flex h-11 w-full items-center justify-center rounded-lg border border-signal/40 px-4 font-semibold text-signal-soft">Cerrar episodio</button>}
+      {emergency.status === "cancelada" && <p className="mt-4 rounded-lg bg-rose-300/10 p-3 text-sm text-rose-100">Cancelado: {emergency.cancellation_reason}</p>}
+      {emergency.status === "cerrada" && <p className="mt-4 rounded-lg bg-white/5 p-3 text-sm text-muted-dark">Episodio cerrado el {emergency.closed_at ? new Date(emergency.closed_at).toLocaleString() : ""}.</p>}
       <p className="mt-4 text-xs text-muted-dark">Destino: {emergency.destination_name} · Unidad: {emergency.ambulance_code} · Creado: {new Date(emergency.created_at).toLocaleString()}</p>
     </div>
   </div>;

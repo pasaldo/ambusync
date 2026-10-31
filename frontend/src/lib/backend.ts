@@ -59,7 +59,7 @@ export interface BackendEmergency {
   destination_id: string;
   destination_name: string;
   ambulance_code: string;
-  status: "notificada" | "en_traslado" | "llegado";
+  status: "notificada" | "en_traslado" | "llegado" | "cancelada" | "cerrada";
   patient: {
     identity_unknown: boolean;
     alias: string | null;
@@ -74,8 +74,16 @@ export interface BackendEmergency {
   vital_measurements: VitalMeasurement[];
   created_at: string;
   transfer_declared_at: string | null;
+  transfer_declared_by_id: string | null;
   arrived_at: string | null;
+  arrived_by_id: string | null;
   arrival_reason: string;
+  cancelled_at: string | null;
+  cancelled_by_id: string | null;
+  cancellation_reason: string;
+  closed_at: string | null;
+  closed_by_id: string | null;
+  version: number;
 }
 
 interface ApiErrorBody {
@@ -242,15 +250,26 @@ export async function createEmergency(payload: Record<string, unknown>): Promise
   });
 }
 
-export async function markEmergencyArrived(
+async function transitionEmergency(
   emergencyId: string,
-  reason = "",
+  action: "arrival" | "transfer-start" | "cancel" | "close",
+  emergency: BackendEmergency,
+  extra: Record<string, string> = {},
 ): Promise<BackendEmergency> {
   const token = await ensureCsrf();
-  return request(`/api/v1/emergencies/${encodeURIComponent(emergencyId)}/arrival/`, {
+  return request(`/api/v1/emergencies/${encodeURIComponent(emergencyId)}/${action}/`, {
     method: "POST",
     headers: { "X-CSRFToken": token },
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify({ operation_id: crypto.randomUUID(), expected_version: emergency.version, ...extra }),
     humanInteraction: true,
   });
 }
+
+export const markEmergencyArrived = (emergency: BackendEmergency, reason = "") =>
+  transitionEmergency(emergency.id, "arrival", emergency, { reason });
+export const startEmergencyTransfer = (emergency: BackendEmergency) =>
+  transitionEmergency(emergency.id, "transfer-start", emergency);
+export const cancelEmergency = (emergency: BackendEmergency, reason: string) =>
+  transitionEmergency(emergency.id, "cancel", emergency, { reason });
+export const closeEmergency = (emergency: BackendEmergency) =>
+  transitionEmergency(emergency.id, "close", emergency);

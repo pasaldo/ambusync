@@ -1,6 +1,5 @@
 import hashlib
 import json
-import uuid
 
 from django.contrib.auth import get_user_model
 from django.core.serializers.json import DjangoJSONEncoder
@@ -18,7 +17,9 @@ from emergencies.models import Emergency, ProcessedOperation, VitalMeasurement
 from emergencies.serializers import (
     VITAL_FIELD_TO_KIND,
     ArrivalConfirmationSerializer,
+    EmergencyCancellationSerializer,
     EmergencyCreateSerializer,
+    EmergencyOperationSerializer,
     emergency_representation,
 )
 from institutions.models import AmbulanceAssignment, Institution, InstitutionMembership
@@ -148,7 +149,7 @@ class EmergencyListCreateView(APIView):
                 .first()
             )
             if previous:
-                if previous.request_hash != request_hash:
+                if previous.action != "emergency.created" or previous.request_hash != request_hash:
                     raise OperationConflict()
                 if not authorized_emergencies(actor).filter(pk=previous.emergency_id).exists():
                     raise PermissionDenied("La operación ya no está dentro del ámbito autorizado.")
@@ -167,6 +168,7 @@ class EmergencyListCreateView(APIView):
                 if transfer_started
                 else Emergency.Status.NOTIFIED,
                 transfer_declared_at=timezone.now() if transfer_started else None,
+                transfer_declared_by=actor if transfer_started else None,
                 **values,
             )
             taken_at = vitals.pop("taken_at", None)
@@ -190,6 +192,7 @@ class EmergencyListCreateView(APIView):
                 operation_id=operation_id,
                 request_hash=request_hash,
                 emergency=emergency,
+                action="emergency.created",
             )
             AuditEvent.objects.create(
                 actor=actor,
@@ -220,26 +223,47 @@ class EmergencyDetailView(APIView):
         return Response(emergency_representation(emergency))
 
 
-class EmergencyArrivalView(APIView):
+class EmergencyTransitionView(APIView):
     permission_classes = (IsAuthenticated,)
+    action = ""
+    actor_group = ""
+    serializer_class = EmergencyOperationSerializer
 
     def post(self, request, emergency_id):
-        if not isinstance(request.data, dict) or set(request.data) - {"reason"}:
+        if not isinstance(request.data, dict):
+            raise ValidationError({"request": "Revisa el formato de la solicitud."})
+        serializer = self.serializer_class(data=request.data)
+        unknown_fields = set(request.data) - set(serializer.fields)
+        if unknown_fields:
             raise ValidationError({"request": "La solicitud contiene campos no admitidos."})
-        serializer = ArrivalConfirmationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        reason = serializer.validated_data.get("reason", "")
+        values = serializer.validated_data
+        operation_id = values["operation_id"]
+        expected_version = values["expected_version"]
+        request_hash = hashlib.sha256(
+            json.dumps(
+                {
+                    "action": self.action,
+                    "emergency_id": str(emergency_id),
+                    **values,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                cls=DjangoJSONEncoder,
+            ).encode("utf-8")
+        ).hexdigest()
 
-        if not request.user.groups.filter(name="urgencias").exists():
-            raise PermissionDenied("Solo Urgencias puede confirmar la llegada.")
+        if not request.user.groups.filter(name=self.actor_group).exists():
+            raise PermissionDenied("La acción no está permitida para este perfil.")
 
         User = get_user_model()
         with transaction.atomic():
             actor = (
                 User.objects.select_for_update().filter(pk=request.user.pk, is_active=True).first()
             )
-            if actor is None or not actor.groups.filter(name="urgencias").exists():
-                raise PermissionDenied("Solo Urgencias puede confirmar la llegada.")
+            if actor is None or not actor.groups.filter(name=self.actor_group).exists():
+                raise PermissionDenied("La acción no está permitida para este perfil.")
             emergency = (
                 Emergency.objects.select_for_update()
                 .select_related("operating_institution", "destination", "ambulance")
@@ -248,46 +272,168 @@ class EmergencyArrivalView(APIView):
             )
             if emergency is None:
                 raise NotFound("El episodio no está disponible.")
-            membership = InstitutionMembership.objects.filter(
+
+            self.authorize_scope(actor, emergency)
+
+            previous = ProcessedOperation.objects.filter(
+                actor=actor, operation_id=operation_id
+            ).first()
+            if previous:
+                if (
+                    previous.action != self.action
+                    or previous.emergency_id != emergency.pk
+                    or previous.request_hash != request_hash
+                ):
+                    raise OperationConflict()
+                return Response(
+                    emergency_representation(emergency),
+                    status=status.HTTP_200_OK,
+                    headers={"Idempotent-Replay": "true"},
+                )
+
+            if emergency.version != expected_version:
+                raise OperationConflict(
+                    "La versión del episodio cambió; actualiza y vuelve a revisar."
+                )
+
+            self.apply_transition(emergency, actor, values)
+            emergency.version += 1
+            emergency.save(update_fields=self.update_fields)
+            ProcessedOperation.objects.create(
+                actor=actor,
+                operation_id=operation_id,
+                request_hash=request_hash,
+                emergency=emergency,
+                action=self.action,
+            )
+            AuditEvent.objects.create(
+                actor=actor,
+                institution=self.audit_institution(emergency),
+                ambulance=emergency.ambulance,
+                action=self.action,
+                object_type="emergency",
+                object_id=str(emergency.pk),
+                result=AuditEvent.Result.SUCCESS,
+                correlation_id=operation_id,
+            )
+
+        return Response(emergency_representation(emergency), status=status.HTTP_200_OK)
+
+    def authorize_scope(self, actor, emergency):
+        if self.actor_group == "ambulance":
+            assignment = active_assignment_for(actor, lock=True)
+            membership = (
+                InstitutionMembership.objects.select_for_update()
+                .filter(
+                    user=actor,
+                    institution_id=emergency.operating_institution_id,
+                    active=True,
+                    institution__enabled=True,
+                )
+                .exists()
+            )
+            if (
+                assignment is None
+                or assignment.ambulance_id != emergency.ambulance_id
+                or not membership
+            ):
+                raise NotFound("El episodio no está disponible.")
+            return
+        membership = (
+            InstitutionMembership.objects.select_for_update()
+            .filter(
                 user=actor,
                 institution_id=emergency.destination_id,
                 active=True,
                 institution__enabled=True,
-            ).first()
-            if membership is None:
-                raise NotFound("El episodio no está disponible.")
-            if emergency.status == Emergency.Status.ARRIVED:
-                return Response(
-                    emergency_representation(emergency),
-                    status=status.HTTP_200_OK,
-                    headers={"Arrival-Replay": "true"},
-                )
-            if emergency.status not in (Emergency.Status.NOTIFIED, Emergency.Status.IN_TRANSIT):
-                raise OperationConflict("El episodio ya no admite confirmación de llegada.")
-            if emergency.status == Emergency.Status.NOTIFIED and not reason:
-                raise ValidationError(
-                    {
-                        "reason": "Explica por qué se confirma la llegada sin inicio de traslado registrado."
-                    }
-                )
-
-            emergency.status = Emergency.Status.ARRIVED
-            emergency.arrived_at = timezone.now()
-            emergency.arrived_by = actor
-            emergency.arrival_reason = reason
-            emergency.version += 1
-            emergency.save(
-                update_fields=("status", "arrived_at", "arrived_by", "arrival_reason", "version")
             )
-            AuditEvent.objects.create(
-                actor=actor,
-                institution=emergency.destination,
-                ambulance=emergency.ambulance,
-                action="emergency.arrived",
-                object_type="emergency",
-                object_id=str(emergency.pk),
-                result=AuditEvent.Result.SUCCESS,
-                correlation_id=uuid.uuid4(),
-            )
+            .exists()
+        )
+        if not membership:
+            raise NotFound("El episodio no está disponible.")
 
-        return Response(emergency_representation(emergency), status=status.HTTP_200_OK)
+    def apply_transition(self, emergency, actor, values):
+        raise NotImplementedError
+
+    def audit_institution(self, emergency):
+        return (
+            emergency.operating_institution
+            if self.actor_group == "ambulance"
+            else emergency.destination
+        )
+
+
+class EmergencyArrivalView(EmergencyTransitionView):
+    action = "emergency.arrived"
+    actor_group = "urgencias"
+    serializer_class = ArrivalConfirmationSerializer
+    update_fields = ("status", "arrived_at", "arrived_by", "arrival_reason", "version")
+
+    def apply_transition(self, emergency, actor, values):
+        if emergency.status not in (Emergency.Status.NOTIFIED, Emergency.Status.IN_TRANSIT):
+            raise OperationConflict("El episodio ya no admite confirmación de llegada.")
+        reason = values.get("reason", "")
+        if emergency.status == Emergency.Status.NOTIFIED and not reason:
+            raise ValidationError(
+                {
+                    "reason": "Explica por qué se confirma la llegada sin inicio de traslado registrado."
+                }
+            )
+        emergency.status = Emergency.Status.ARRIVED
+        emergency.arrived_at = timezone.now()
+        emergency.arrived_by = actor
+        emergency.arrival_reason = reason
+
+
+class EmergencyTransferStartView(EmergencyTransitionView):
+    action = "emergency.transfer_started"
+    actor_group = "ambulance"
+
+    def apply_transition(self, emergency, actor, values):
+        if emergency.status != Emergency.Status.NOTIFIED:
+            raise OperationConflict("Solo se puede iniciar el traslado de un episodio notificado.")
+        emergency.status = Emergency.Status.IN_TRANSIT
+        emergency.transfer_declared_at = timezone.now()
+        emergency.transfer_declared_by = actor
+
+    @property
+    def update_fields(self):
+        return ("status", "transfer_declared_at", "transfer_declared_by", "version")
+
+
+class EmergencyCancelView(EmergencyTransitionView):
+    action = "emergency.cancelled"
+    actor_group = "ambulance"
+    serializer_class = EmergencyCancellationSerializer
+
+    def apply_transition(self, emergency, actor, values):
+        if emergency.status not in (Emergency.Status.NOTIFIED, Emergency.Status.IN_TRANSIT):
+            raise OperationConflict(
+                "Solo se puede cancelar antes de que Urgencias registre la llegada."
+            )
+        emergency.status = Emergency.Status.CANCELLED
+        emergency.cancelled_at = timezone.now()
+        emergency.cancelled_by = actor
+        emergency.cancellation_reason = values["reason"]
+
+    @property
+    def update_fields(self):
+        return ("status", "cancelled_at", "cancelled_by", "cancellation_reason", "version")
+
+
+class EmergencyCloseView(EmergencyTransitionView):
+    action = "emergency.closed"
+    actor_group = "urgencias"
+
+    def apply_transition(self, emergency, actor, values):
+        if emergency.status != Emergency.Status.ARRIVED:
+            raise OperationConflict(
+                "Solo se puede cerrar un episodio después de registrar su llegada."
+            )
+        emergency.status = Emergency.Status.CLOSED
+        emergency.closed_at = timezone.now()
+        emergency.closed_by = actor
+
+    @property
+    def update_fields(self):
+        return ("status", "closed_at", "closed_by", "version")
