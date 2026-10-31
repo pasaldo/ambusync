@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Activity, ArrowLeft, Ambulance, HeartPulse, LogIn, LogOut, RefreshCw, Server } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Activity, Ambulance, HeartPulse, LogOut, RefreshCw, Server } from "lucide-react";
 import {
   BackendApiError,
   createEmergency,
   getCurrentUser,
   listDestinations,
   listEmergencies,
-  login,
   logout,
   type BackendEmergency,
   type BackendUser,
@@ -83,12 +82,11 @@ function isUnauthenticated(error: unknown): boolean {
 
 export function LocalPortal() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState<BackendUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [loginName, setLoginName] = useState("");
-  const [password, setPassword] = useState("");
   const [role, setRole] = useState<"ambulance" | "urgencias" | null>(null);
   const [draft, setDraft] = useState<EmergencyDraft>(emptyDraft);
   const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -116,8 +114,11 @@ export function LocalPortal() {
   const expireSession = useCallback(() => {
     userRef.current = null;
     setUser(null);
-    setMessage("La sesión expiró. Vuelve a autenticarte; el borrador permanece solo en memoria y no se enviará automáticamente.");
-  }, []);
+    navigate("/", {
+      replace: true,
+      state: { notice: "La sesión expiró. Inicia sesión nuevamente; ningún borrador se enviará automáticamente." },
+    });
+  }, [navigate]);
 
   const refreshUser = useCallback(async (humanInteraction = false) => {
     try {
@@ -149,6 +150,10 @@ export function LocalPortal() {
       .finally(() => active && setLoading(false));
     return () => { active = false; };
   }, [acceptUser]);
+
+  useEffect(() => {
+    if (!loading && !user && location.pathname !== "/") navigate("/", { replace: true });
+  }, [loading, user, navigate, location.pathname]);
 
   useEffect(() => {
     if (!user) return;
@@ -206,24 +211,6 @@ export function LocalPortal() {
     return triageOrder || a.created_at.localeCompare(b.created_at);
   }), [emergencies]);
 
-  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-    try {
-      await login(loginName, password);
-      const current = await getCurrentUser();
-      if (lastAccountId.current === current.id) {
-        setMessage("Sesión renovada. Revisa el borrador y envíalo manualmente si corresponde.");
-      }
-      acceptUser(current);
-      setRole(current.groups.includes("ambulance") ? "ambulance" : current.groups.includes("urgencias") ? "urgencias" : null);
-      setPassword("");
-    } catch (loginError) {
-      setError(displayError(loginError));
-    }
-  }
-
   async function handleLogout() {
     try {
       await logout();
@@ -236,7 +223,10 @@ export function LocalPortal() {
     lastAccountId.current = null;
     userRef.current = null;
     setUser(null);
-    setMessage("Sesión cerrada; el borrador en memoria fue descartado.");
+    navigate("/", {
+      replace: true,
+      state: { notice: "Sesión cerrada; el borrador en memoria fue descartado." },
+    });
   }
 
   function updateDraft(patch: Partial<EmergencyDraft>) {
@@ -289,9 +279,15 @@ export function LocalPortal() {
     <main className="grid-monitor min-h-[100dvh] bg-ink px-4 py-6 text-white sm:px-6">
       <div className="mx-auto w-full max-w-4xl">
         <header className="mb-5 flex items-center justify-between gap-3">
-          <button onClick={() => navigate("/")} className="inline-flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-dark hover:bg-white/5">
-            <ArrowLeft className="h-4 w-4" /> Demo / inicio
-          </button>
+          {(canAmbulance || canUrgencias) && (
+            <button
+              onClick={() => navigate(role === "urgencias" && canUrgencias ? "/urgencias" : "/ambulancia")}
+              className="inline-flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-dark hover:bg-white/5"
+            >
+              {role === "urgencias" && canUrgencias ? <HeartPulse className="h-4 w-4" /> : <Ambulance className="h-4 w-4" />}
+              Abrir simulador demo
+            </button>
+          )}
           <span className="inline-flex items-center gap-2 rounded-full border border-signal/30 bg-signal/10 px-3 py-1.5 text-xs font-semibold text-signal-soft">
             <Server className="h-3.5 w-3.5" /> Backend local
           </span>
@@ -301,19 +297,7 @@ export function LocalPortal() {
           {loading ? (
             <p className="py-10 text-center text-sm text-muted-dark">Comprobando sesión local…</p>
           ) : !user ? (
-            <div className="mx-auto max-w-md py-5">
-              <h1 className="text-2xl font-bold">Acceso al backend local</h1>
-              <p className="mt-2 text-sm leading-relaxed text-muted-dark">Usa una cuenta de demostración configurada localmente. Esta ruta conserva la demo separada y no guarda información del backend en el almacenamiento local del navegador.</p>
-              <form onSubmit={handleLogin} className="mt-6 space-y-4">
-                <label className="block text-sm font-medium">Usuario
-                  <input autoComplete="username" required value={loginName} onChange={(event) => setLoginName(event.target.value)} className="mt-1.5 h-11 w-full rounded-lg border border-white/15 bg-ink px-3 text-white outline-none focus:border-signal" />
-                </label>
-                <label className="block text-sm font-medium">Contraseña
-                  <input type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1.5 h-11 w-full rounded-lg border border-white/15 bg-ink px-3 text-white outline-none focus:border-signal" />
-                </label>
-                <button className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-semibold text-ink disabled:opacity-50"><LogIn className="h-4 w-4" /> Iniciar sesión</button>
-              </form>
-            </div>
+            <p role="status" className="py-10 text-center text-sm text-muted-dark">Redirigiendo al inicio de sesión…</p>
           ) : (
             <>
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">

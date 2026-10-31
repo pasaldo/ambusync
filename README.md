@@ -26,12 +26,14 @@ El MVP demuestra el flujo completo **capturar → transmitir → recibir** con d
 
 ## Muestras del funcionamiento
 
-El flujo completo **capturar → transmitir → recibir**, capturado de la app en ejecución.
+Capturas del ingreso y del simulador. La imagen de inicio corresponde a la pantalla de login;
+las siguientes muestran el simulador separado con una sesión de prueba interceptada localmente,
+no una sesión ni datos leídos del backend.
 
-### 1. Selección de rol
+### 1. Ingreso a la aplicación
 
 <p align="center">
-  <img src="docs/screenshots/01-selector-rol.png" alt="Selector de rol" width="420" />
+  <img src="docs/screenshots/01-inicio-sesion.png" alt="Inicio de sesión AmbuSync" width="420" />
 </p>
 
 ### 2. Ambulancia — captura del paciente
@@ -75,17 +77,23 @@ acciones de recepción.
 - **Zustand** (estado global), **React Router** (`/ambulancia` y `/urgencias`)
 - Fuentes: **Hanken Grotesk** (UI) + **JetBrains Mono** tabular (vitales/ETA)
 
+El ingreso comienza con autenticación de cuenta en Django. Tras iniciar sesión, `/local` muestra
+el módulo permitido por los grupos de esa cuenta; no se selecciona libremente una identidad.
+Las rutas del simulador también requieren sesión, pero sus casos de ejemplo siguen separados de
+los episodios del backend.
+
 El **tiempo real de la demo** se resuelve en el frontend: el store (Zustand) se sincroniza
 **entre pestañas del mismo navegador** vía **BroadcastChannel** con respaldo en **localStorage**.
 Las rutas `/ambulancia` y `/urgencias` conservan esa demo independiente. La ruta `/local` conecta
-la SPA con Django + DRF para iniciar sesión, crear emergencias y consultar episodios autorizados;
+la SPA con Django + DRF para crear emergencias y consultar episodios autorizados;
 usa cookie de sesión y no persiste respuestas del backend en `localStorage`. Channels/WebSocket y
 la sincronización entre dispositivos siguen pendientes; consulta
 [docs/ETAPA_1.md](docs/ETAPA_1.md).
 
 ## Cómo correrlo
 
-Requiere **Node.js 24.20.0** y **npm 11.19.0**. La versión de Node está fijada en `.nvmrc` y `frontend/package.json` declara el rango compatible.
+Requiere **Node.js 24.20.0**, **npm 11.19.0** y el backend local configurado según
+[docs/ETAPA_1.md](docs/ETAPA_1.md). La versión de Node está fijada en `.nvmrc` y `frontend/package.json` declara el rango compatible.
 
 ```bash
 cd frontend
@@ -94,7 +102,7 @@ npx playwright install chromium
 npm run dev -- --host 127.0.0.1
 ```
 
-Abre <http://127.0.0.1:5173>. En escritorio verás el marco de teléfono; en móvil ocupa toda la pantalla. El selector mantiene los roles de demo y ofrece **Backend local** por separado. No expongas el servidor de desarrollo a una red pública.
+Abre <http://127.0.0.1:5173> e inicia sesión con la cuenta local asignada. La aplicación abre el módulo correspondiente a los permisos de esa cuenta. No expongas los servidores de desarrollo a una red pública.
 
 Otros comandos:
 
@@ -110,6 +118,8 @@ lado** del mismo navegador — una en **Urgencias** (`/urgencias`) y otra en **P
 (`/ambulancia`). Captura un paciente en la ambulancia y pulsa **Transmitir al hospital**: el
 caso aparece **en vivo** en el tablero de Urgencias (badge **NUEVO** + countdown corriendo),
 y los cambios de estado (*Aceptar*, *Preparar box*, *Marcar recibido*) se reflejan en ambas.
+Primero inicia sesión en la raíz con una cuenta local; la demo usa el navegador y el backend debe
+estar activo para validar la sesión.
 
 Otras formas de mostrarlo:
 
@@ -131,7 +141,7 @@ estados desde la SPA quedan pendientes.
 
 ```mermaid
 flowchart LR
-    RS["Selector de rol"]
+    Login["Inicio de sesión<br/>Django"]
 
     subgraph Browser["Navegador — SPA React + Vite + Tailwind"]
         direction LR
@@ -148,8 +158,8 @@ flowchart LR
 
     Tab2["Otra pestaña<br/>(mismo navegador)"]
 
-    RS --> Amb
-    RS --> ER
+    Login -.->|"sesión requerida"| Amb
+    Login -.->|"sesión requerida"| ER
     W -->|"addCase()"| Store
     T -.->|"status: transmitido"| Store
     Store ==>|"suscripción reactiva<br/>(countdown ETA en vivo)"| B
@@ -162,7 +172,11 @@ flowchart LR
         API["Django REST Framework"]
         DB[("PostgreSQL")]
         API --> DB
+        Portal["/local · módulo según permisos"]
+        API --> Portal
     end
+
+    Login -->|"autentica y lee grupos"| API
 
     subgraph Future["Pendiente: tiempo real multi-dispositivo"]
         WS["Django Channels<br/>WebSocket"]
@@ -253,7 +267,7 @@ ambusync/
 ├── frontend/                 # Vite + React + Tailwind (el MVP)
 │   ├── src/
 │   │   ├── components/        # PhoneFrame, VitalsStrip, TriageBadge, EtaCountdown, ui/
-│   │   ├── screens/           # RoleSelect, ambulance/, er/
+│   │   ├── screens/           # LoginScreen, ambulance/, er/, local/
 │   │   ├── store/             # useCases (Zustand) + sync.ts (BroadcastChannel/localStorage)
 │   │   ├── data/              # triage, vitals, status, seed
 │   │   └── types.ts           # modelo de datos (CaseRecord)
@@ -275,7 +289,7 @@ acento cian representa la señal/sincronización en vivo.
 | Fase | Descripción | Estado |
 |---|---|---|
 | 0 | Scaffold + design tokens | ✅ |
-| 1 | PhoneFrame + navegación + selector de rol | ✅ |
+| 1 | PhoneFrame + navegación + ingreso centralizado | ✅ |
 | 2 | Flujo del paramédico (wizard + transmisión) | ✅ |
 | 3 | Tablero de Urgencias + tiempo real simulado | ✅ |
 | 4–5 | Backend local inicial: Django + DRF + PostgreSQL; integración y WebSockets | Primera rebanada local implementada; integración/WebSocket pendientes |
