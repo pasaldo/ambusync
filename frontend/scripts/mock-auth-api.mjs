@@ -2,6 +2,26 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
   let authenticated = false;
   const managedAccounts = [];
   const demoAmbulances = [{ id: "demo-ambulance-id", code: "SYN-01", institution_id: "demo-operator-id", institution_name: "Hospital Operador Demo" }];
+  const demoEmergencies = [{
+    id: "demo-emergency-id",
+    operating_institution_id: "demo-operator-id",
+    destination_id: "demo-hospital-id",
+    ambulance_id: "demo-ambulance-id",
+    ambulance_code: "SYN-01",
+    destination_name: "Hospital Central Demo",
+    status: "en_traslado",
+    patient: { identity_unknown: true, alias: null, age_value: null, age_unit: null, recorded_sex: null },
+    reason: "Prueba sintética de llegada",
+    symptoms: [],
+    notes: "",
+    triage: "C3",
+    vital_measurements: [],
+    created_at: "2026-10-31T12:00:00Z",
+    transfer_declared_at: "2026-10-31T12:10:00Z",
+    arrived_at: null,
+    arrival_reason: "",
+    version: 1,
+  }];
   const demoUser = {
     id: "demo-user-id",
     username: groups.includes("institution_admin") ? "synthetic_admin" : "demo_ambulancia",
@@ -78,6 +98,21 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
       const index = managedAccounts.findIndex((item) => item.id === id);
       if (index >= 0) managedAccounts.splice(index, 1);
       await route.fulfill({ status: 204, body: "" });
+      return;
+    }
+    if (pathname === "/api/v1/emergencies/" && method === "GET") {
+      await route.fulfill({ json: { count: demoEmergencies.length, next: null, previous: null, results: demoEmergencies } });
+      return;
+    }
+    if (pathname === "/api/v1/emergencies/demo-emergency-id/" && method === "GET") {
+      await route.fulfill({ json: demoEmergencies[0] });
+      return;
+    }
+    if (pathname === "/api/v1/emergencies/demo-emergency-id/arrival/" && method === "POST") {
+      demoEmergencies[0].status = "llegado";
+      demoEmergencies[0].arrived_at = "2026-10-31T12:20:00Z";
+      demoEmergencies[0].version += 1;
+      await route.fulfill({ json: demoEmergencies[0] });
       return;
     }
     if (pathname === "/api/v1/institutions/destinations/") {

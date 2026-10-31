@@ -59,7 +59,7 @@ export interface BackendEmergency {
   destination_id: string;
   destination_name: string;
   ambulance_code: string;
-  status: "notificada" | "en_traslado";
+  status: "notificada" | "en_traslado" | "llegado";
   patient: {
     identity_unknown: boolean;
     alias: string | null;
@@ -74,6 +74,8 @@ export interface BackendEmergency {
   vital_measurements: VitalMeasurement[];
   created_at: string;
   transfer_declared_at: string | null;
+  arrived_at: string | null;
+  arrival_reason: string;
 }
 
 interface ApiErrorBody {
@@ -236,6 +238,19 @@ export async function createEmergency(payload: Record<string, unknown>): Promise
     method: "POST",
     headers: { "X-CSRFToken": token },
     body: JSON.stringify(payload),
+    humanInteraction: true,
+  });
+}
+
+export async function markEmergencyArrived(
+  emergencyId: string,
+  reason = "",
+): Promise<BackendEmergency> {
+  const token = await ensureCsrf();
+  return request(`/api/v1/emergencies/${encodeURIComponent(emergencyId)}/arrival/`, {
+    method: "POST",
+    headers: { "X-CSRFToken": token },
+    body: JSON.stringify({ reason }),
     humanInteraction: true,
   });
 }

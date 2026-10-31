@@ -186,9 +186,9 @@ El diagrama muestra el flujo habitual; las rutas excepcionales aprobadas se deta
 | Borrador | Formulario en memoria, corregible/descartable, no visible para urgencias. Sin botón independiente para guardar borradores en servidor. Puede perderse al cerrar/recargar |
 | `notificada` | «Enviar a urgencias» valida, persiste y habilita el episodio para el destino en una sola transacción, asignando ID, autor, unidad y fecha del servidor. No acredita que alguien lo haya visto o leído |
 | `en_traslado` | Persona de la unidad asignada confirma inicio manualmente o declara traslado ya iniciado al enviar. Continúan antecedentes/mediciones y seguimiento GPS con permiso |
-| `recibida` | Urgencias confirma llegada física con autor y fecha. Se detiene GPS, la ambulancia deja de modificar y el episodio pasa de entrantes a recibidos pendientes de cierre |
-| `cerrada` | Urgencias cierra manualmente tras recepción, con autor y fecha. Histórico autorizado; sin edición ordinaria, reapertura ni borrado del historial |
-| `cancelada` | Unidad asignada cancela antes de recepción con motivo, autor y fecha. Se detiene GPS, se comunica el cambio al receptor y deja de ser entrante activo; historial conservado |
+| `llegado` | Urgencias del destino confirma llegada física con autor y fecha. Se detiene GPS, la ambulancia deja de modificar y el episodio pasa de entrantes a llegados pendientes de cierre |
+| `cerrada` | Urgencias cierra manualmente tras marcar llegada, con autor y fecha. Histórico autorizado; sin edición ordinaria, reapertura ni borrado del historial |
+| `cancelada` | Unidad asignada cancela antes de la llegada con motivo, autor y fecha. Se detiene GPS, se comunica el cambio al receptor y deja de ser entrante activo; historial conservado |
 
 No existe `creada` como estado separado; se conserva `creada_en`. Después del commit se intenta avisar por WebSocket. Si el aviso falla, el episodio sigue consultable por API; no se borra ni se declara leído. Mensaje recomendado al emisor: «Guardado en servidor · pendiente de lectura».
 
@@ -210,17 +210,17 @@ Pueden ocurrir antes o durante el traslado, sin reemplazar su estado. No se exig
 | Borrador → `notificada` | Ambulancia; datos válidos, unidad asignada y destino habilitado |
 | Borrador → `en_traslado` | Ambulancia al enviar con «Traslado ya iniciado»; mismas validaciones y persistencia atómica |
 | `notificada → en_traslado` | Ambulancia de la unidad asignada; versión vigente |
-| `en_traslado → recibida` | Urgencias del destino; confirma llegada física |
-| `notificada → recibida` | Urgencias del destino; llegada física, motivo de excepción y auditoría de inicio no registrado |
-| `recibida → cerrada` | Urgencias del destino; recepción previamente registrada y cierre manual |
-| `notificada` / `en_traslado → cancelada` | Ambulancia de la unidad asignada; antes de recepción, motivo obligatorio |
+| `en_traslado → llegado` | Urgencias del destino; confirma llegada física |
+| `notificada → llegado` | Urgencias del destino; llegada física, motivo de excepción y auditoría de inicio no registrado |
+| `llegado → cerrada` | Urgencias del destino; llegada previamente registrada y cierre manual |
+| `notificada` / `en_traslado → cancelada` | Ambulancia de la unidad asignada; antes de llegada, motivo obligatorio |
 | `cerrada` / `cancelada → otro estado` | Rechazado en operación ordinaria |
 
 Administración y cuentas técnicas no sustituyen los permisos funcionales. Cada transición comprueba autorización, versión y estado en servidor. Un reintento con el mismo identificador de operación devuelve su resultado anterior sin duplicar efectos; una nueva operación incompatible con el estado actual se rechaza.
 
 ### Excepciones y concurrencia
 
-**Llegada sin inicio registrado:** permitir `notificada → recibida`, exigir motivo y conservar evidencia de la excepción. No crear una hora de salida ficticia. La falta de lectura/preparación tampoco impide confirmar llegada.
+**Llegada sin inicio registrado:** permitir `notificada → llegado`, exigir motivo y conservar evidencia de la excepción. No crear una hora de salida ficticia. La falta de lectura/preparación tampoco impide confirmar llegada.
 
 **Traslado ya iniciado al enviar:** opción explícita «Traslado ya iniciado». Crear directamente `en_traslado`, registrando cuándo el servidor recibió la declaración. No presentar ese instante como hora real de salida si se desconoce; creación y declaración son datos distintos.
 

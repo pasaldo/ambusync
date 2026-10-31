@@ -49,7 +49,20 @@ try {
   }
   await operatorContext.close();
 
-  console.log("✓ Admin de Urgencias crea cuentas; el perfil demo de ambulancias no muestra la función");
+  const urgenciasContext = await browser.newContext();
+  await mockAuthenticatedApi(urgenciasContext, { groups: ["urgencias"] });
+  const urgenciasPage = await urgenciasContext.newPage();
+  await urgenciasPage.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await urgenciasPage.getByLabel("Usuario").fill("synthetic_urgencias");
+  await urgenciasPage.getByLabel("Contraseña").fill("local-test-password");
+  await urgenciasPage.getByRole("button", { name: "Iniciar sesión" }).click();
+  await urgenciasPage.getByRole("button", { name: /Prueba sintética de llegada/ }).click();
+  await urgenciasPage.getByRole("button", { name: "Marcar como llegado a Urgencias" }).click();
+  await urgenciasPage.getByText(/Llegada registrada:/).waitFor({ state: "visible" });
+  await urgenciasPage.getByText(/Llegado a Urgencias/).waitFor({ state: "visible" });
+  await urgenciasContext.close();
+
+  console.log("✓ Admin de Urgencias crea cuentas; ambulancias no y Urgencias confirma llegada");
   await context.close();
 } finally {
   await browser.close();

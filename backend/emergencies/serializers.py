@@ -121,6 +121,12 @@ class EmergencyCreateSerializer(serializers.Serializer):
         return attrs
 
 
+class ArrivalConfirmationSerializer(serializers.Serializer):
+    reason = serializers.CharField(
+        max_length=2000, allow_blank=True, required=False, trim_whitespace=True
+    )
+
+
 def emergency_representation(emergency):
     return {
         "id": str(emergency.pk),
@@ -156,5 +162,7 @@ def emergency_representation(emergency):
         "transfer_declared_at": (
             emergency.transfer_declared_at.isoformat() if emergency.transfer_declared_at else None
         ),
+        "arrived_at": emergency.arrived_at.isoformat() if emergency.arrived_at else None,
+        "arrival_reason": emergency.arrival_reason,
         "version": emergency.version,
     }

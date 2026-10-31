@@ -1,12 +1,13 @@
 import hashlib
 import json
+import uuid
 
 from django.contrib.auth import get_user_model
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
+from rest_framework.exceptions import APIException, NotFound, PermissionDenied, ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -16,6 +17,7 @@ from audit.models import AuditEvent
 from emergencies.models import Emergency, ProcessedOperation, VitalMeasurement
 from emergencies.serializers import (
     VITAL_FIELD_TO_KIND,
+    ArrivalConfirmationSerializer,
     EmergencyCreateSerializer,
     emergency_representation,
 )
@@ -216,3 +218,76 @@ class EmergencyDetailView(APIView):
 
             raise NotFound("El episodio no está disponible.")
         return Response(emergency_representation(emergency))
+
+
+class EmergencyArrivalView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, emergency_id):
+        if not isinstance(request.data, dict) or set(request.data) - {"reason"}:
+            raise ValidationError({"request": "La solicitud contiene campos no admitidos."})
+        serializer = ArrivalConfirmationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reason = serializer.validated_data.get("reason", "")
+
+        if not request.user.groups.filter(name="urgencias").exists():
+            raise PermissionDenied("Solo Urgencias puede confirmar la llegada.")
+
+        User = get_user_model()
+        with transaction.atomic():
+            actor = (
+                User.objects.select_for_update().filter(pk=request.user.pk, is_active=True).first()
+            )
+            if actor is None or not actor.groups.filter(name="urgencias").exists():
+                raise PermissionDenied("Solo Urgencias puede confirmar la llegada.")
+            emergency = (
+                Emergency.objects.select_for_update()
+                .select_related("operating_institution", "destination", "ambulance")
+                .filter(pk=emergency_id)
+                .first()
+            )
+            if emergency is None:
+                raise NotFound("El episodio no está disponible.")
+            membership = InstitutionMembership.objects.filter(
+                user=actor,
+                institution_id=emergency.destination_id,
+                active=True,
+                institution__enabled=True,
+            ).first()
+            if membership is None:
+                raise NotFound("El episodio no está disponible.")
+            if emergency.status == Emergency.Status.ARRIVED:
+                return Response(
+                    emergency_representation(emergency),
+                    status=status.HTTP_200_OK,
+                    headers={"Arrival-Replay": "true"},
+                )
+            if emergency.status not in (Emergency.Status.NOTIFIED, Emergency.Status.IN_TRANSIT):
+                raise OperationConflict("El episodio ya no admite confirmación de llegada.")
+            if emergency.status == Emergency.Status.NOTIFIED and not reason:
+                raise ValidationError(
+                    {
+                        "reason": "Explica por qué se confirma la llegada sin inicio de traslado registrado."
+                    }
+                )
+
+            emergency.status = Emergency.Status.ARRIVED
+            emergency.arrived_at = timezone.now()
+            emergency.arrived_by = actor
+            emergency.arrival_reason = reason
+            emergency.version += 1
+            emergency.save(
+                update_fields=("status", "arrived_at", "arrived_by", "arrival_reason", "version")
+            )
+            AuditEvent.objects.create(
+                actor=actor,
+                institution=emergency.destination,
+                ambulance=emergency.ambulance,
+                action="emergency.arrived",
+                object_type="emergency",
+                object_id=str(emergency.pk),
+                result=AuditEvent.Result.SUCCESS,
+                correlation_id=uuid.uuid4(),
+            )
+
+        return Response(emergency_representation(emergency), status=status.HTTP_200_OK)

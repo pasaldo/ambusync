@@ -155,6 +155,79 @@ class EmergencyFlowTests(EmergencyFixtureMixin, TestCase):
         replay_after_revocation = self.client.post("/api/v1/emergencies/", payload, format="json")
         self.assertEqual(replay_after_revocation.status_code, 403)
 
+    def test_urgencias_confirms_arrival_once_and_audits_it(self):
+        self.authenticate_with_csrf(self.operator)
+        created = self.client.post(
+            "/api/v1/emergencies/", self.payload(transfer_started=True), format="json"
+        )
+        emergency_id = created.data["id"]
+        self.client.force_login(self.receiver_user)
+        csrf = self.client.get("/api/v1/auth/csrf/")
+        self.client.defaults["HTTP_X_CSRFTOKEN"] = csrf.cookies["csrftoken"].value
+
+        response = self.client.post(
+            f"/api/v1/emergencies/{emergency_id}/arrival/", {}, format="json"
+        )
+        arrival_time = response.data["arrived_at"]
+        replay = self.client.post(f"/api/v1/emergencies/{emergency_id}/arrival/", {}, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], Emergency.Status.ARRIVED)
+        self.assertEqual(replay.status_code, 200)
+        self.assertEqual(replay["Arrival-Replay"], "true")
+        self.assertEqual(replay.data["arrived_at"], arrival_time)
+        emergency = Emergency.objects.get(pk=emergency_id)
+        self.assertEqual(emergency.arrived_by, self.receiver_user)
+        self.assertEqual(emergency.version, 2)
+        arrival_audit = AuditEvent.objects.get(action="emergency.arrived")
+        self.assertEqual(arrival_audit.actor, self.receiver_user)
+        self.assertEqual(arrival_audit.institution, self.receiver)
+        self.assertEqual(arrival_audit.object_id, emergency_id)
+
+    def test_arrival_without_transfer_requires_exception_reason(self):
+        self.authenticate_with_csrf(self.operator)
+        created = self.client.post("/api/v1/emergencies/", self.payload(), format="json")
+        emergency_id = created.data["id"]
+        self.client.force_login(self.receiver_user)
+        csrf = self.client.get("/api/v1/auth/csrf/")
+        self.client.defaults["HTTP_X_CSRFTOKEN"] = csrf.cookies["csrftoken"].value
+
+        missing_reason = self.client.post(
+            f"/api/v1/emergencies/{emergency_id}/arrival/", {}, format="json"
+        )
+        confirmed = self.client.post(
+            f"/api/v1/emergencies/{emergency_id}/arrival/",
+            {"reason": "Llegada confirmada sin traslado registrado en la demo"},
+            format="json",
+        )
+
+        self.assertEqual(missing_reason.status_code, 400)
+        self.assertEqual(confirmed.status_code, 200)
+        self.assertEqual(confirmed.data["status"], Emergency.Status.ARRIVED)
+        self.assertEqual(
+            confirmed.data["arrival_reason"],
+            "Llegada confirmada sin traslado registrado en la demo",
+        )
+
+    def test_only_urgencias_at_the_destination_can_confirm_arrival(self):
+        self.authenticate_with_csrf(self.operator)
+        created = self.client.post("/api/v1/emergencies/", self.payload(), format="json")
+        emergency_id = created.data["id"]
+
+        operator_response = self.client.post(
+            f"/api/v1/emergencies/{emergency_id}/arrival/", {}, format="json"
+        )
+        self.client.force_login(self.other_user)
+        outsider_response = self.client.post(
+            f"/api/v1/emergencies/{emergency_id}/arrival/", {}, format="json"
+        )
+
+        self.assertEqual(operator_response.status_code, 403)
+        self.assertEqual(outsider_response.status_code, 404)
+        emergency = Emergency.objects.get(pk=emergency_id)
+        self.assertEqual(emergency.status, Emergency.Status.NOTIFIED)
+        self.assertFalse(AuditEvent.objects.filter(action="emergency.arrived").exists())
+
     def test_same_operation_id_with_different_payload_conflicts(self):
         self.authenticate_with_csrf(self.operator)
         operation_id = str(uuid.uuid4())

@@ -171,6 +171,28 @@
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
+    },
+    "/api/v1/emergencies/{emergency_id}/arrival/": {
+      "post": {
+        "operationId": "confirmEmergencyArrival",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/CsrfToken" },
+          { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "$ref": "#/components/parameters/UserInteraction" }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ArrivalConfirmation" } } }
+        },
+        "responses": {
+          "200": { "description": "Llegada confirmada; repetición idempotente conserva fecha y auditoría.", "headers": { "Arrival-Replay": { "schema": { "type": "string", "const": "true" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Emergency" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
     }
   },
   "components": {
@@ -186,7 +208,7 @@
       "Unauthorized": { "description": "Credenciales inválidas o cuenta no disponible.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "Forbidden": { "description": "CSRF inválido o acción no autorizada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "NotFound": { "description": "Recurso no disponible dentro del ámbito.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
-      "Conflict": { "description": "El UUID de operación fue reutilizado con otro contenido.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Conflict": { "description": "Estado o UUID de operación incompatible con la acción solicitada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "TooManyRequests": { "description": "Umbral por cuenta u origen excedido; reintentar después de Retry-After.", "headers": { "Retry-After": { "schema": { "type": "integer", "minimum": 1 } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
     },
     "schemas": {
@@ -271,9 +293,16 @@
           "triage": { "type": "string", "enum": ["C1", "C2", "C3", "C4", "C5", ""] }
         }
       },
+      "ArrivalConfirmation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reason": { "type": "string", "maxLength": 2000, "description": "Obligatorio al confirmar llegada desde notificada (sin inicio de traslado registrado)." }
+        }
+      },
       "Emergency": {
         "type": "object",
-        "required": ["id", "operating_institution_id", "destination_id", "destination_name", "ambulance_id", "ambulance_code", "status", "patient", "reason", "symptoms", "notes", "vital_measurements", "triage", "created_at", "transfer_declared_at", "version"],
+        "required": ["id", "operating_institution_id", "destination_id", "destination_name", "ambulance_id", "ambulance_code", "status", "patient", "reason", "symptoms", "notes", "vital_measurements", "triage", "created_at", "transfer_declared_at", "arrived_at", "arrival_reason", "version"],
         "properties": {
           "id": { "type": "string", "format": "uuid" },
           "operating_institution_id": { "type": "string", "format": "uuid" },
@@ -281,7 +310,7 @@
           "destination_name": { "type": "string" },
           "ambulance_id": { "type": "string", "format": "uuid" },
           "ambulance_code": { "type": "string" },
-          "status": { "type": "string", "enum": ["notificada", "en_traslado"] },
+          "status": { "type": "string", "enum": ["notificada", "en_traslado", "llegado"] },
           "patient": { "type": "object", "required": ["identity_unknown", "alias", "age_value", "age_unit", "recorded_sex"], "properties": { "identity_unknown": { "type": "boolean" }, "alias": { "type": ["string", "null"] }, "age_value": { "type": ["integer", "null"] }, "age_unit": { "type": ["string", "null"] }, "recorded_sex": { "type": ["string", "null"] } } },
           "reason": { "type": "string" },
           "symptoms": { "type": "array", "items": { "type": "string" } },
@@ -290,6 +319,8 @@
           "triage": { "type": ["string", "null"] },
           "created_at": { "type": "string", "format": "date-time" },
           "transfer_declared_at": { "type": ["string", "null"], "format": "date-time" },
+          "arrived_at": { "type": ["string", "null"], "format": "date-time" },
+          "arrival_reason": { "type": "string" },
           "version": { "type": "integer", "minimum": 1 }
         }
       },
