@@ -58,6 +58,16 @@
         }
       }
     },
+    "/api/v1/auth/activate/": {
+      "post": {
+        "operationId": "activateAccount",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountActivation" } } } },
+        "responses": {
+          "200": { "description": "Cuenta activada; no inicia sesión automáticamente." },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
     "/api/v1/institutions/destinations/": {
       "get": {
         "operationId": "listDestinations",
@@ -68,6 +78,59 @@
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" }
         }
+      }
+    },
+    "/api/v1/institutions/management/accounts/": {
+      "get": {
+        "operationId": "listInstitutionAccounts",
+        "security": [{ "sessionCookie": [] }],
+        "responses": {
+          "200": { "description": "Cuentas de la institución activa del administrador.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedAccount" } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "operationId": "createInstitutionAccount",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedAccountCreate" } } } },
+        "responses": {
+          "201": { "description": "Cuenta pendiente creada; correo de activación enviado.", "content": { "application/json": { "schema": { "type": "object", "required": ["id", "username", "activation_sent"], "properties": { "id": { "type": "string" }, "username": { "type": "string" }, "activation_sent": { "type": "boolean", "const": true } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "503": { "description": "No se pudo enviar la activación; la creación fue revertida." }
+        }
+      }
+    },
+    "/api/v1/institutions/management/accounts/{user_id}/deactivate/": {
+      "post": {
+        "operationId": "deactivateInstitutionAccount",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/ManagedUserId" }],
+        "responses": { "204": { "description": "Cuenta desactivada; sesiones y asignación revocadas." }, "400": { "$ref": "#/components/responses/BadRequest" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/v1/institutions/management/accounts/{user_id}/resend-activation/": {
+      "post": {
+        "operationId": "resendInstitutionAccountActivation",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/ManagedUserId" }],
+        "responses": { "200": { "description": "Enlace de activación rotado y reenviado." }, "400": { "$ref": "#/components/responses/BadRequest" }, "403": { "$ref": "#/components/responses/Forbidden" }, "503": { "description": "No se pudo enviar el correo; cambios revertidos." } }
+      }
+    },
+    "/api/v1/institutions/management/ambulances/": {
+      "get": {
+        "operationId": "listInstitutionAmbulances",
+        "security": [{ "sessionCookie": [] }],
+        "responses": { "200": { "description": "Unidades habilitadas de instituciones operadoras; solo las consulta administración de Urgencias.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedAmbulance" } } } } }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/v1/institutions/management/config/": {
+      "get": {
+        "operationId": "getInstitutionAccountManagementConfig",
+        "security": [{ "sessionCookie": [] }],
+        "responses": { "200": { "description": "Nombre del establecimiento y permisos delegables según su tipo.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountManagementConfig" } } } }, "403": { "$ref": "#/components/responses/Forbidden" } }
       }
     },
     "/api/v1/emergencies/": {
@@ -108,21 +171,44 @@
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
+    },
+    "/api/v1/emergencies/{emergency_id}/arrival/": {
+      "post": {
+        "operationId": "confirmEmergencyArrival",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/CsrfToken" },
+          { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "$ref": "#/components/parameters/UserInteraction" }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ArrivalConfirmation" } } }
+        },
+        "responses": {
+          "200": { "description": "Llegada confirmada; repetición idempotente conserva fecha y auditoría.", "headers": { "Arrival-Replay": { "schema": { "type": "string", "const": "true" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Emergency" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
     }
   },
   "components": {
     "securitySchemes": { "sessionCookie": { "type": "apiKey", "in": "cookie", "name": "sessionid" } },
     "parameters": {
       "CsrfToken": { "name": "X-CSRFToken", "in": "header", "required": true, "schema": { "type": "string" }, "description": "Valor obtenido en GET /api/v1/auth/csrf/." },
+      "ManagedUserId": { "name": "user_id", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 } },
       "UserInteraction": { "name": "X-AmbuSync-User-Interaction", "in": "header", "required": false, "schema": { "type": "string", "enum": ["1"] }, "description": "Enviar solo para acción humana; omitir en polling/telemetría. Renueva el vencimiento de inactividad (30 min), nunca el límite absoluto de 12 h." }
     },
     "headers": { "SessionCookie": { "description": "Cookie HttpOnly de sesión; Secure se activa para HTTPS.", "schema": { "type": "string" } } },
     "responses": {
       "BadRequest": { "description": "Validación fallida.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "Unauthorized": { "description": "Credenciales inválidas o cuenta no disponible.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
-      "Forbidden": { "description": "No autenticado, CSRF inválido o no autorizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Forbidden": { "description": "CSRF inválido o acción no autorizada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "NotFound": { "description": "Recurso no disponible dentro del ámbito.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
-      "Conflict": { "description": "El UUID de operación fue reutilizado con otro contenido.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Conflict": { "description": "Estado o UUID de operación incompatible con la acción solicitada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "TooManyRequests": { "description": "Umbral por cuenta u origen excedido; reintentar después de Retry-After.", "headers": { "Retry-After": { "schema": { "type": "integer", "minimum": 1 } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
     },
     "schemas": {
@@ -147,6 +233,45 @@
           "session": { "type": "object", "required": ["started_at", "idle_expires_at", "absolute_expires_at"], "properties": { "started_at": { "type": "number", "description": "Unix timestamp en segundos." }, "idle_expires_at": { "type": "number", "description": "Expiración por inactividad; 30 minutos tras interacción humana." }, "absolute_expires_at": { "type": "number", "description": "Expiración absoluta; máximo 12 horas desde el inicio." } } }
         }
       },
+      "ManagedAccount": {
+        "type": "object",
+        "required": ["id", "username", "email", "institution_name", "groups", "active", "ambulance"],
+        "properties": {
+          "id": { "type": "string" },
+          "username": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "institution_name": { "type": "string" },
+          "groups": { "type": "array", "items": { "type": "string" } },
+          "active": { "type": "boolean" },
+          "ambulance": { "oneOf": [{ "$ref": "#/components/schemas/ManagedAmbulance" }, { "type": "null" }] }
+        }
+      },
+      "ManagedAmbulance": { "type": "object", "required": ["id", "code", "institution_id", "institution_name"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" }, "institution_id": { "type": "string", "format": "uuid" }, "institution_name": { "type": "string" } } },
+      "ManagedInstitution": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" } } },
+      "AccountManagementConfig": { "type": "object", "required": ["institution_name", "delegable_groups", "operator_institutions", "can_create_accounts"], "properties": { "institution_name": { "type": "string" }, "delegable_groups": { "type": "array", "items": { "type": "string", "enum": ["ambulance", "urgencias"] } }, "operator_institutions": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedInstitution" } }, "can_create_accounts": { "type": "boolean" } } },
+      "ManagedAccountCreate": {
+        "type": "object",
+        "required": ["username", "email", "groups"],
+        "additionalProperties": false,
+        "properties": {
+          "username": { "type": "string", "minLength": 1, "maxLength": 150 },
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "groups": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["ambulance", "urgencias"] } },
+          "ambulance_id": { "type": "string", "format": "uuid", "description": "Obligatorio si groups contiene ambulance; debe pertenecer a institution_id." },
+          "institution_id": { "type": "string", "format": "uuid", "description": "Obligatorio para cuentas ambulance; la administración de Urgencias solo puede elegir instituciones operadoras habilitadas." }
+        }
+      },
+      "AccountActivation": {
+        "type": "object",
+        "required": ["uid", "token", "password", "password_confirmation"],
+        "additionalProperties": false,
+        "properties": {
+          "uid": { "type": "string" },
+          "token": { "type": "string" },
+          "password": { "type": "string", "format": "password", "minLength": 15, "maxLength": 128 },
+          "password_confirmation": { "type": "string", "format": "password", "minLength": 15, "maxLength": 128 }
+        }
+      },
       "Destination": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" } } },
       "EmergencyCreate": {
         "type": "object",
@@ -168,9 +293,16 @@
           "triage": { "type": "string", "enum": ["C1", "C2", "C3", "C4", "C5", ""] }
         }
       },
+      "ArrivalConfirmation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reason": { "type": "string", "maxLength": 2000, "description": "Obligatorio al confirmar llegada desde notificada (sin inicio de traslado registrado)." }
+        }
+      },
       "Emergency": {
         "type": "object",
-        "required": ["id", "operating_institution_id", "destination_id", "destination_name", "ambulance_id", "ambulance_code", "status", "patient", "reason", "symptoms", "notes", "vital_measurements", "triage", "created_at", "transfer_declared_at", "version"],
+        "required": ["id", "operating_institution_id", "destination_id", "destination_name", "ambulance_id", "ambulance_code", "status", "patient", "reason", "symptoms", "notes", "vital_measurements", "triage", "created_at", "transfer_declared_at", "arrived_at", "arrival_reason", "version"],
         "properties": {
           "id": { "type": "string", "format": "uuid" },
           "operating_institution_id": { "type": "string", "format": "uuid" },
@@ -178,7 +310,7 @@
           "destination_name": { "type": "string" },
           "ambulance_id": { "type": "string", "format": "uuid" },
           "ambulance_code": { "type": "string" },
-          "status": { "type": "string", "enum": ["notificada", "en_traslado"] },
+          "status": { "type": "string", "enum": ["notificada", "en_traslado", "llegado"] },
           "patient": { "type": "object", "required": ["identity_unknown", "alias", "age_value", "age_unit", "recorded_sex"], "properties": { "identity_unknown": { "type": "boolean" }, "alias": { "type": ["string", "null"] }, "age_value": { "type": ["integer", "null"] }, "age_unit": { "type": ["string", "null"] }, "recorded_sex": { "type": ["string", "null"] } } },
           "reason": { "type": "string" },
           "symptoms": { "type": "array", "items": { "type": "string" } },
@@ -187,6 +319,8 @@
           "triage": { "type": ["string", "null"] },
           "created_at": { "type": "string", "format": "date-time" },
           "transfer_declared_at": { "type": ["string", "null"], "format": "date-time" },
+          "arrived_at": { "type": ["string", "null"], "format": "date-time" },
+          "arrival_reason": { "type": "string" },
           "version": { "type": "integer", "minimum": 1 }
         }
       },

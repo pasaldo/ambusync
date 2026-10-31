@@ -6,7 +6,7 @@ import { Logo } from "@/components/Logo";
 import { BackendApiError, getCurrentUser, login, logout } from "@/lib/backend";
 
 function canEnterPortal(groups: string[]) {
-  return groups.includes("ambulance") || groups.includes("urgencias");
+  return groups.includes("ambulance") || groups.includes("urgencias") || groups.includes("institution_admin");
 }
 
 function errorMessage(error: unknown) {

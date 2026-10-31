@@ -79,6 +79,9 @@ acciones de recepción.
 
 El ingreso comienza con autenticación de cuenta en Django. Tras iniciar sesión, `/local` muestra
 el módulo permitido por los grupos de esa cuenta; no se selecciona libremente una identidad.
+Las cuentas con administración institucional pueden crear usuarios dentro de su establecimiento,
+asignar permisos operativos delegables y vincular operadores a unidades existentes; la activación
+requiere que cada persona defina su propia contraseña mediante correo local.
 Las rutas del simulador también requieren sesión, pero sus casos de ejemplo siguen separados de
 los episodios del backend.
 

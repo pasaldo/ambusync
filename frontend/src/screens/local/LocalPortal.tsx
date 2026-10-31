@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Activity, Ambulance, HeartPulse, LogOut, RefreshCw, Server } from "lucide-react";
+import { AdminAccountsPanel } from "@/screens/local/AdminAccountsPanel";
 import {
   BackendApiError,
   createEmergency,
@@ -8,6 +9,7 @@ import {
   listDestinations,
   listEmergencies,
   logout,
+  markEmergencyArrived,
   type BackendEmergency,
   type BackendUser,
   type Destination,
@@ -87,7 +89,7 @@ export function LocalPortal() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [role, setRole] = useState<"ambulance" | "urgencias" | null>(null);
+  const [role, setRole] = useState<"ambulance" | "urgencias" | "administration" | null>(null);
   const [draft, setDraft] = useState<EmergencyDraft>(emptyDraft);
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [emergencies, setEmergencies] = useState<BackendEmergency[]>([]);
@@ -139,7 +141,7 @@ export function LocalPortal() {
       .then((current) => {
         if (!active) return;
         acceptUser(current);
-        setRole(current.groups.includes("ambulance") ? "ambulance" : current.groups.includes("urgencias") ? "urgencias" : null);
+        setRole(current.groups.includes("ambulance") ? "ambulance" : current.groups.includes("urgencias") ? "urgencias" : current.groups.includes("institution_admin") ? "administration" : null);
       })
       .catch((requestError: unknown) => {
         if (!active) return;
@@ -205,6 +207,7 @@ export function LocalPortal() {
   const sessionWarning = user && remainingMs > 0 && remainingMs <= 120_000;
   const canAmbulance = user?.groups.includes("ambulance") ?? false;
   const canUrgencias = user?.groups.includes("urgencias") ?? false;
+  const canAdminister = user?.groups.includes("institution_admin") ?? false;
   const selected = emergencies.find((item) => item.id === selectedId) ?? null;
   const sortedEmergencies = useMemo(() => [...emergencies].sort((a, b) => {
     const triageOrder = (a.triage ?? "C9").localeCompare(b.triage ?? "C9");
@@ -275,6 +278,18 @@ export function LocalPortal() {
     }
   }
 
+  async function confirmArrival(emergencyId: string, reason: string) {
+    setError("");
+    try {
+      const updated = await markEmergencyArrived(emergencyId, reason);
+      setEmergencies((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setMessage("Llegada a Urgencias registrada.");
+    } catch (requestError) {
+      if (requestError instanceof BackendApiError && requestError.status === 401) expireSession();
+      else setError(displayError(requestError));
+    }
+  }
+
   return (
     <main className="grid-monitor min-h-[100dvh] bg-ink px-4 py-6 text-white sm:px-6">
       <div className="mx-auto w-full max-w-4xl">
@@ -315,10 +330,11 @@ export function LocalPortal() {
                 </div>
               )}
 
-              {canAmbulance && canUrgencias && (
+              {(canAmbulance && canUrgencias || canAdminister) && (
                 <div className="mt-4 flex flex-wrap gap-2" aria-label="Seleccionar módulo">
-                  <RoleButton active={role === "ambulance"} onClick={() => setRole("ambulance")} icon={<Ambulance className="h-4 w-4" />}>Ambulancia</RoleButton>
-                  <RoleButton active={role === "urgencias"} onClick={() => setRole("urgencias")} icon={<HeartPulse className="h-4 w-4" />}>Urgencias</RoleButton>
+                  {canAmbulance && <RoleButton active={role === "ambulance"} onClick={() => setRole("ambulance")} icon={<Ambulance className="h-4 w-4" />}>Ambulancia</RoleButton>}
+                  {canUrgencias && <RoleButton active={role === "urgencias"} onClick={() => setRole("urgencias")} icon={<HeartPulse className="h-4 w-4" />}>Urgencias</RoleButton>}
+                  {canAdminister && <RoleButton active={role === "administration"} onClick={() => setRole("administration")} icon={<Activity className="h-4 w-4" />}>Administración</RoleButton>}
                 </div>
               )}
 
@@ -400,12 +416,14 @@ export function LocalPortal() {
                   </div>
                   {sortedEmergencies.length === 0 ? <p className="mt-5 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios en el ámbito de esta cuenta.</p> : (
                     <div className="mt-4 space-y-2">{sortedEmergencies.map((item) => <button key={item.id} onClick={() => setSelectedId(item.id)} className="w-full rounded-xl border border-white/10 bg-ink/60 p-4 text-left transition hover:border-signal/40 hover:bg-white/5">
-                      <span className="flex flex-wrap items-center justify-between gap-2"><strong>{item.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{item.triage ?? "Sin clasificar"} · {item.status === "en_traslado" ? "En traslado" : "Notificada"}</span></span>
+                      <span className="flex flex-wrap items-center justify-between gap-2"><strong>{item.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{item.triage ?? "Sin clasificar"} · {emergencyStatusLabel(item.status)}</span></span>
                       <span className="mt-1 block text-sm text-muted-dark">{item.reason}</span><span className="mt-2 block text-xs text-muted-dark">{item.destination_name} · {item.ambulance_code} · {new Date(item.created_at).toLocaleString()}</span>
                     </button>)}</div>
                   )}
-                  {selected && <EmergencyDetail emergency={selected} onClose={() => setSelectedId(null)} />}
+                  {selected && <EmergencyDetail emergency={selected} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} />}
                 </section>
+              ) : role === "administration" && canAdminister ? (
+                <AdminAccountsPanel currentUserId={user.id} institutionName={user.institutions[0]?.name ?? ""} />
               ) : null}
 
               {lastCreated && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Guardado: {lastCreated.id}</p>}
@@ -425,8 +443,24 @@ function RoleButton({ active, onClick, icon, children }: { active: boolean; onCl
   return <button onClick={onClick} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${active ? "border-signal bg-signal/15 text-signal-soft" : "border-white/10 text-muted-dark hover:bg-white/5"}`}>{icon}{children}</button>;
 }
 
-function EmergencyDetail({ emergency, onClose }: { emergency: BackendEmergency; onClose: () => void }) {
+function emergencyStatusLabel(status: BackendEmergency["status"]) {
+  if (status === "en_traslado") return "En traslado";
+  if (status === "llegado") return "Llegado a Urgencias";
+  return "Notificada";
+}
+
+function EmergencyDetail({ emergency, onClose, onMarkArrived }: { emergency: BackendEmergency; onClose: () => void; onMarkArrived: (reason: string) => void }) {
   const ageUnit = emergency.patient.age_unit === "years" ? "años" : emergency.patient.age_unit === "months" ? "meses" : emergency.patient.age_unit === "days" ? "días" : "";
+  function confirmArrival() {
+    let reason = "";
+    if (emergency.status === "notificada") {
+      const entered = window.prompt("No hay inicio de traslado registrado. Indica el motivo de la llegada excepcional:");
+      if (entered === null) return;
+      reason = entered.trim();
+      if (!reason) return;
+    }
+    onMarkArrived(reason);
+  }
   return <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label="Detalle de episodio">
     <div className="max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/10 bg-ink p-5 shadow-2xl">
       <div className="flex items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest text-muted-dark">Detalle de emergencia</p><h3 className="mt-1 text-xl font-bold">{emergency.patient.alias ?? "Paciente no identificado"}</h3></div><button onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-muted-dark hover:bg-white/5">Cerrar</button></div>
@@ -435,6 +469,7 @@ function EmergencyDetail({ emergency, onClose }: { emergency: BackendEmergency; 
       <p className="mt-2 text-sm text-muted-dark">Síntomas: {emergency.symptoms.length ? emergency.symptoms.join(", ") : "No informados"}</p>
       <div className="mt-4"><h4 className="text-sm font-semibold">Mediciones vitales</h4>{emergency.vital_measurements.length ? <ul className="mt-2 space-y-1 text-sm text-muted-dark">{emergency.vital_measurements.map((measurement, index) => <li key={`${measurement.kind}-${index}`}>{measurement.kind}: <strong className="text-white">{measurement.value} {measurement.unit}</strong> · {new Date(measurement.measured_at).toLocaleString()}</li>)}</ul> : <p className="mt-1 text-sm text-muted-dark">No medidas</p>}</div>
       {emergency.notes && <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white/5 p-3 text-sm">{emergency.notes}</p>}
+      {emergency.status === "llegado" ? <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Llegada registrada: {emergency.arrived_at ? new Date(emergency.arrived_at).toLocaleString() : "hora no disponible"}{emergency.arrival_reason ? ` · Motivo: ${emergency.arrival_reason}` : ""}</p> : <button onClick={confirmArrival} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-semibold text-ink"><Activity className="h-4 w-4" />Marcar como llegado a Urgencias</button>}
       <p className="mt-4 text-xs text-muted-dark">Destino: {emergency.destination_name} · Unidad: {emergency.ambulance_code} · Creado: {new Date(emergency.created_at).toLocaleString()}</p>
     </div>
   </div>;

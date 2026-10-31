@@ -10,6 +10,7 @@ class Emergency(models.Model):
     class Status(models.TextChoices):
         NOTIFIED = "notificada", "Notificada"
         IN_TRANSIT = "en_traslado", "En traslado"
+        ARRIVED = "llegado", "Llegado a Urgencias"
 
     class AgeUnit(models.TextChoices):
         YEARS = "years", "Años"
@@ -53,6 +54,15 @@ class Emergency(models.Model):
     triage = models.CharField(max_length=2, choices=Triage.choices, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     transfer_declared_at = models.DateTimeField(null=True, blank=True)
+    arrived_at = models.DateTimeField(null=True, blank=True)
+    arrived_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="arrival_confirmations",
+    )
+    arrival_reason = models.CharField(max_length=2000, blank=True)
     version = models.PositiveIntegerField(default=1)
 
     class Meta:

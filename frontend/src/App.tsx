@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { LoginScreen } from "@/screens/LoginScreen";
+import { ActivateAccountScreen } from "@/screens/ActivateAccountScreen";
 import { AmbulanceApp } from "@/screens/ambulance/AmbulanceApp";
 import { ErApp } from "@/screens/er/ErApp";
 import { LocalPortal } from "@/screens/local/LocalPortal";
@@ -30,6 +31,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LoginScreen />} />
+      <Route path="/activar-cuenta" element={<ActivateAccountScreen />} />
       <Route path="/local/*" element={<LocalPortal />} />
       <Route path="/ambulancia/*" element={<AuthenticatedDemo><AmbulanceApp /></AuthenticatedDemo>} />
       <Route path="/urgencias/*" element={<AuthenticatedDemo><ErApp /></AuthenticatedDemo>} />

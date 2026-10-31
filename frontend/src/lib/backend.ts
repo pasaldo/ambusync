@@ -17,6 +17,35 @@ export interface Destination {
   name: string;
 }
 
+export interface ManagedAmbulance {
+  id: string;
+  code: string;
+  institution_id: string;
+  institution_name: string;
+}
+
+export interface ManagedInstitution {
+  id: string;
+  name: string;
+}
+
+export interface ManagedAccount {
+  id: string;
+  username: string;
+  email: string;
+  institution_name: string;
+  groups: string[];
+  active: boolean;
+  ambulance: ManagedAmbulance | null;
+}
+
+export interface AccountManagementConfig {
+  institution_name: string;
+  delegable_groups: string[];
+  operator_institutions: ManagedInstitution[];
+  can_create_accounts: boolean;
+}
+
 export interface VitalMeasurement {
   kind: string;
   value: number;
@@ -30,7 +59,7 @@ export interface BackendEmergency {
   destination_id: string;
   destination_name: string;
   ambulance_code: string;
-  status: "notificada" | "en_traslado";
+  status: "notificada" | "en_traslado" | "llegado";
   patient: {
     identity_unknown: boolean;
     alias: string | null;
@@ -45,6 +74,8 @@ export interface BackendEmergency {
   vital_measurements: VitalMeasurement[];
   created_at: string;
   transfer_declared_at: string | null;
+  arrived_at: string | null;
+  arrival_reason: string;
 }
 
 interface ApiErrorBody {
@@ -132,6 +163,66 @@ export async function logout(): Promise<void> {
   csrfToken = null;
 }
 
+export async function listManagedAccounts(): Promise<ManagedAccount[]> {
+  return request("/api/v1/institutions/management/accounts/");
+}
+
+export async function listManagedAmbulances(): Promise<ManagedAmbulance[]> {
+  return request("/api/v1/institutions/management/ambulances/");
+}
+
+export async function getAccountManagementConfig(): Promise<AccountManagementConfig> {
+  return request("/api/v1/institutions/management/config/");
+}
+
+export async function createManagedAccount(payload: {
+  username: string;
+  email: string;
+  groups: string[];
+  ambulance_id?: string;
+  institution_id?: string;
+}): Promise<{ id: string; username: string; activation_sent: boolean }> {
+  const token = await ensureCsrf();
+  return request("/api/v1/institutions/management/accounts/", {
+    method: "POST",
+    headers: { "X-CSRFToken": token },
+    body: JSON.stringify(payload),
+    humanInteraction: true,
+  });
+}
+
+export async function deactivateManagedAccount(userId: string): Promise<void> {
+  const token = await ensureCsrf();
+  await request(`/api/v1/institutions/management/accounts/${encodeURIComponent(userId)}/deactivate/`, {
+    method: "POST",
+    headers: { "X-CSRFToken": token },
+    body: "{}",
+    humanInteraction: true,
+  });
+}
+
+export async function resendManagedActivation(userId: string): Promise<void> {
+  const token = await ensureCsrf();
+  await request(`/api/v1/institutions/management/accounts/${encodeURIComponent(userId)}/resend-activation/`, {
+    method: "POST",
+    headers: { "X-CSRFToken": token },
+    body: "{}",
+    humanInteraction: true,
+  });
+}
+
+export async function activateAccount(payload: {
+  uid: string;
+  token: string;
+  password: string;
+  password_confirmation: string;
+}): Promise<void> {
+  await request("/api/v1/auth/activate/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function listDestinations(): Promise<Destination[]> {
   return request("/api/v1/institutions/destinations/");
 }
@@ -147,6 +238,19 @@ export async function createEmergency(payload: Record<string, unknown>): Promise
     method: "POST",
     headers: { "X-CSRFToken": token },
     body: JSON.stringify(payload),
+    humanInteraction: true,
+  });
+}
+
+export async function markEmergencyArrived(
+  emergencyId: string,
+  reason = "",
+): Promise<BackendEmergency> {
+  const token = await ensureCsrf();
+  return request(`/api/v1/emergencies/${encodeURIComponent(emergencyId)}/arrival/`, {
+    method: "POST",
+    headers: { "X-CSRFToken": token },
+    body: JSON.stringify({ reason }),
     humanInteraction: true,
   });
 }
