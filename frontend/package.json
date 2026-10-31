@@ -15,7 +15,8 @@
     "shots": "node scripts/shots.mjs",
     "check:diagrams": "node scripts/check-mermaid.mjs",
     "test:unit": "node --test scripts/mermaid-checker.test.mjs",
-    "test:sync": "node scripts/sync-test.mjs"
+    "test:sync": "node scripts/sync-test.mjs",
+    "test:accounts": "node scripts/accounts-test.mjs"
   },
   "dependencies": {
     "@fontsource/hanken-grotesk": "^5.0.20",

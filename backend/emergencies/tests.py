@@ -134,7 +134,7 @@ class EmergencyFlowTests(EmergencyFixtureMixin, TestCase):
         self.assertEqual(AuditEvent.objects.count(), 1)
         audit = AuditEvent.objects.get()
         self.assertEqual(audit.action, "emergency.created")
-        self.assertEqual(audit.object_id, uuid.UUID(emergency_id))
+        self.assertEqual(audit.object_id, str(uuid.UUID(emergency_id)))
 
         receiver_client = APIClient()
         receiver_client.force_login(self.receiver_user)

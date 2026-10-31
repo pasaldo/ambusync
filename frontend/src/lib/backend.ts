@@ -17,6 +17,25 @@ export interface Destination {
   name: string;
 }
 
+export interface ManagedAmbulance {
+  id: string;
+  code: string;
+}
+
+export interface ManagedAccount {
+  id: string;
+  username: string;
+  email: string;
+  groups: string[];
+  active: boolean;
+  ambulance: ManagedAmbulance | null;
+}
+
+export interface AccountManagementConfig {
+  institution_name: string;
+  delegable_groups: string[];
+}
+
 export interface VitalMeasurement {
   kind: string;
   value: number;
@@ -130,6 +149,65 @@ export async function logout(): Promise<void> {
     humanInteraction: true,
   });
   csrfToken = null;
+}
+
+export async function listManagedAccounts(): Promise<ManagedAccount[]> {
+  return request("/api/v1/institutions/management/accounts/");
+}
+
+export async function listManagedAmbulances(): Promise<ManagedAmbulance[]> {
+  return request("/api/v1/institutions/management/ambulances/");
+}
+
+export async function getAccountManagementConfig(): Promise<AccountManagementConfig> {
+  return request("/api/v1/institutions/management/config/");
+}
+
+export async function createManagedAccount(payload: {
+  username: string;
+  email: string;
+  groups: string[];
+  ambulance_id?: string;
+}): Promise<{ id: string; username: string; activation_sent: boolean }> {
+  const token = await ensureCsrf();
+  return request("/api/v1/institutions/management/accounts/", {
+    method: "POST",
+    headers: { "X-CSRFToken": token },
+    body: JSON.stringify(payload),
+    humanInteraction: true,
+  });
+}
+
+export async function deactivateManagedAccount(userId: string): Promise<void> {
+  const token = await ensureCsrf();
+  await request(`/api/v1/institutions/management/accounts/${encodeURIComponent(userId)}/deactivate/`, {
+    method: "POST",
+    headers: { "X-CSRFToken": token },
+    body: "{}",
+    humanInteraction: true,
+  });
+}
+
+export async function resendManagedActivation(userId: string): Promise<void> {
+  const token = await ensureCsrf();
+  await request(`/api/v1/institutions/management/accounts/${encodeURIComponent(userId)}/resend-activation/`, {
+    method: "POST",
+    headers: { "X-CSRFToken": token },
+    body: "{}",
+    humanInteraction: true,
+  });
+}
+
+export async function activateAccount(payload: {
+  uid: string;
+  token: string;
+  password: string;
+  password_confirmation: string;
+}): Promise<void> {
+  await request("/api/v1/auth/activate/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function listDestinations(): Promise<Destination[]> {

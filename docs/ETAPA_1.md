@@ -12,7 +12,7 @@ Construir el primer flujo vertical de backend para el piloto usando hospitales d
 |---|---|---|
 | 1. Runtime | Evaluación local autorizada; lock fija Python 3.14.10, Django 5.2.18, DRF 3.18.3 y psycopg 3.3.6. El grupo dev fija Channels 4.3.2/`channels_redis` 4.3.0 solo para smoke test. | `pip-audit` sin vulnerabilidades conocidas y licencias revisadas. La prueba real `group_add/send/receive/discard` pasó en Python 3.14.10 contra Valkey 9.0.3 local; su matriz publicada no declara Python 3.14. Channels/Valkey no se habilitan en la app. PostgreSQL 18.6 ya corre en el clúster aislado del piloto. |
 | 2. Contratos | Primer contrato HTTP implementado en `backend/openapi.json`, validación y permisos en DRF; D-005 a D-014 siguen siendo autoridad. | CI remoto del commit `9e8bc59` (run 41152402319): 23 pruebas backend pasaron; también pasaron OpenAPI, Ruff, auditoría de dependencias, frontend y escaneo de secretos. La suite incluye concurrencia de reintentos idénticos, colisión concurrente con contenido distinto e idempotencia por operador. Otros flujos siguen fuera del primer slice. |
-| 3. Alcance | Implementados localmente sesión, permisos esenciales, auditoría de creación y creación/listado/detalle de emergencias; SPA ofrece ruta explícita `/local`, preservando la demo. | Migraciones y pruebas usan PostgreSQL aislado; no es deploy ni release. Sin WebSocket ni edición del estado de los episodios. |
+| 3. Alcance | Implementados localmente sesión, permisos esenciales, auditoría y gestión inicial de cuentas institucionales: alta con activación, permisos operativos delegables, asignación a unidad existente y desactivación; creación/listado/detalle de emergencias. | Migraciones y pruebas usan PostgreSQL aislado; no es deploy ni release. Sin WebSocket ni edición del estado de los episodios. La gestión de unidades, reasignación de cuentas y recuperación siguen pendientes. |
 | 4. Entorno | Python 3.14.10 instalado. PostgreSQL 18.6 responde en clúster separado `127.0.0.1:55432`; base/rol `ambusync_dev`, secretos aleatorios en `backend/.env` ignorado por Git. Docker no está instalado. | Versión actualizada y migraciones/pruebas comprobadas. Reproducir arranque con las rutas documentadas; no usar el servicio preexistente en `5432`. |
 
 El primer slice sí está implementado y probado localmente; la etapa 1 continúa abierta. No se instaló ni desplegó servicio externo. La base local contiene cuentas demo, hospitales de ejemplo y campos de prueba; no borrar sus datos automáticamente.
@@ -86,6 +86,20 @@ uv run --directory backend python manage.py runserver 127.0.0.1:8000
 ```
 
 En otra terminal, desde `frontend/`: `npm ci` y `npm run dev`. Abre `http://127.0.0.1:5173/` e inicia sesión con `demo_ambulancia` o `demo_urgencias`, creadas por `seed_synthetic` con contraseña elegida al provisionarlas. El login abre `/local` y muestra el módulo habilitado por la cuenta. Las rutas `/ambulancia` y `/urgencias` conservan el simulador separado y requieren sesión. Vite y Django se enlazan solo a loopback.
+
+### Administración institucional local
+
+La administración se provisiona solo por procedimiento técnico sobre una cuenta personal activa que ya pertenezca al establecimiento; no existe registro público ni creación de administradores desde la interfaz. Comando controlado:
+
+```powershell
+uv run --directory backend python manage.py provision_institution_admin <usuario-existente> "<nombre exacto del establecimiento>"
+```
+
+Para probar únicamente con las cuentas sintéticas existentes, se puede provisionar `demo_urgencias` en `Hospital Central Demo`; esto combina sus permisos de urgencias y administración en el entorno local. No usar datos ni correos de personas reales.
+
+El administrador entra a **Administración** desde `/local`. Puede crear cuentas personales, escoger solo los permisos operativos compatibles con su establecimiento y asignar a una ambulancia ya existente. Las altas quedan inactivas hasta que la persona establece una contraseña mediante el enlace de un solo uso enviado por correo (vigencia 24 horas); la administración no define ni recibe esa contraseña. Los enlaces vencidos se pueden reenviar, rotando el token anterior. La desactivación revoca sesiones y asignaciones; el backend bloquea desactivar la propia cuenta, al último administrador o al último operador de una unidad con episodios abiertos. Toda mutación se audita.
+
+El desarrollo usa SMTP local de Mailpit en `127.0.0.1:1025` (configurable con `EMAIL_HOST` y `EMAIL_PORT`; UI local habitual `127.0.0.1:8025`). La configuración predeterminada no envía a servicios externos; iniciar Mailpit antes de crear cuentas. Si no se puede entregar el correo, la creación/rotación falla y revierte sus cambios. Gestión/creación de ambulancias, reasignación posterior de unidad, cambio de permisos y recuperación de cuenta aún no están en esta primera rebanada.
 
 `seed_synthetic` solicita contraseñas por entrada oculta (mínimo 15 caracteres); no las imprime ni sobrescribe si las cuentas demo ya existen. Para revocar todas las sesiones de una cuenta local, registrando motivo/ejecutor/hora: `uv run --directory backend python manage.py revoke_sessions demo_ambulancia --reason "motivo operativo"`. El clúster de desarrollo se detiene con `& "$pgBin\pg_ctl.exe" -D $dataDir -m fast stop`. Las pruebas crean una base desechable; el rol local tiene `CREATEDB` solo para ese propósito. El smoke test de Valkey es opcional y se ejecuta cuando `VALKEY_URL` apunta a un servicio local; CI levanta servicios efímeros para sus pruebas.
 

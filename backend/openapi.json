@@ -58,6 +58,16 @@
         }
       }
     },
+    "/api/v1/auth/activate/": {
+      "post": {
+        "operationId": "activateAccount",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountActivation" } } } },
+        "responses": {
+          "200": { "description": "Cuenta activada; no inicia sesión automáticamente." },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
     "/api/v1/institutions/destinations/": {
       "get": {
         "operationId": "listDestinations",
@@ -68,6 +78,59 @@
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" }
         }
+      }
+    },
+    "/api/v1/institutions/management/accounts/": {
+      "get": {
+        "operationId": "listInstitutionAccounts",
+        "security": [{ "sessionCookie": [] }],
+        "responses": {
+          "200": { "description": "Cuentas de la institución activa del administrador.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedAccount" } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "operationId": "createInstitutionAccount",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedAccountCreate" } } } },
+        "responses": {
+          "201": { "description": "Cuenta pendiente creada; correo de activación enviado.", "content": { "application/json": { "schema": { "type": "object", "required": ["id", "username", "activation_sent"], "properties": { "id": { "type": "string" }, "username": { "type": "string" }, "activation_sent": { "type": "boolean", "const": true } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "503": { "description": "No se pudo enviar la activación; la creación fue revertida." }
+        }
+      }
+    },
+    "/api/v1/institutions/management/accounts/{user_id}/deactivate/": {
+      "post": {
+        "operationId": "deactivateInstitutionAccount",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/ManagedUserId" }],
+        "responses": { "204": { "description": "Cuenta desactivada; sesiones y asignación revocadas." }, "400": { "$ref": "#/components/responses/BadRequest" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/v1/institutions/management/accounts/{user_id}/resend-activation/": {
+      "post": {
+        "operationId": "resendInstitutionAccountActivation",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/ManagedUserId" }],
+        "responses": { "200": { "description": "Enlace de activación rotado y reenviado." }, "400": { "$ref": "#/components/responses/BadRequest" }, "403": { "$ref": "#/components/responses/Forbidden" }, "503": { "description": "No se pudo enviar el correo; cambios revertidos." } }
+      }
+    },
+    "/api/v1/institutions/management/ambulances/": {
+      "get": {
+        "operationId": "listInstitutionAmbulances",
+        "security": [{ "sessionCookie": [] }],
+        "responses": { "200": { "description": "Ambulancias habilitadas del establecimiento administrador.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedAmbulance" } } } } }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/v1/institutions/management/config/": {
+      "get": {
+        "operationId": "getInstitutionAccountManagementConfig",
+        "security": [{ "sessionCookie": [] }],
+        "responses": { "200": { "description": "Nombre del establecimiento y permisos delegables según su tipo.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountManagementConfig" } } } }, "403": { "$ref": "#/components/responses/Forbidden" } }
       }
     },
     "/api/v1/emergencies/": {
@@ -114,13 +177,14 @@
     "securitySchemes": { "sessionCookie": { "type": "apiKey", "in": "cookie", "name": "sessionid" } },
     "parameters": {
       "CsrfToken": { "name": "X-CSRFToken", "in": "header", "required": true, "schema": { "type": "string" }, "description": "Valor obtenido en GET /api/v1/auth/csrf/." },
+      "ManagedUserId": { "name": "user_id", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 } },
       "UserInteraction": { "name": "X-AmbuSync-User-Interaction", "in": "header", "required": false, "schema": { "type": "string", "enum": ["1"] }, "description": "Enviar solo para acción humana; omitir en polling/telemetría. Renueva el vencimiento de inactividad (30 min), nunca el límite absoluto de 12 h." }
     },
     "headers": { "SessionCookie": { "description": "Cookie HttpOnly de sesión; Secure se activa para HTTPS.", "schema": { "type": "string" } } },
     "responses": {
       "BadRequest": { "description": "Validación fallida.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "Unauthorized": { "description": "Credenciales inválidas o cuenta no disponible.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
-      "Forbidden": { "description": "No autenticado, CSRF inválido o no autorizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Forbidden": { "description": "CSRF inválido o acción no autorizada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "NotFound": { "description": "Recurso no disponible dentro del ámbito.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "Conflict": { "description": "El UUID de operación fue reutilizado con otro contenido.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "TooManyRequests": { "description": "Umbral por cuenta u origen excedido; reintentar después de Retry-After.", "headers": { "Retry-After": { "schema": { "type": "integer", "minimum": 1 } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
@@ -145,6 +209,42 @@
           "groups": { "type": "array", "items": { "type": "string" } },
           "institutions": { "type": "array", "items": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" } } } },
           "session": { "type": "object", "required": ["started_at", "idle_expires_at", "absolute_expires_at"], "properties": { "started_at": { "type": "number", "description": "Unix timestamp en segundos." }, "idle_expires_at": { "type": "number", "description": "Expiración por inactividad; 30 minutos tras interacción humana." }, "absolute_expires_at": { "type": "number", "description": "Expiración absoluta; máximo 12 horas desde el inicio." } } }
+        }
+      },
+      "ManagedAccount": {
+        "type": "object",
+        "required": ["id", "username", "email", "groups", "active", "ambulance"],
+        "properties": {
+          "id": { "type": "string" },
+          "username": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "groups": { "type": "array", "items": { "type": "string" } },
+          "active": { "type": "boolean" },
+          "ambulance": { "oneOf": [{ "$ref": "#/components/schemas/ManagedAmbulance" }, { "type": "null" }] }
+        }
+      },
+      "ManagedAmbulance": { "type": "object", "required": ["id", "code"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" } } },
+      "AccountManagementConfig": { "type": "object", "required": ["institution_name", "delegable_groups"], "properties": { "institution_name": { "type": "string" }, "delegable_groups": { "type": "array", "items": { "type": "string", "enum": ["ambulance", "urgencias"] } } } },
+      "ManagedAccountCreate": {
+        "type": "object",
+        "required": ["username", "email", "groups"],
+        "additionalProperties": false,
+        "properties": {
+          "username": { "type": "string", "minLength": 1, "maxLength": 150 },
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "groups": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["ambulance", "urgencias"] } },
+          "ambulance_id": { "type": "string", "format": "uuid", "description": "Obligatorio si se concede permiso ambulance; debe pertenecer al establecimiento administrador." }
+        }
+      },
+      "AccountActivation": {
+        "type": "object",
+        "required": ["uid", "token", "password", "password_confirmation"],
+        "additionalProperties": false,
+        "properties": {
+          "uid": { "type": "string" },
+          "token": { "type": "string" },
+          "password": { "type": "string", "format": "password", "minLength": 15, "maxLength": 128 },
+          "password_confirmation": { "type": "string", "format": "password", "minLength": 15, "maxLength": 128 }
         }
       },
       "Destination": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" } } },

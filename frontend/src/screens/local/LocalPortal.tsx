@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Activity, Ambulance, HeartPulse, LogOut, RefreshCw, Server } from "lucide-react";
+import { AdminAccountsPanel } from "@/screens/local/AdminAccountsPanel";
 import {
   BackendApiError,
   createEmergency,
@@ -87,7 +88,7 @@ export function LocalPortal() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [role, setRole] = useState<"ambulance" | "urgencias" | null>(null);
+  const [role, setRole] = useState<"ambulance" | "urgencias" | "administration" | null>(null);
   const [draft, setDraft] = useState<EmergencyDraft>(emptyDraft);
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [emergencies, setEmergencies] = useState<BackendEmergency[]>([]);
@@ -139,7 +140,7 @@ export function LocalPortal() {
       .then((current) => {
         if (!active) return;
         acceptUser(current);
-        setRole(current.groups.includes("ambulance") ? "ambulance" : current.groups.includes("urgencias") ? "urgencias" : null);
+        setRole(current.groups.includes("ambulance") ? "ambulance" : current.groups.includes("urgencias") ? "urgencias" : current.groups.includes("institution_admin") ? "administration" : null);
       })
       .catch((requestError: unknown) => {
         if (!active) return;
@@ -205,6 +206,7 @@ export function LocalPortal() {
   const sessionWarning = user && remainingMs > 0 && remainingMs <= 120_000;
   const canAmbulance = user?.groups.includes("ambulance") ?? false;
   const canUrgencias = user?.groups.includes("urgencias") ?? false;
+  const canAdminister = user?.groups.includes("institution_admin") ?? false;
   const selected = emergencies.find((item) => item.id === selectedId) ?? null;
   const sortedEmergencies = useMemo(() => [...emergencies].sort((a, b) => {
     const triageOrder = (a.triage ?? "C9").localeCompare(b.triage ?? "C9");
@@ -315,10 +317,11 @@ export function LocalPortal() {
                 </div>
               )}
 
-              {canAmbulance && canUrgencias && (
+              {(canAmbulance && canUrgencias || canAdminister) && (
                 <div className="mt-4 flex flex-wrap gap-2" aria-label="Seleccionar módulo">
-                  <RoleButton active={role === "ambulance"} onClick={() => setRole("ambulance")} icon={<Ambulance className="h-4 w-4" />}>Ambulancia</RoleButton>
-                  <RoleButton active={role === "urgencias"} onClick={() => setRole("urgencias")} icon={<HeartPulse className="h-4 w-4" />}>Urgencias</RoleButton>
+                  {canAmbulance && <RoleButton active={role === "ambulance"} onClick={() => setRole("ambulance")} icon={<Ambulance className="h-4 w-4" />}>Ambulancia</RoleButton>}
+                  {canUrgencias && <RoleButton active={role === "urgencias"} onClick={() => setRole("urgencias")} icon={<HeartPulse className="h-4 w-4" />}>Urgencias</RoleButton>}
+                  {canAdminister && <RoleButton active={role === "administration"} onClick={() => setRole("administration")} icon={<Activity className="h-4 w-4" />}>Administración</RoleButton>}
                 </div>
               )}
 
@@ -406,6 +409,8 @@ export function LocalPortal() {
                   )}
                   {selected && <EmergencyDetail emergency={selected} onClose={() => setSelectedId(null)} />}
                 </section>
+              ) : role === "administration" && canAdminister ? (
+                <AdminAccountsPanel currentUserId={user.id} institutionName={user.institutions[0]?.name ?? ""} />
               ) : null}
 
               {lastCreated && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Guardado: {lastCreated.id}</p>}

@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 from institutions.models import Ambulance, Institution
 
@@ -12,7 +13,11 @@ class AuditEvent(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     actor = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="audit_events"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="audit_events",
+        null=True,
+        blank=True,
     )
     institution = models.ForeignKey(
         Institution,
@@ -23,16 +28,27 @@ class AuditEvent(models.Model):
         Ambulance,
         on_delete=models.PROTECT,
         related_name="audit_events",
+        null=True,
+        blank=True,
     )
     action = models.CharField(max_length=64)
     object_type = models.CharField(max_length=64)
-    object_id = models.UUIDField()
+    object_id = models.CharField(max_length=64)
     result = models.CharField(max_length=16, choices=Result.choices)
     occurred_at = models.DateTimeField(auto_now_add=True)
     correlation_id = models.UUIDField()
+    executor = models.CharField(max_length=255, blank=True, default="")
 
     class Meta:
         ordering = ("-occurred_at", "id")
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(actor__isnull=False, executor="") | Q(actor__isnull=True) & ~Q(executor="")
+                ),
+                name="audit_event_actor_or_executor",
+            ),
+        ]
 
 
 class SessionRevocationEvent(models.Model):
