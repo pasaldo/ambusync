@@ -1,7 +1,10 @@
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 from django.contrib.auth.models import Group
-from django.test import TestCase
+from django.db import close_old_connections, connections
+from django.test import TestCase, TransactionTestCase
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -10,8 +13,9 @@ from emergencies.models import Emergency
 from institutions.models import Ambulance, AmbulanceAssignment, Institution, InstitutionMembership
 
 
-class EmergencyFlowTests(TestCase):
+class EmergencyFixtureMixin:
     def setUp(self):
+        super().setUp()
         self.operator_institution = Institution.objects.create(
             name="Operadora sintética", kind="operator"
         )
@@ -66,6 +70,8 @@ class EmergencyFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.client.defaults["HTTP_X_CSRFTOKEN"] = response.cookies["csrftoken"].value
 
+
+class EmergencyFlowTests(EmergencyFixtureMixin, TestCase):
     def test_login_requires_csrf_and_returns_generic_failure(self):
         response = self.client.post(
             "/api/v1/auth/login/",
@@ -196,6 +202,33 @@ class EmergencyFlowTests(TestCase):
         self.assertEqual(replay_with_changed_vitals.status_code, 409)
         self.assertEqual(Emergency.objects.count(), 1)
 
+    def test_operation_id_is_scoped_to_the_authenticated_actor(self):
+        self.authenticate_with_csrf(self.operator)
+        other_operator = User.objects.create_user(
+            username="synthetic-second-operator", password="local-test-password"
+        )
+        other_operator.groups.add(self.ambulance_group)
+        InstitutionMembership.objects.create(
+            user=other_operator, institution=self.operator_institution
+        )
+        AmbulanceAssignment.objects.create(user=other_operator, ambulance=self.ambulance)
+
+        other_client = APIClient(enforce_csrf_checks=True)
+        other_client.force_login(other_operator)
+        csrf_response = other_client.get("/api/v1/auth/csrf/")
+        other_client.defaults["HTTP_X_CSRFTOKEN"] = csrf_response.cookies["csrftoken"].value
+        operation_id = str(uuid.uuid4())
+        payload = self.payload(operation_id=operation_id)
+
+        first = self.client.post("/api/v1/emergencies/", payload, format="json")
+        second = other_client.post("/api/v1/emergencies/", payload, format="json")
+
+        self.assertEqual(first.status_code, 201, first.data)
+        self.assertEqual(second.status_code, 201, second.data)
+        self.assertNotEqual(first.data["id"], second.data["id"])
+        self.assertEqual(Emergency.objects.count(), 2)
+        self.assertEqual(AuditEvent.objects.count(), 2)
+
     def test_operator_without_active_unit_cannot_create(self):
         self.authenticate_with_csrf(self.operator)
         AmbulanceAssignment.objects.filter(user=self.operator).update(active=False)
@@ -218,3 +251,52 @@ class EmergencyFlowTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data["code"], "validation_error")
+
+
+class ConcurrentIdempotencyTests(EmergencyFixtureMixin, TransactionTestCase):
+    def post_concurrently(self, payloads):
+        barrier = Barrier(len(payloads))
+
+        def post(payload):
+            close_old_connections()
+            try:
+                actor = User.objects.get(pk=self.operator.pk)
+                client = APIClient()
+                client.force_authenticate(user=actor)
+                barrier.wait(timeout=10)
+                response = client.post("/api/v1/emergencies/", payload, format="json")
+                return response.status_code, response.data, response.headers
+            finally:
+                connections.close_all()
+
+        with ThreadPoolExecutor(max_workers=len(payloads)) as executor:
+            futures = [executor.submit(post, payload) for payload in payloads]
+            return [future.result(timeout=30) for future in futures]
+
+    def test_concurrent_identical_operation_creates_once_and_replays(self):
+        payload = self.payload(operation_id=str(uuid.uuid4()), transfer_started=True)
+
+        responses = self.post_concurrently([payload, payload])
+
+        self.assertEqual(sorted(status for status, _, _ in responses), [200, 201])
+        emergency_ids = {data["id"] for _, data, _ in responses}
+        self.assertEqual(len(emergency_ids), 1)
+        self.assertEqual(
+            sum(headers.get("Idempotent-Replay") == "true" for _, _, headers in responses),
+            1,
+        )
+        self.assertEqual(Emergency.objects.count(), 1)
+        self.assertEqual(AuditEvent.objects.count(), 1)
+
+    def test_concurrent_reuse_with_different_payload_conflicts_atomically(self):
+        operation_id = str(uuid.uuid4())
+        payloads = [
+            self.payload(operation_id=operation_id, reason="Motivo de ejemplo A"),
+            self.payload(operation_id=operation_id, reason="Motivo de ejemplo B"),
+        ]
+
+        responses = self.post_concurrently(payloads)
+
+        self.assertEqual(sorted(status for status, _, _ in responses), [201, 409])
+        self.assertEqual(Emergency.objects.count(), 1)
+        self.assertEqual(AuditEvent.objects.count(), 1)
