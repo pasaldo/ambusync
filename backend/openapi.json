@@ -123,7 +123,7 @@
       "get": {
         "operationId": "listInstitutionAmbulances",
         "security": [{ "sessionCookie": [] }],
-        "responses": { "200": { "description": "Ambulancias habilitadas del establecimiento administrador.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedAmbulance" } } } } }, "403": { "$ref": "#/components/responses/Forbidden" } }
+        "responses": { "200": { "description": "Unidades habilitadas de instituciones operadoras; solo las consulta administración de Urgencias.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedAmbulance" } } } } }, "403": { "$ref": "#/components/responses/Forbidden" } }
       }
     },
     "/api/v1/institutions/management/config/": {
@@ -213,18 +213,20 @@
       },
       "ManagedAccount": {
         "type": "object",
-        "required": ["id", "username", "email", "groups", "active", "ambulance"],
+        "required": ["id", "username", "email", "institution_name", "groups", "active", "ambulance"],
         "properties": {
           "id": { "type": "string" },
           "username": { "type": "string" },
           "email": { "type": "string", "format": "email" },
+          "institution_name": { "type": "string" },
           "groups": { "type": "array", "items": { "type": "string" } },
           "active": { "type": "boolean" },
           "ambulance": { "oneOf": [{ "$ref": "#/components/schemas/ManagedAmbulance" }, { "type": "null" }] }
         }
       },
-      "ManagedAmbulance": { "type": "object", "required": ["id", "code"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" } } },
-      "AccountManagementConfig": { "type": "object", "required": ["institution_name", "delegable_groups"], "properties": { "institution_name": { "type": "string" }, "delegable_groups": { "type": "array", "items": { "type": "string", "enum": ["ambulance", "urgencias"] } } } },
+      "ManagedAmbulance": { "type": "object", "required": ["id", "code", "institution_id", "institution_name"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" }, "institution_id": { "type": "string", "format": "uuid" }, "institution_name": { "type": "string" } } },
+      "ManagedInstitution": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" } } },
+      "AccountManagementConfig": { "type": "object", "required": ["institution_name", "delegable_groups", "operator_institutions", "can_create_accounts"], "properties": { "institution_name": { "type": "string" }, "delegable_groups": { "type": "array", "items": { "type": "string", "enum": ["ambulance", "urgencias"] } }, "operator_institutions": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedInstitution" } }, "can_create_accounts": { "type": "boolean" } } },
       "ManagedAccountCreate": {
         "type": "object",
         "required": ["username", "email", "groups"],
@@ -233,7 +235,8 @@
           "username": { "type": "string", "minLength": 1, "maxLength": 150 },
           "email": { "type": "string", "format": "email", "maxLength": 254 },
           "groups": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["ambulance", "urgencias"] } },
-          "ambulance_id": { "type": "string", "format": "uuid", "description": "Obligatorio si se concede permiso ambulance; debe pertenecer al establecimiento administrador." }
+          "ambulance_id": { "type": "string", "format": "uuid", "description": "Obligatorio si groups contiene ambulance; debe pertenecer a institution_id." },
+          "institution_id": { "type": "string", "format": "uuid", "description": "Obligatorio para cuentas ambulance; la administración de Urgencias solo puede elegir instituciones operadoras habilitadas." }
         }
       },
       "AccountActivation": {

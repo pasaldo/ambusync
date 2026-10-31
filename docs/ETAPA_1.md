@@ -89,7 +89,7 @@ En otra terminal, desde `frontend/`: `npm ci` y `npm run dev`. Abre `http://127.
 
 ### Administración institucional local
 
-La administración se provisiona solo por procedimiento técnico sobre una cuenta personal activa que ya pertenezca al establecimiento; no existe registro público ni creación de administradores desde la interfaz. Comando controlado:
+La administración se provisiona solo por procedimiento técnico sobre una cuenta personal activa que ya pertenezca a un establecimiento receptor/de Urgencias; no existe registro público ni creación de administradores desde la interfaz. Las cuentas pertenecientes a una institución operadora (por ejemplo, `demo_ambulancia`) no se pueden provisionar como administradores de cuentas. Comando controlado:
 
 ```powershell
 uv run --directory backend python manage.py provision_institution_admin <usuario-existente> "<nombre exacto del establecimiento>"
@@ -97,7 +97,7 @@ uv run --directory backend python manage.py provision_institution_admin <usuario
 
 Para probar únicamente con las cuentas sintéticas existentes, se puede provisionar `demo_urgencias` en `Hospital Central Demo`; esto combina sus permisos de urgencias y administración en el entorno local. No usar datos ni correos de personas reales.
 
-El administrador entra a **Administración** desde `/local`. Puede crear cuentas personales, escoger solo los permisos operativos compatibles con su establecimiento y asignar a una ambulancia ya existente. Las altas quedan inactivas hasta que la persona establece una contraseña mediante el enlace de un solo uso enviado por correo (vigencia 24 horas); la administración no define ni recibe esa contraseña. Los enlaces vencidos se pueden reenviar, rotando el token anterior. La desactivación revoca sesiones y asignaciones; el backend bloquea desactivar la propia cuenta, al último administrador o al último operador de una unidad con episodios abiertos. Toda mutación se audita.
+Solo el administrador de Urgencias puede crear cuentas, tanto de personal de Urgencias en su institución como de operadores de ambulancia. Para una cuenta operadora selecciona una institución operadora habilitada y una ambulancia ya existente; la cuenta queda vinculada a esa institución y unidad. Una cuenta administradora de ambulancia no puede crear usuarios (el backend rechaza la solicitud, aunque se intente invocar la API directamente). Las altas quedan inactivas hasta que la persona establece una contraseña mediante el enlace de un solo uso enviado por correo (vigencia 24 horas); la administración no define ni recibe esa contraseña. Los enlaces vencidos se pueden reenviar, rotando el token anterior. El admin de Urgencias puede gestionar las cuentas que creó en otras instituciones, además de las cuentas de su propio establecimiento. La desactivación revoca sesiones y asignaciones; el backend bloquea desactivar la propia cuenta, al último administrador o al último operador de una unidad con episodios abiertos. Toda mutación se audita.
 
 El desarrollo usa SMTP local de Mailpit en `127.0.0.1:1025` (configurable con `EMAIL_HOST` y `EMAIL_PORT`; UI local habitual `127.0.0.1:8025`). La configuración predeterminada no envía a servicios externos; iniciar Mailpit antes de crear cuentas. Si no se puede entregar el correo, la creación/rotación falla y revierte sus cambios. Gestión/creación de ambulancias, reasignación posterior de unidad, cambio de permisos y recuperación de cuenta aún no están en esta primera rebanada.
 

@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -53,6 +54,10 @@ def audit_account_action(actor, institution, target, action):
     )
 
 
+def accounts_created_by(actor):
+    return AuditEvent.objects.filter(actor=actor, action="account.created", object_type="account")
+
+
 def send_activation_email(user, raw_token):
     query = urlencode({"uid": user.pk, "token": raw_token})
     activation_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/activar-cuenta?{query}"
@@ -74,10 +79,28 @@ class ManagedAmbulanceListView(APIView):
 
     def get(self, request):
         institution = administrative_institution(request.user)
-        ambulances = Ambulance.objects.filter(institution=institution, enabled=True).order_by(
-            "code"
+        if institution.kind not in (Institution.Kind.RECEIVER, Institution.Kind.COMBINED):
+            return Response([])
+        ambulances = (
+            Ambulance.objects.filter(
+                institution__enabled=True,
+                institution__kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
+                enabled=True,
+            )
+            .select_related("institution")
+            .order_by("institution__name", "code")
         )
-        return Response([{"id": str(item.pk), "code": item.code} for item in ambulances])
+        return Response(
+            [
+                {
+                    "id": str(item.pk),
+                    "code": item.code,
+                    "institution_id": str(item.institution_id),
+                    "institution_name": item.institution.name,
+                }
+                for item in ambulances
+            ]
+        )
 
 
 class AccountManagementConfigView(APIView):
@@ -85,15 +108,30 @@ class AccountManagementConfigView(APIView):
 
     def get(self, request):
         institution = administrative_institution(request.user)
-        delegable_groups = []
-        if institution.kind in (Institution.Kind.OPERATOR, Institution.Kind.COMBINED):
-            delegable_groups.append("ambulance")
-        if institution.kind in (Institution.Kind.RECEIVER, Institution.Kind.COMBINED):
-            delegable_groups.append("urgencias")
+        can_create_accounts = institution.kind in (
+            Institution.Kind.RECEIVER,
+            Institution.Kind.COMBINED,
+        )
+        delegable_groups = ["urgencias", "ambulance"] if can_create_accounts else []
+        operator_institutions = []
+        for operator in (
+            Institution.objects.filter(
+                enabled=True,
+                kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
+                ambulances__enabled=True,
+            )
+            .distinct()
+            .order_by("name", "id")
+            if can_create_accounts
+            else []
+        ):
+            operator_institutions.append({"id": str(operator.pk), "name": operator.name})
         return Response(
             {
                 "institution_name": institution.name,
                 "delegable_groups": delegable_groups,
+                "operator_institutions": operator_institutions,
+                "can_create_accounts": can_create_accounts,
             }
         )
 
@@ -103,8 +141,14 @@ class ManagedAccountListCreateView(APIView):
 
     def get(self, request):
         institution = administrative_institution(request.user)
+        created_ids = [
+            int(value)
+            for value in accounts_created_by(request.user).values_list("object_id", flat=True)
+            if value.isdigit()
+        ]
         memberships = (
-            InstitutionMembership.objects.filter(institution=institution, active=True)
+            InstitutionMembership.objects.filter(active=True)
+            .filter(Q(institution=institution) | Q(user_id__in=created_ids))
             .select_related("user")
             .prefetch_related(
                 "user__groups",
@@ -117,6 +161,7 @@ class ManagedAccountListCreateView(APIView):
                     "id": str(item.user_id),
                     "username": item.user.get_username(),
                     "email": item.user.email,
+                    "institution_name": item.institution.name,
                     "groups": sorted(item.user.groups.values_list("name", flat=True)),
                     "active": item.user.is_active,
                     "ambulance": next(
@@ -124,7 +169,7 @@ class ManagedAccountListCreateView(APIView):
                             {"id": str(assignment.ambulance_id), "code": assignment.ambulance.code}
                             for assignment in item.user.ambulance_assignments.all()
                             if assignment.active
-                            and assignment.ambulance.institution_id == institution.pk
+                            and assignment.ambulance.institution_id == item.institution_id
                         ),
                         None,
                     ),
@@ -135,8 +180,10 @@ class ManagedAccountListCreateView(APIView):
 
     def post(self, request):
         institution = administrative_institution(request.user)
+        if institution.kind not in (Institution.Kind.RECEIVER, Institution.Kind.COMBINED):
+            raise PermissionDenied("Solo la administración de Urgencias puede crear cuentas.")
         body = request.data
-        allowed_fields = {"username", "email", "groups", "ambulance_id"}
+        allowed_fields = {"username", "email", "groups", "ambulance_id", "institution_id"}
         if not isinstance(body, dict) or set(body) - allowed_fields:
             raise ValidationError({"request": "La solicitud contiene campos no admitidos."})
 
@@ -167,30 +214,35 @@ class ManagedAccountListCreateView(APIView):
         if User.objects.filter(email__iexact=email.strip()).exists():
             raise ValidationError({"email": "Ese correo ya está asociado a una cuenta."})
 
+        if len(groups) != 1:
+            raise ValidationError({"groups": "Crea una cuenta por perfil operativo."})
         has_ambulance = "ambulance" in groups
         if has_ambulance != bool(ambulance_id):
             raise ValidationError(
                 {"ambulance_id": "La asignación de ambulancia debe corresponder al permiso."}
             )
-        if has_ambulance and institution.kind not in (
-            Institution.Kind.OPERATOR,
-            Institution.Kind.COMBINED,
-        ):
+        target_institution = institution
+        if has_ambulance:
+            if not body.get("institution_id"):
+                raise ValidationError({"institution_id": "Selecciona la institución operadora."})
+            target_institution = Institution.objects.filter(
+                pk=body["institution_id"],
+                enabled=True,
+                kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
+            ).first()
+            if target_institution is None:
+                raise ValidationError(
+                    {"institution_id": "La institución operadora no está habilitada."}
+                )
+        elif body.get("institution_id"):
             raise ValidationError(
-                {"groups": "El establecimiento no puede habilitar cuentas de ambulancia."}
-            )
-        if "urgencias" in groups and institution.kind not in (
-            Institution.Kind.RECEIVER,
-            Institution.Kind.COMBINED,
-        ):
-            raise ValidationError(
-                {"groups": "El establecimiento no puede habilitar cuentas de urgencias."}
+                {"institution_id": "Las cuentas de Urgencias pertenecen a tu establecimiento."}
             )
 
         ambulance = None
         if has_ambulance:
             ambulance = Ambulance.objects.filter(
-                pk=ambulance_id, institution=institution, enabled=True
+                pk=ambulance_id, institution=target_institution, enabled=True
             ).first()
             if ambulance is None:
                 raise ValidationError(
@@ -215,7 +267,7 @@ class ManagedAccountListCreateView(APIView):
                 user.set_unusable_password()
                 user.save()
                 user.groups.add(*[Group.objects.get_or_create(name=name)[0] for name in groups])
-                InstitutionMembership.objects.create(user=user, institution=institution)
+                InstitutionMembership.objects.create(user=user, institution=target_institution)
                 if ambulance:
                     AmbulanceAssignment.objects.create(user=user, ambulance=ambulance)
                 AccountActivation.objects.update_or_create(
@@ -226,7 +278,7 @@ class ManagedAccountListCreateView(APIView):
                         "consumed_at": None,
                     },
                 )
-                audit_account_action(request.user, institution, user, "account.created")
+                audit_account_action(request.user, target_institution, user, "account.created")
                 sent = send_activation_email(user, raw_token)
                 if sent != 1:
                     raise OSError("activation_email_not_sent")
@@ -259,19 +311,23 @@ class ManagedAccountDeactivateView(APIView):
         with transaction.atomic():
             membership = (
                 InstitutionMembership.objects.select_for_update()
-                .filter(user_id=user_id, institution=institution, active=True)
+                .filter(user_id=user_id, active=True)
                 .select_related("user")
                 .first()
             )
+            created_event = accounts_created_by(request.user).filter(object_id=str(user_id)).first()
+            if membership and membership.institution_id != institution.pk and not created_event:
+                membership = None
             if membership is None:
                 raise ValidationError({"account": "La cuenta no existe en este establecimiento."})
             target = membership.user
+            target_institution = membership.institution
             if target.pk == request.user.pk:
                 raise ValidationError({"account": "No puedes desactivar tu propia cuenta."})
             if target.groups.filter(name="institution_admin").exists():
                 admins = (
                     InstitutionMembership.objects.filter(
-                        institution=institution,
+                        institution=target_institution,
                         active=True,
                         user__is_active=True,
                         user__groups__name="institution_admin",
@@ -294,7 +350,7 @@ class ManagedAccountDeactivateView(APIView):
                 consumed_at=timezone.now()
             )
             assignments = AmbulanceAssignment.objects.filter(
-                user=target, active=True, ambulance__institution=institution
+                user=target, active=True, ambulance__institution=target_institution
             )
             from emergencies.models import Emergency
 
@@ -308,7 +364,7 @@ class ManagedAccountDeactivateView(APIView):
                             ambulance__enabled=True,
                             user__is_active=True,
                             user__groups__name="ambulance",
-                            user__institution_memberships__institution=institution,
+                            user__institution_memberships__institution=target_institution,
                             user__institution_memberships__active=True,
                         )
                         .exclude(user=target)
@@ -322,7 +378,7 @@ class ManagedAccountDeactivateView(APIView):
                             }
                         )
             assignments.update(active=False, unassigned_at=timezone.now())
-            audit_account_action(request.user, institution, target, "account.deactivated")
+            audit_account_action(request.user, target_institution, target, "account.deactivated")
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -338,13 +394,17 @@ class ManagedAccountResendActivationView(APIView):
                     InstitutionMembership.objects.select_for_update()
                     .filter(
                         user_id=user_id,
-                        institution=institution,
                         active=True,
                         user__is_active=False,
                     )
                     .select_related("user")
                     .first()
                 )
+                created_event = (
+                    accounts_created_by(request.user).filter(object_id=str(user_id)).first()
+                )
+                if membership and membership.institution_id != institution.pk and not created_event:
+                    membership = None
                 if membership is None:
                     raise ValidationError(
                         {"account": "No hay una invitación pendiente para esa cuenta."}
@@ -358,7 +418,10 @@ class ManagedAccountResendActivationView(APIView):
                     },
                 )
                 audit_account_action(
-                    request.user, institution, membership.user, "account.activation_resent"
+                    request.user,
+                    membership.institution,
+                    membership.user,
+                    "account.activation_resent",
                 )
                 sent = send_activation_email(membership.user, raw_token)
                 if sent != 1:

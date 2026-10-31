@@ -10,6 +10,7 @@ import {
   resendManagedActivation,
   type ManagedAccount,
   type ManagedAmbulance,
+  type ManagedInstitution,
 } from "@/lib/backend";
 
 function errorText(error: unknown) {
@@ -23,12 +24,15 @@ function errorText(error: unknown) {
 export function AdminAccountsPanel({ currentUserId, institutionName }: { currentUserId: string; institutionName: string }) {
   const [accounts, setAccounts] = useState<ManagedAccount[]>([]);
   const [ambulances, setAmbulances] = useState<ManagedAmbulance[]>([]);
+  const [operatorInstitutions, setOperatorInstitutions] = useState<ManagedInstitution[]>([]);
+  const [canCreateAccounts, setCanCreateAccounts] = useState(false);
   const [delegableGroups, setDelegableGroups] = useState<string[]>([]);
   const [resolvedInstitutionName, setResolvedInstitutionName] = useState(institutionName);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [groups, setGroups] = useState<string[]>([]);
   const [ambulanceId, setAmbulanceId] = useState("");
+  const [operatorInstitutionId, setOperatorInstitutionId] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -47,6 +51,8 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
       setAmbulances(nextAmbulances);
       setDelegableGroups(config.delegable_groups);
       setResolvedInstitutionName(config.institution_name);
+      setOperatorInstitutions(config.operator_institutions);
+      setCanCreateAccounts(config.can_create_accounts);
     } catch (requestError) {
       setError(errorText(requestError));
     } finally {
@@ -57,10 +63,9 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
   useEffect(() => { void refresh(); }, [refresh]);
 
   function toggleGroup(group: string) {
-    setGroups((selected) => selected.includes(group)
-      ? selected.filter((item) => item !== group)
-      : [...selected, group]);
-    if (group === "ambulance" && groups.includes("ambulance")) setAmbulanceId("");
+    setGroups((selected) => selected.includes(group) ? [] : [group]);
+    setAmbulanceId("");
+    setOperatorInstitutionId("");
   }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
@@ -73,12 +78,13 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
         username: username.trim(),
         email: email.trim(),
         groups,
-        ...(groups.includes("ambulance") ? { ambulance_id: ambulanceId } : {}),
+        ...(groups.includes("ambulance") ? { ambulance_id: ambulanceId, institution_id: operatorInstitutionId } : {}),
       });
       setUsername("");
       setEmail("");
       setGroups([]);
       setAmbulanceId("");
+      setOperatorInstitutionId("");
       setMessage("Cuenta creada. Se envió un enlace de activación de un solo uso al correo de prueba configurado.");
       await refresh();
     } catch (requestError) {
@@ -118,9 +124,12 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
       <div>
         <p className="text-xs uppercase tracking-widest text-muted-dark">Administración institucional</p>
         <h2 className="mt-1 text-lg font-bold">Cuentas de {resolvedInstitutionName || "tu establecimiento"}</h2>
-        <p className="mt-1 text-sm text-muted-dark">Solo puedes gestionar cuentas y unidades de tu establecimiento. La administración no concede acceso clínico.</p>
+        <p className="mt-1 text-sm text-muted-dark">La creación de cuentas está reservada a la administración de Urgencias. Los operadores se vinculan a una institución operadora habilitada.</p>
       </div>
 
+      {!canCreateAccounts && <p role="status" className="rounded-lg border border-amber-300/20 bg-amber-300/10 p-3 text-sm text-amber-100">Este perfil de administración no puede crear cuentas. La función está reservada al perfil administrativo de Urgencias.</p>}
+
+      {canCreateAccounts && <>
       <form onSubmit={handleCreate} className="space-y-4 rounded-xl border border-white/10 bg-ink/60 p-4">
         <h3 className="font-semibold">Crear una cuenta personal</h3>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -133,25 +142,34 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
         </div>
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">Permisos operativos delegables</legend>
-          {delegableGroups.includes("ambulance") && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={groups.includes("ambulance")} onChange={() => toggleGroup("ambulance")} /> Ambulancia</label>}
-          {delegableGroups.includes("urgencias") && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={groups.includes("urgencias")} onChange={() => toggleGroup("urgencias")} /> Urgencias</label>}
+          {delegableGroups.includes("ambulance") && <label className="flex items-center gap-2 text-sm"><input type="radio" name="new-account-group" checked={groups.includes("ambulance")} onChange={() => toggleGroup("ambulance")} /> Ambulancia</label>}
+          {delegableGroups.includes("urgencias") && <label className="flex items-center gap-2 text-sm"><input type="radio" name="new-account-group" checked={groups.includes("urgencias")} onChange={() => toggleGroup("urgencias")} /> Urgencias</label>}
         </fieldset>
         {groups.includes("ambulance") && (
-          <label className="block text-sm">Unidad asignada
-            <select required value={ambulanceId} onChange={(event) => setAmbulanceId(event.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-white/15 bg-ink px-3 text-white">
-              <option value="">Selecciona una ambulancia</option>
-              {ambulances.map((ambulance) => <option key={ambulance.id} value={ambulance.id}>{ambulance.code}</option>)}
+          <>
+          <label className="block text-sm">Institución operadora
+            <select required value={operatorInstitutionId} onChange={(event) => { setOperatorInstitutionId(event.target.value); setAmbulanceId(""); }} className="mt-1.5 h-10 w-full rounded-lg border border-white/15 bg-ink px-3 text-white">
+              <option value="">Selecciona una institución</option>
+              {operatorInstitutions.map((operator) => <option key={operator.id} value={operator.id}>{operator.name}</option>)}
             </select>
-            {ambulances.length === 0 && <span className="mt-1 block text-xs text-amber-100">No hay ambulancias habilitadas. Deben provisionarse antes de crear una cuenta operadora.</span>}
           </label>
+          <label className="block text-sm">Unidad asignada
+            <select required value={ambulanceId} onChange={(event) => setAmbulanceId(event.target.value)} disabled={!operatorInstitutionId} className="mt-1.5 h-10 w-full rounded-lg border border-white/15 bg-ink px-3 text-white disabled:opacity-50">
+              <option value="">Selecciona una ambulancia</option>
+              {ambulances.filter((ambulance) => ambulance.institution_id === operatorInstitutionId).map((ambulance) => <option key={ambulance.id} value={ambulance.id}>{ambulance.code}</option>)}
+            </select>
+            {operatorInstitutionId && !ambulances.some((ambulance) => ambulance.institution_id === operatorInstitutionId) && <span className="mt-1 block text-xs text-amber-100">Esta institución no tiene ambulancias habilitadas.</span>}
+          </label>
+          </>
         )}
         <p className="text-xs leading-relaxed text-muted-dark">La cuenta queda pendiente hasta que la persona abra el correo local y establezca su propia contraseña. El enlace vence en 24 horas. No se envían contraseñas.</p>
         <button disabled={submitting || groups.length === 0 || (groups.includes("ambulance") && !ambulanceId)} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-signal px-4 text-sm font-bold text-ink disabled:opacity-50"><UserPlus className="h-4 w-4" />{submitting ? "Creando…" : "Crear y enviar activación"}</button>
       </form>
+      </>}
 
       <div>
         <div className="flex items-center justify-between gap-3">
-          <h3 className="font-semibold">Cuentas del establecimiento</h3>
+          <h3 className="font-semibold">Cuentas administradas</h3>
           <button onClick={() => void refresh()} className="rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5">Actualizar</button>
         </div>
         {loading ? <p role="status" className="mt-3 text-sm text-muted-dark">Cargando cuentas…</p> : accounts.length === 0 ? <p className="mt-3 rounded-lg bg-white/5 p-3 text-sm text-muted-dark">No hay cuentas gestionables en este establecimiento.</p> : (
@@ -161,7 +179,7 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{account.username} <span className="text-xs font-normal text-muted-dark">· {account.active ? "Activa" : "Pendiente de activación"}</span></p>
                   <p className="truncate text-sm text-muted-dark">{account.email}</p>
-                  <p className="mt-1 text-xs text-muted-dark">{account.groups.filter((group) => group !== "institution_admin").join(" + ") || "Administración institucional"}{account.ambulance ? ` · Unidad ${account.ambulance.code}` : ""}</p>
+                  <p className="mt-1 text-xs text-muted-dark">{account.institution_name} · {account.groups.filter((group) => group !== "institution_admin").join(" + ") || "Administración institucional"}{account.ambulance ? ` · Unidad ${account.ambulance.code}` : ""}</p>
                 </div>
                 {account.id !== currentUserId && <div className="flex gap-2">
                   {!account.active && <button onClick={() => void resendActivation(account)} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-muted-dark hover:bg-white/5">Reenviar activación</button>}

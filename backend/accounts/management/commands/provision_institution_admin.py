@@ -30,6 +30,10 @@ class Command(BaseCommand):
             user=user, institution=institution, active=True
         ).exists():
             raise CommandError("La cuenta debe pertenecer activamente al establecimiento.")
+        if institution.kind not in (Institution.Kind.RECEIVER, Institution.Kind.COMBINED):
+            raise CommandError(
+                "El administrador de cuentas debe pertenecer a un establecimiento de Urgencias."
+            )
 
         group, _ = Group.objects.get_or_create(name="institution_admin")
         if user.groups.filter(pk=group.pk).exists():

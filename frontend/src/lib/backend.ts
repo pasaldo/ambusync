@@ -20,12 +20,20 @@ export interface Destination {
 export interface ManagedAmbulance {
   id: string;
   code: string;
+  institution_id: string;
+  institution_name: string;
+}
+
+export interface ManagedInstitution {
+  id: string;
+  name: string;
 }
 
 export interface ManagedAccount {
   id: string;
   username: string;
   email: string;
+  institution_name: string;
   groups: string[];
   active: boolean;
   ambulance: ManagedAmbulance | null;
@@ -34,6 +42,8 @@ export interface ManagedAccount {
 export interface AccountManagementConfig {
   institution_name: string;
   delegable_groups: string[];
+  operator_institutions: ManagedInstitution[];
+  can_create_accounts: boolean;
 }
 
 export interface VitalMeasurement {
@@ -168,6 +178,7 @@ export async function createManagedAccount(payload: {
   email: string;
   groups: string[];
   ambulance_id?: string;
+  institution_id?: string;
 }): Promise<{ id: string; username: string; activation_sent: boolean }> {
   const token = await ensureCsrf();
   return request("/api/v1/institutions/management/accounts/", {

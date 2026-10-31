@@ -1,7 +1,7 @@
-export async function mockAuthenticatedApi(context, { groups = ["ambulance"] } = {}) {
+export async function mockAuthenticatedApi(context, { groups = ["ambulance"], canCreateAccounts = true } = {}) {
   let authenticated = false;
   const managedAccounts = [];
-  const demoAmbulances = [{ id: "demo-ambulance-id", code: "SYN-01" }];
+  const demoAmbulances = [{ id: "demo-ambulance-id", code: "SYN-01", institution_id: "demo-operator-id", institution_name: "Hospital Operador Demo" }];
   const demoUser = {
     id: "demo-user-id",
     username: groups.includes("institution_admin") ? "synthetic_admin" : "demo_ambulancia",
@@ -42,7 +42,7 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"] } =
       return;
     }
     if (pathname === "/api/v1/institutions/management/config/") {
-      await route.fulfill({ json: { institution_name: "Hospital Central Demo", delegable_groups: ["ambulance", "urgencias"] } });
+      await route.fulfill({ json: { institution_name: "Hospital Central Demo", delegable_groups: canCreateAccounts ? ["ambulance", "urgencias"] : [], operator_institutions: canCreateAccounts ? [{ id: "demo-operator-id", name: "Hospital Operador Demo" }] : [], can_create_accounts: canCreateAccounts } });
       return;
     }
     if (pathname === "/api/v1/institutions/management/ambulances/") {
@@ -59,9 +59,11 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"] } =
         id: String(managedAccounts.length + 1),
         username: input.username,
         email: input.email,
+        institution_name: input.institution_id ? "Hospital Operador Demo" : "Hospital Central Demo",
         groups: input.groups,
         active: false,
         ambulance: input.ambulance_id ? demoAmbulances.find((item) => item.id === input.ambulance_id) : null,
+        institution_id: input.institution_id ?? "demo-hospital-id",
       };
       managedAccounts.push(created);
       await route.fulfill({ status: 201, json: { id: created.id, username: created.username, activation_sent: true } });

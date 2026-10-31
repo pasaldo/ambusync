@@ -17,14 +17,15 @@ try {
 
   await page.getByLabel("Nombre de usuario").fill("synthetic_operator_02");
   await page.getByLabel("Correo institucional o de prueba").fill("operator02@example.test");
-  await page.getByLabel("Ambulancia").check();
+  await page.getByLabel("Ambulancia", { exact: true }).check();
+  await page.getByLabel("Institución operadora").selectOption("demo-operator-id");
   await page.getByLabel("Unidad asignada").selectOption("demo-ambulance-id");
   await page.getByRole("button", { name: "Crear y enviar activación" }).click();
   await page.getByRole("status").filter({ hasText: "Se envió un enlace de activación" }).waitFor({ state: "visible" });
   await page.getByText("synthetic_operator_02").first().waitFor({ state: "visible" });
 
   const created = api.managedAccounts[0];
-  if (created.active || created.groups[0] !== "ambulance" || created.ambulance?.id !== "demo-ambulance-id") {
+  if (created.active || created.groups[0] !== "ambulance" || created.ambulance?.id !== "demo-ambulance-id" || created.institution_id !== "demo-operator-id") {
     throw new Error("La cuenta no quedó pendiente o sin el permiso/unidad solicitados");
   }
 
@@ -34,7 +35,21 @@ try {
   await page.getByRole("button", { name: "Definir contraseña y activar" }).click();
   await page.getByRole("status").filter({ hasText: "Cuenta activada" }).waitFor({ state: "visible" });
 
-  console.log("✓ Administración crea cuenta sintética pendiente, la vincula y completa activación");
+  const operatorContext = await browser.newContext();
+  await mockAuthenticatedApi(operatorContext, { groups: ["ambulance", "institution_admin"], canCreateAccounts: false });
+  const operatorPage = await operatorContext.newPage();
+  await operatorPage.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await operatorPage.getByLabel("Usuario").fill("synthetic_admin");
+  await operatorPage.getByLabel("Contraseña").fill("local-test-password");
+  await operatorPage.getByRole("button", { name: "Iniciar sesión" }).click();
+  await operatorPage.getByRole("button", { name: "Administración" }).click();
+  await operatorPage.getByRole("status").filter({ hasText: "reservada al perfil administrativo de Urgencias" }).waitFor({ state: "visible" });
+  if (await operatorPage.getByRole("button", { name: "Crear y enviar activación" }).count()) {
+    throw new Error("El perfil demo de ambulancias muestra la creación de cuentas");
+  }
+  await operatorContext.close();
+
+  console.log("✓ Admin de Urgencias crea cuentas; el perfil demo de ambulancias no muestra la función");
   await context.close();
 } finally {
   await browser.close();

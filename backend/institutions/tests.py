@@ -40,7 +40,7 @@ class InstitutionAccountManagementTests(TestCase):
         )
         admin_group, _ = Group.objects.get_or_create(name="institution_admin")
         self.admin.groups.add(admin_group)
-        InstitutionMembership.objects.create(user=self.admin, institution=self.operator)
+        InstitutionMembership.objects.create(user=self.admin, institution=self.receiver)
         self.client = APIClient()
         self.client.force_authenticate(self.admin)
 
@@ -50,6 +50,7 @@ class InstitutionAccountManagementTests(TestCase):
             "email": "operator01@example.test",
             "groups": ["ambulance"],
             "ambulance_id": str(self.ambulance.pk),
+            "institution_id": str(self.operator.pk),
         }
         payload.update(overrides)
         return self.client.post("/api/v1/institutions/management/accounts/", payload, format="json")
@@ -98,6 +99,25 @@ class InstitutionAccountManagementTests(TestCase):
         self.assertIsNone(audit.ambulance)
         self.assertEqual(audit.object_id, str(user.pk))
 
+    def test_urgencias_admin_can_create_an_urgencias_account_in_own_institution(self):
+        response = self.create_account(
+            username="synthetic-er-user",
+            email="er-user@example.test",
+            groups=["urgencias"],
+            ambulance_id=None,
+            institution_id=None,
+        )
+
+        self.assertEqual(response.status_code, 201)
+        user = User.objects.get(username="synthetic-er-user")
+        self.assertTrue(
+            InstitutionMembership.objects.filter(
+                user=user, institution=self.receiver, active=True
+            ).exists()
+        )
+        self.assertEqual(list(user.groups.values_list("name", flat=True)), ["urgencias"])
+        self.assertFalse(AmbulanceAssignment.objects.filter(user=user, active=True).exists())
+
     def test_admin_cannot_grant_administration_or_link_another_institution(self):
         escalation = self.create_account(groups=["institution_admin"])
         foreign_unit = self.create_account(ambulance_id=str(self.other_ambulance.pk))
@@ -106,6 +126,33 @@ class InstitutionAccountManagementTests(TestCase):
         self.assertEqual(foreign_unit.status_code, 400)
         self.assertFalse(User.objects.filter(username="synthetic-operator-01").exists())
         self.assertEqual(mail.outbox, [])
+
+    def test_only_urgencias_admin_can_create_and_operator_admin_is_denied(self):
+        operator_admin = User.objects.create_user(
+            username="synthetic-operator-admin", password="unused"
+        )
+        operator_admin.groups.add(Group.objects.get(name="institution_admin"))
+        InstitutionMembership.objects.create(user=operator_admin, institution=self.operator)
+        operator_client = APIClient()
+        operator_client.force_authenticate(operator_admin)
+
+        response = operator_client.post(
+            "/api/v1/institutions/management/accounts/",
+            {
+                "username": "should-not-be-created",
+                "email": "denied@example.test",
+                "groups": ["ambulance"],
+                "ambulance_id": str(self.ambulance.pk),
+                "institution_id": str(self.operator.pk),
+            },
+            format="json",
+        )
+        config = operator_client.get("/api/v1/institutions/management/config/").json()
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(config["can_create_accounts"])
+        self.assertEqual(config["delegable_groups"], [])
+        self.assertFalse(User.objects.filter(username="should-not-be-created").exists())
 
     def test_unauthorized_accounts_are_denied_and_admin_data_is_tenant_scoped(self):
         ordinary = User.objects.create_user(username="synthetic-ordinary", password="unused")
@@ -116,7 +163,20 @@ class InstitutionAccountManagementTests(TestCase):
         self.assertEqual(denied.status_code, 403)
         self.assertEqual(
             self.client.get("/api/v1/institutions/management/ambulances/").json(),
-            [{"id": str(self.ambulance.pk), "code": "SYN-01"}],
+            [
+                {
+                    "id": str(self.ambulance.pk),
+                    "code": "SYN-01",
+                    "institution_id": str(self.operator.pk),
+                    "institution_name": self.operator.name,
+                },
+                {
+                    "id": str(self.other_ambulance.pk),
+                    "code": "SYN-02",
+                    "institution_id": str(self.other_operator.pk),
+                    "institution_name": self.other_operator.name,
+                },
+            ],
         )
 
         foreign = User.objects.create_user(username="synthetic-foreign-account", password="unused")
@@ -126,19 +186,19 @@ class InstitutionAccountManagementTests(TestCase):
 
     def test_first_institution_admin_is_provisioned_only_for_existing_member(self):
         user = User.objects.create_user(username="synthetic-new-admin", password="unused")
-        InstitutionMembership.objects.create(user=user, institution=self.operator)
+        InstitutionMembership.objects.create(user=user, institution=self.receiver)
         output = StringIO()
 
         call_command(
             "provision_institution_admin",
             user.username,
-            self.operator.name,
+            self.receiver.name,
             stdout=output,
         )
         call_command(
             "provision_institution_admin",
             user.username,
-            self.operator.name,
+            self.receiver.name,
             stdout=StringIO(),
         )
 
@@ -149,16 +209,16 @@ class InstitutionAccountManagementTests(TestCase):
         provision_event = AuditEvent.objects.get(action="institution_admin.provisioned")
         self.assertIsNone(provision_event.actor)
         self.assertTrue(provision_event.executor)
-        self.assertEqual(provision_event.institution, self.operator)
+        self.assertEqual(provision_event.institution, self.receiver)
 
     def test_technical_staff_account_cannot_become_institution_admin(self):
         technical = User.objects.create_user(
             username="synthetic-technical-account", password="unused", is_staff=True
         )
-        InstitutionMembership.objects.create(user=technical, institution=self.operator)
+        InstitutionMembership.objects.create(user=technical, institution=self.receiver)
 
         with self.assertRaises(CommandError):
-            call_command("provision_institution_admin", technical.username, self.operator.name)
+            call_command("provision_institution_admin", technical.username, self.receiver.name)
 
         self.assertFalse(technical.groups.filter(name="institution_admin").exists())
 
@@ -178,6 +238,7 @@ class InstitutionAccountManagementTests(TestCase):
             "email": "csrf-checked@example.test",
             "groups": ["ambulance"],
             "ambulance_id": str(self.ambulance.pk),
+            "institution_id": str(self.operator.pk),
         }
 
         client.defaults.pop("HTTP_X_CSRFTOKEN")
@@ -312,7 +373,7 @@ class InstitutionAccountManagementTests(TestCase):
         )
         other_admin = User.objects.create_user(username="synthetic-admin-two", password="unused")
         other_admin.groups.add(Group.objects.get(name="institution_admin"))
-        InstitutionMembership.objects.create(user=other_admin, institution=self.operator)
+        InstitutionMembership.objects.create(user=other_admin, institution=self.receiver)
         last_admin = self.client.post(
             f"/api/v1/institutions/management/accounts/{other_admin.pk}/deactivate/",
             {},
