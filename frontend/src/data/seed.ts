@@ -13,7 +13,7 @@ interface SeedSpec {
   status: CaseRecord["status"];
 }
 
-const HOSPITAL = "Hospital del Salvador — Urgencia";
+const HOSPITAL = "Hospital Central Demo";
 
 // Casos de demo con triage variado para que el tablero se vea vivo en capturas.
 const SPECS: SeedSpec[] = [

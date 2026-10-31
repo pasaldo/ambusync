@@ -1,0 +1,158 @@
+name: Frontend CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_USER: ambusync
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: ambusync
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ambusync -d ambusync"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      valkey:
+        image: valkey/valkey:9.0.3
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://ambusync:ci-only-password@localhost:5432/ambusync
+      VALKEY_URL: redis://localhost:6379/0
+      DJANGO_SECRET_KEY: ci-only-synthetic-test-key-not-for-deployment
+      DJANGO_DEBUG: "true"
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: 3.14.10
+
+      - name: Install uv
+        run: python -m pip install uv==0.11.26
+
+      - name: Install locked backend dependencies
+        run: uv sync --directory backend --locked --all-groups
+
+      - name: Check migrations and Django configuration
+        run: |
+          uv run --directory backend python manage.py check
+          uv run --directory backend python manage.py makemigrations --check --dry-run
+          uv run --directory backend python manage.py migrate --noinput
+
+      - name: Run backend tests
+        run: uv run --directory backend python manage.py test
+
+      - name: Lint and audit dependencies
+        run: |
+          uv run --directory backend ruff check .
+          uv run --directory backend ruff format --check .
+          uv run --directory backend pip-audit
+          uv run --directory backend openapi-spec-validator openapi.json
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.20.0
+
+      - name: Pin npm
+        run: npm install --global npm@11.19.0
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Audit dependencies
+        working-directory: frontend
+        run: npm audit
+
+      - name: Check types
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run unit tests
+        working-directory: frontend
+        run: npm run test:unit
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Validate Mermaid diagrams
+        working-directory: frontend
+        run: npm run check:diagrams
+
+      - name: Test cross-tab synchronization
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 > "$RUNNER_TEMP/vite.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          ready=false
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:5173/ > /dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ "$ready" != true ]]; then
+            cat "$RUNNER_TEMP/vite.log"
+            echo "Vite did not become ready on 127.0.0.1:5173" >&2
+            exit 1
+          fi
+
+          BASE_URL=http://127.0.0.1:5173 npm run test:sync
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository with Gitleaks
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"

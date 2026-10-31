@@ -38,10 +38,10 @@ export function emptyDraft(): Draft {
   };
 }
 
-/** Borrador precargado con un caso crítico verosímil (para el modo demo guionado). */
+/** Borrador de ejemplo precargado para el modo demo guionado. */
 export function scriptedCriticalDraft(): Draft {
   return {
-    alias: "Paciente Quilín",
+    alias: "Paciente Ejemplo A",
     age: "63",
     sex: "M",
     chiefComplaint: "Dolor torácico con sospecha de IAM",

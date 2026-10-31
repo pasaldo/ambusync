@@ -6,6 +6,10 @@ Repositorio de trabajo independiente: **[pasaldo/ambusync](https://github.com/pa
 Se conserva el historial del [prototipo original](https://github.com/brypro/ambusync).
 El diagnóstico, las pruebas iniciales y el plan de evolución están en
 **[docs/ANALISIS_INICIAL.md](docs/ANALISIS_INICIAL.md)**.
+La definición de alcance, reglas y tareas de preparación se encuentra en
+**[docs/ETAPA_0.md](docs/ETAPA_0.md)**; contiene decisiones confirmadas y propuestas pendientes de aprobación.
+La preparación reproducible del frontend, el flujo de revisión y el checklist de cierre están en
+**[docs/GUIA_DESARROLLO.md](docs/GUIA_DESARROLLO.md)**.
 La aplicación sigue siendo un prototipo de demostración, no un sistema clínico productivo.
 
 > Transmite la información clínica del paciente desde la **ambulancia** al **servicio de
@@ -71,24 +75,26 @@ acciones de recepción.
 - **Zustand** (estado global), **React Router** (`/ambulancia` y `/urgencias`)
 - Fuentes: **Hanken Grotesk** (UI) + **JetBrains Mono** tabular (vitales/ETA)
 
-El **tiempo real** se resuelve en el frontend, sin backend: el store (Zustand) se sincroniza
-**entre pestañas del mismo navegador** vía **BroadcastChannel** (push instantáneo) con respaldo
-en **localStorage** (persiste al recargar y alimenta a las pestañas que se abren después). Así
-puedes abrir `/ambulancia` y `/urgencias` en dos ventanas y ver el caso aparecer en vivo. El
-backend Django + DRF + Channels (Fases 4–5) —para sincronizar entre **dispositivos** distintos—
-queda como trabajo futuro.
+El **tiempo real de la demo** se resuelve en el frontend: el store (Zustand) se sincroniza
+**entre pestañas del mismo navegador** vía **BroadcastChannel** con respaldo en **localStorage**.
+Las rutas `/ambulancia` y `/urgencias` conservan esa demo independiente. La ruta `/local` conecta
+la SPA con Django + DRF para iniciar sesión, crear emergencias y consultar episodios autorizados;
+usa cookie de sesión y no persiste respuestas del backend en `localStorage`. Channels/WebSocket y
+la sincronización entre dispositivos siguen pendientes; consulta
+[docs/ETAPA_1.md](docs/ETAPA_1.md).
 
 ## Cómo correrlo
 
-Requiere **Node.js 18+**.
+Requiere **Node.js 24.20.0** y **npm 11.19.0**. La versión de Node está fijada en `.nvmrc` y `frontend/package.json` declara el rango compatible.
 
 ```bash
 cd frontend
-npm install
-npm run dev
+npm ci
+npx playwright install chromium
+npm run dev -- --host 127.0.0.1
 ```
 
-Abre <http://localhost:5173>. En escritorio verás el marco de teléfono; en móvil ocupa toda la pantalla.
+Abre <http://127.0.0.1:5173>. En escritorio verás el marco de teléfono; en móvil ocupa toda la pantalla. El selector mantiene los roles de demo y ofrece **Backend local** por separado. No expongas el servidor de desarrollo a una red pública.
 
 Otros comandos:
 
@@ -114,14 +120,14 @@ Otras formas de mostrarlo:
 
 ## Arquitectura
 
-El MVP es una **SPA React** que vive completa en el navegador. El estado global
+La demo frontend es una **SPA React** que vive en el navegador. El estado global
 (`useCases`, Zustand) actúa como un **bus de tiempo real**: el flujo del paramédico publica un
 `Case` y el tablero de Urgencias, suscrito reactivamente, lo refleja al instante. Ese bus se
 sincroniza **entre pestañas** ([`sync.ts`](frontend/src/store/sync.ts)) con **BroadcastChannel**
 (push) + **localStorage** (persistencia y late-join), así que dos ventanas del mismo navegador
-ven los mismos datos en vivo. El backend Django + WebSockets (Fases 4–5) —que llevaría esa
-sincronización entre dispositivos distintos— queda como trabajo futuro; su punto de integración
-es justamente ese store.
+ven los mismos casos de ejemplo en vivo. El backend local usa su propia API y PostgreSQL; la ruta
+`/local` no conecta con ese store. La sincronización WebSocket entre dispositivos y la edición de
+estados desde la SPA quedan pendientes.
 
 ```mermaid
 flowchart LR
@@ -151,20 +157,22 @@ flowchart LR
     D -->|"updateStatus()"| Store
     Store <-.->|"sincroniza en vivo"| Tab2
 
-    subgraph Future["Backend — trabajo futuro (Fases 4–5)"]
+    subgraph Backend["Backend local — primera rebanada etapa 1"]
         direction TB
         API["Django REST Framework"]
-        WS["Django Channels<br/>WebSocket"]
-        DB[("SQLite")]
-        API --- DB
-        WS --- DB
+        DB[("PostgreSQL")]
+        API --> DB
     end
 
-    Store -.->|"POST /cases (futuro)"| API
+    subgraph Future["Pendiente: tiempo real multi-dispositivo"]
+        WS["Django Channels<br/>WebSocket"]
+    end
+
+    Store -.->|"integración pendiente"| API
     WS -.->|"push casos / cambios de estado"| Store
 
     classDef future stroke-dasharray:5 5,opacity:0.75;
-    class Future,API,WS,DB future;
+    class Future,WS future;
 ```
 
 **Ciclo de vida de un `Case`** — el estado que el objeto recorre desde la captura hasta la recepción:
@@ -270,7 +278,7 @@ acento cian representa la señal/sincronización en vivo.
 | 1 | PhoneFrame + navegación + selector de rol | ✅ |
 | 2 | Flujo del paramédico (wizard + transmisión) | ✅ |
 | 3 | Tablero de Urgencias + tiempo real simulado | ✅ |
-| 4–5 | Backend Django + WebSockets reales | Trabajo futuro |
+| 4–5 | Backend local inicial: Django + DRF + PostgreSQL; integración y WebSockets | Primera rebanada local implementada; integración/WebSocket pendientes |
 | 6 | Pulido, modo demo y documentación | ✅ |
 
 > Proyecto académico.

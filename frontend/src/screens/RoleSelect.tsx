@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Ambulance, HeartPulse, ArrowRight, Activity } from "lucide-react";
+import { Ambulance, HeartPulse, ArrowRight, Activity, Server } from "lucide-react";
 import { Logo } from "@/components/Logo";
 
 const roles = [
@@ -74,9 +74,18 @@ export function RoleSelect() {
           ))}
         </div>
 
+        <button
+          type="button"
+          onClick={() => navigate("/local")}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-signal/35 bg-signal/10 px-4 py-3 text-sm font-semibold text-signal-soft transition-colors hover:bg-signal/20"
+        >
+          <Server className="h-4 w-4" />
+          Backend local
+        </button>
+
         <div className="mt-8 flex items-center justify-center gap-2 text-xs text-muted-dark">
           <Activity className="h-3.5 w-3.5 text-signal" />
-          <span>Demo · sin datos reales de pacientes</span>
+          <span>Ejemplo: Hospital Central Demo · unidad DEMO-01</span>
         </div>
       </motion.div>
     </div>
