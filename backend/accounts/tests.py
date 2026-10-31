@@ -106,6 +106,13 @@ class SessionSecurityTests(TestCase):
             format="json",
         )
 
+    def test_anonymous_session_lookup_returns_unauthorized(self):
+        response = self.client.get("/api/v1/auth/me/")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["code"], "not_authenticated")
+        self.assertEqual(response.json()["message"], "La sesión no está iniciada.")
+
     def test_absolute_twelve_hour_session_expiry(self):
         self.assertEqual(self.login().status_code, 200)
         session = self.client.session
