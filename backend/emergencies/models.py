@@ -11,6 +11,8 @@ class Emergency(models.Model):
         NOTIFIED = "notificada", "Notificada"
         IN_TRANSIT = "en_traslado", "En traslado"
         ARRIVED = "llegado", "Llegado a Urgencias"
+        CANCELLED = "cancelada", "Cancelada"
+        CLOSED = "cerrada", "Cerrada"
 
     class AgeUnit(models.TextChoices):
         YEARS = "years", "Años"
@@ -54,6 +56,13 @@ class Emergency(models.Model):
     triage = models.CharField(max_length=2, choices=Triage.choices, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     transfer_declared_at = models.DateTimeField(null=True, blank=True)
+    transfer_declared_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="declared_transfers",
+    )
     arrived_at = models.DateTimeField(null=True, blank=True)
     arrived_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -63,6 +72,23 @@ class Emergency(models.Model):
         related_name="arrival_confirmations",
     )
     arrival_reason = models.CharField(max_length=2000, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="cancelled_emergencies",
+    )
+    cancellation_reason = models.CharField(max_length=2000, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="closed_emergencies",
+    )
     version = models.PositiveIntegerField(default=1)
 
     class Meta:
@@ -74,6 +100,7 @@ class ProcessedOperation(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="processed_operations"
     )
     operation_id = models.UUIDField()
+    action = models.CharField(max_length=64, default="emergency.created")
     request_hash = models.CharField(max_length=64)
     emergency = models.ForeignKey(Emergency, on_delete=models.PROTECT, related_name="operations")
     created_at = models.DateTimeField(auto_now_add=True)

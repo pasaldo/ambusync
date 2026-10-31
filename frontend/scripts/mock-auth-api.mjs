@@ -1,4 +1,4 @@
-export async function mockAuthenticatedApi(context, { groups = ["ambulance"], canCreateAccounts = true } = {}) {
+export async function mockAuthenticatedApi(context, { groups = ["ambulance"], canCreateAccounts = true, includeUrgenciasQueue = false } = {}) {
   let authenticated = false;
   const managedAccounts = [];
   const demoAmbulances = [{ id: "demo-ambulance-id", code: "SYN-01", institution_id: "demo-operator-id", institution_name: "Hospital Operador Demo" }];
@@ -10,7 +10,7 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
     ambulance_code: "SYN-01",
     destination_name: "Hospital Central Demo",
     status: "en_traslado",
-    patient: { identity_unknown: true, alias: null, age_value: null, age_unit: null, recorded_sex: null },
+    patient: { identity_unknown: false, alias: "Caso en traslado", age_value: null, age_unit: null, recorded_sex: null },
     reason: "Prueba sintética de llegada",
     symptoms: [],
     notes: "",
@@ -22,6 +22,40 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
     arrival_reason: "",
     version: 1,
   }];
+  if (includeUrgenciasQueue) {
+    for (let index = 1; index <= 21; index += 1) {
+      const eventTime = new Date(Date.UTC(2025, 0, index, 12)).toISOString();
+      demoEmergencies.push({
+        ...demoEmergencies[0],
+        id: `demo-arrived-${index}`,
+        status: "llegado",
+        patient: { ...demoEmergencies[0].patient, alias: `Llegado sintético ${String(index).padStart(2, "0")}` },
+        created_at: eventTime,
+        arrived_at: eventTime,
+        transfer_declared_at: eventTime,
+        version: 2,
+      });
+    }
+    demoEmergencies.push({
+      ...demoEmergencies[0],
+      id: "demo-pending-transfer",
+      status: "notificada",
+      patient: { ...demoEmergencies[0].patient, alias: "Pendiente sintético" },
+      created_at: "2026-10-30T12:00:00Z",
+      transfer_declared_at: null,
+      version: 1,
+    });
+    demoEmergencies.push({
+      ...demoEmergencies[0],
+      id: "demo-cancelled",
+      status: "cancelada",
+      patient: { ...demoEmergencies[0].patient, alias: "Cancelado sintético" },
+      created_at: "2025-02-10T11:00:00Z",
+      cancelled_at: "2025-02-10T13:00:00Z",
+      cancellation_reason: "Prueba de archivo sintética",
+      version: 2,
+    });
+  }
   const demoUser = {
     id: "demo-user-id",
     username: groups.includes("institution_admin") ? "synthetic_admin" : "demo_ambulancia",
