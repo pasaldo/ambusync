@@ -42,6 +42,16 @@ try {
   await operatorPage.getByLabel("Usuario").fill("synthetic_admin");
   await operatorPage.getByLabel("Contraseña").fill("local-test-password");
   await operatorPage.getByRole("button", { name: "Iniciar sesión" }).click();
+  await operatorPage.getByRole("button", { name: "Ambulancia" }).click();
+  await operatorPage.getByRole("heading", { name: "Nueva emergencia" }).waitFor({ state: "visible" });
+  if (await operatorPage.getByRole("heading", { name: "Episodios de la unidad" }).count()) {
+    throw new Error("La lista de episodios ocupa la vista del formulario");
+  }
+  await operatorPage.getByRole("button", { name: "Episodios de la unidad" }).click();
+  await operatorPage.getByRole("heading", { name: "Episodios de la unidad" }).waitFor({ state: "visible" });
+  if (await operatorPage.getByRole("heading", { name: "Nueva emergencia" }).count()) {
+    throw new Error("El formulario sigue visible en la vista de episodios");
+  }
   await operatorPage.getByRole("button", { name: "Administración" }).click();
   await operatorPage.getByRole("status").filter({ hasText: "reservada al perfil administrativo de Urgencias" }).waitFor({ state: "visible" });
   if (await operatorPage.getByRole("button", { name: "Crear y enviar activación" }).count()) {

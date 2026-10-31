@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Activity, Ambulance, HeartPulse, LogOut, RefreshCw, Server } from "lucide-react";
+import { Activity, Ambulance, ClipboardList, HeartPulse, LogOut, RefreshCw, Server } from "lucide-react";
 import { AdminAccountsPanel } from "@/screens/local/AdminAccountsPanel";
 import {
   BackendApiError,
@@ -93,6 +93,7 @@ export function LocalPortal() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [role, setRole] = useState<"ambulance" | "urgencias" | "administration" | null>(null);
+  const [ambulanceView, setAmbulanceView] = useState<"form" | "episodes">("form");
   const [draft, setDraft] = useState<EmergencyDraft>(emptyDraft);
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [emergencies, setEmergencies] = useState<BackendEmergency[]>([]);
@@ -357,7 +358,8 @@ export function LocalPortal() {
 
               {(canAmbulance && canUrgencias || canAdminister) && (
                 <div className="mt-4 flex flex-wrap gap-2" aria-label="Seleccionar módulo">
-                  {canAmbulance && <RoleButton active={role === "ambulance"} onClick={() => setRole("ambulance")} icon={<Ambulance className="h-4 w-4" />}>Ambulancia</RoleButton>}
+                  {canAmbulance && <RoleButton active={role === "ambulance" && ambulanceView === "form"} onClick={() => { setRole("ambulance"); setAmbulanceView("form"); }} icon={<Ambulance className="h-4 w-4" />}>Ambulancia</RoleButton>}
+                  {canAmbulance && <RoleButton active={role === "ambulance" && ambulanceView === "episodes"} onClick={() => { setRole("ambulance"); setAmbulanceView("episodes"); }} icon={<ClipboardList className="h-4 w-4" />}>Episodios de la unidad</RoleButton>}
                   {canUrgencias && <RoleButton active={role === "urgencias"} onClick={() => setRole("urgencias")} icon={<HeartPulse className="h-4 w-4" />}>Urgencias</RoleButton>}
                   {canAdminister && <RoleButton active={role === "administration"} onClick={() => setRole("administration")} icon={<Activity className="h-4 w-4" />}>Administración</RoleButton>}
                 </div>
@@ -367,19 +369,21 @@ export function LocalPortal() {
                 <p className="mt-6 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">La cuenta inició sesión, pero no tiene un rol operativo disponible en este entorno.</p>
               ) : role === "ambulance" && canAmbulance ? (
                 <section className="mt-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-lg font-bold">Episodios de la unidad</h2>
-                    <button onClick={() => void refreshEmergencies()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><RefreshCw className="h-4 w-4" /> Actualizar</button>
-                  </div>
-                  {emergencies.length > 0 && <div className="mt-3 space-y-2">{emergencies.map((item) => <div key={item.id} className="rounded-xl border border-white/10 bg-ink/60 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2"><strong>{item.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{emergencyStatusLabel(item.status)}</span></div>
-                    <p className="mt-1 text-sm text-muted-dark">{item.reason} · {item.destination_name}</p>
-                    {(item.status === "notificada" || item.status === "en_traslado") && <div className="mt-3 flex flex-wrap gap-2">
-                      {item.status === "notificada" && <button onClick={() => void runTransition(() => startEmergencyTransfer(item), "Inicio de traslado registrado.")} className="rounded-lg bg-signal px-3 py-2 text-sm font-semibold text-ink">Iniciar traslado</button>}
-                      <button onClick={() => cancelFromAmbulance(item)} className="rounded-lg border border-rose-300/30 px-3 py-2 text-sm text-rose-100">Cancelar episodio</button>
-                    </div>}
-                  </div>)}</div>}
-                  <h2 className="mt-6 text-lg font-bold">Nueva emergencia</h2>
+                  {ambulanceView === "episodes" ? <>
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="text-lg font-bold">Episodios de la unidad</h2>
+                      <button onClick={() => void refreshEmergencies()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><RefreshCw className="h-4 w-4" /> Actualizar</button>
+                    </div>
+                    {emergencies.length === 0 ? <p className="mt-4 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios para esta unidad.</p> : <div className="mt-3 space-y-2">{emergencies.map((item) => <div key={item.id} className="rounded-xl border border-white/10 bg-ink/60 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2"><strong>{item.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{emergencyStatusLabel(item.status)}</span></div>
+                      <p className="mt-1 text-sm text-muted-dark">{item.reason} · {item.destination_name}</p>
+                      {(item.status === "notificada" || item.status === "en_traslado") && <div className="mt-3 flex flex-wrap gap-2">
+                        {item.status === "notificada" && <button onClick={() => void runTransition(() => startEmergencyTransfer(item), "Inicio de traslado registrado.")} className="rounded-lg bg-signal px-3 py-2 text-sm font-semibold text-ink">Iniciar traslado</button>}
+                        <button onClick={() => cancelFromAmbulance(item)} className="rounded-lg border border-rose-300/30 px-3 py-2 text-sm text-rose-100">Cancelar episodio</button>
+                      </div>}
+                    </div>)}</div>}
+                  </> : <>
+                  <h2 className="text-lg font-bold">Nueva emergencia</h2>
                   <p className="mt-1 text-sm text-muted-dark">La unidad se toma de la asignación del servidor. Las mediciones son opcionales y se conservan individualmente.</p>
                   {destinations.length === 0 ? (
                     <p className="mt-4 rounded-lg bg-white/5 p-3 text-sm text-muted-dark">No hay destinos receptores habilitados para esta cuenta.</p>
@@ -444,6 +448,7 @@ export function LocalPortal() {
                       <button disabled={submitting} className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-bold text-ink disabled:opacity-50"><Activity className="h-4 w-4" /> {submitting ? "Guardando…" : "Guardar emergencia"}</button>
                     </form>
                   )}
+                  </>}
                 </section>
               ) : role === "urgencias" && canUrgencias ? (
                 <section className="mt-5">
