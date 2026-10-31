@@ -27,7 +27,7 @@ la ambulancia a Urgencias. Definido en `src/types.ts`.
 
 ## Mapa del código (`frontend/src/`)
 
-- `screens/RoleSelect.tsx` — landing y selector de rol.
+- `screens/LoginScreen.tsx` — ingreso centralizado; el acceso al módulo se decide por los grupos de la cuenta.
 - `screens/ambulance/` — flujo del paramédico: `AmbulanceApp` (orquestador/wizard),
   `StartScreen`, `steps/*`, `TransmitOverlay` (pulso de transmisión).
 - `screens/er/` — Urgencias: `ErApp` (tablero), `PatientCard`, `CaseDetail`, `demo.ts`

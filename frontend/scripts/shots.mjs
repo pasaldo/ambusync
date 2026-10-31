@@ -1,6 +1,7 @@
 // Genera capturas de las pantallas principales para el README.
 // Uso: con el dev server corriendo en http://localhost:5173 → node scripts/shots.mjs
 import { chromium } from "playwright";
+import { mockAuthenticatedApi } from "./mock-auth-api.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { mkdirSync } from "node:fs";
@@ -20,6 +21,7 @@ const ctx = await browser.newContext({
   deviceScaleFactor: 2, // capturas nítidas (retina)
   reducedMotion: "reduce", // congela animaciones → estado final limpio
 });
+await mockAuthenticatedApi(ctx);
 const page = await ctx.newPage();
 
 async function shot(name) {
@@ -31,10 +33,16 @@ async function clickText(text) {
   await page.getByRole("button", { name: text, exact: false }).first().click();
 }
 
-// 1 — Selector de rol
+// 1 — Ingreso centralizado
 await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
-await sleep(500);
-await shot("01-selector-rol.png");
+await page.getByLabel("Usuario").waitFor({ state: "visible" });
+await shot("01-inicio-sesion.png");
+
+// Las capturas posteriores usan una sesión de cuenta demo simulada; no llaman al backend.
+await page.getByLabel("Usuario").fill("demo_ambulancia");
+await page.getByLabel("Contraseña").fill("local-test-password");
+await page.getByRole("button", { name: "Iniciar sesión" }).click();
+await page.getByRole("heading", { name: "Nueva emergencia" }).waitFor({ state: "visible" });
 
 // 2 — Inicio de la ambulancia
 await page.goto(`${BASE}/ambulancia`, { waitUntil: "networkidle" });

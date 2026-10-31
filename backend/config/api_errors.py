@@ -1,5 +1,6 @@
 import uuid
 
+from rest_framework.exceptions import NotAuthenticated
 from rest_framework.views import exception_handler
 
 
@@ -21,6 +22,19 @@ def api_exception_handler(exc, context):
     response = exception_handler(exc, context)
     if response is None:
         return None
+
+    # SessionAuthentication has no WWW-Authenticate challenge, so DRF emits 403
+    # for anonymous requests. For this cookie-session API, report the expected
+    # unauthenticated state as 401 so clients can return to the login screen.
+    if isinstance(exc, NotAuthenticated):
+        response.status_code = 401
+        response.data = {
+            "code": "not_authenticated",
+            "message": "La sesión no está iniciada.",
+            "fields": {},
+            "correlation_id": str(uuid.uuid4()),
+        }
+        return response
 
     data = response.data
     if isinstance(data, dict) and "detail" in data:
