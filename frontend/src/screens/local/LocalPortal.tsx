@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Activity, Ambulance, ClipboardList, HeartPulse, LogOut, RefreshCw, Server } from "lucide-react";
+import { Activity, Ambulance, Archive, ClipboardList, HeartPulse, LogOut, RefreshCw, Server } from "lucide-react";
 import { AdminAccountsPanel } from "@/screens/local/AdminAccountsPanel";
 import {
   BackendApiError,
@@ -71,6 +71,12 @@ function emptyDraft(): EmergencyDraft {
   };
 }
 
+function archiveEventDate(emergency: BackendEmergency): string {
+  if (emergency.status === "cancelada") return emergency.cancelled_at ?? emergency.created_at;
+  if (emergency.status === "cerrada") return emergency.closed_at ?? emergency.arrived_at ?? emergency.created_at;
+  return emergency.arrived_at ?? emergency.created_at;
+}
+
 function displayError(error: unknown): string {
   if (error instanceof BackendApiError) {
     if (error.status === 429) return "Demasiados intentos de acceso. Espera antes de volver a intentarlo.";
@@ -94,6 +100,8 @@ export function LocalPortal() {
   const [error, setError] = useState("");
   const [role, setRole] = useState<"ambulance" | "urgencias" | "administration" | null>(null);
   const [ambulanceView, setAmbulanceView] = useState<"form" | "episodes">("form");
+  const [urgenciasView, setUrgenciasView] = useState<"incoming" | "archive">("incoming");
+  const [archiveFilters, setArchiveFilters] = useState({ day: "", month: "", year: "", status: "all" });
   const [draft, setDraft] = useState<EmergencyDraft>(emptyDraft);
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [emergencies, setEmergencies] = useState<BackendEmergency[]>([]);
@@ -213,10 +221,36 @@ export function LocalPortal() {
   const canUrgencias = user?.groups.includes("urgencias") ?? false;
   const canAdminister = user?.groups.includes("institution_admin") ?? false;
   const selected = emergencies.find((item) => item.id === selectedId) ?? null;
-  const sortedEmergencies = useMemo(() => [...emergencies].sort((a, b) => {
-    const triageOrder = (a.triage ?? "C9").localeCompare(b.triage ?? "C9");
-    return triageOrder || a.created_at.localeCompare(b.created_at);
-  }), [emergencies]);
+  const urgencyQueues = useMemo(() => {
+    const priority: Record<BackendEmergency["status"], number> = {
+      en_traslado: 0,
+      llegado: 1,
+      notificada: 2,
+      cancelada: 3,
+      cerrada: 4,
+    };
+    const mainQueue = emergencies.filter((item) => ["en_traslado", "llegado", "notificada"].includes(item.status));
+    const archived = emergencies.filter((item) => item.status === "cancelada" || item.status === "cerrada");
+    const oldArrivals = mainQueue
+      .filter((item) => item.status === "llegado")
+      .sort((a, b) => new Date(a.arrived_at ?? a.created_at).getTime() - new Date(b.arrived_at ?? b.created_at).getTime());
+    while (mainQueue.length > 20 && oldArrivals.length > 0) {
+      const oldest = oldArrivals.shift()!;
+      mainQueue.splice(mainQueue.findIndex((item) => item.id === oldest.id), 1);
+      archived.push(oldest);
+    }
+    mainQueue.sort((a, b) => priority[a.status] - priority[b.status] || b.created_at.localeCompare(a.created_at));
+    archived.sort((a, b) => new Date(archiveEventDate(b)).getTime() - new Date(archiveEventDate(a)).getTime());
+    return { mainQueue, archived };
+  }, [emergencies]);
+  const archiveYears = useMemo(() => [...new Set(urgencyQueues.archived.map((item) => String(new Date(archiveEventDate(item)).getFullYear())))].sort((a, b) => Number(b) - Number(a)), [urgencyQueues.archived]);
+  const filteredArchive = useMemo(() => urgencyQueues.archived.filter((item) => {
+    if (archiveFilters.status !== "all" && item.status !== archiveFilters.status) return false;
+    const date = new Date(archiveEventDate(item));
+    return (!archiveFilters.day || date.getDate() === Number(archiveFilters.day))
+      && (!archiveFilters.month || date.getMonth() + 1 === Number(archiveFilters.month))
+      && (!archiveFilters.year || date.getFullYear() === Number(archiveFilters.year));
+  }), [urgencyQueues.archived, archiveFilters]);
 
   async function handleLogout() {
     try {
@@ -356,11 +390,12 @@ export function LocalPortal() {
                 </div>
               )}
 
-              {(canAmbulance && canUrgencias || canAdminister) && (
+              {(canAmbulance || canUrgencias || canAdminister) && (
                 <div className="mt-4 flex flex-wrap gap-2" aria-label="Seleccionar módulo">
                   {canAmbulance && <RoleButton active={role === "ambulance" && ambulanceView === "form"} onClick={() => { setRole("ambulance"); setAmbulanceView("form"); }} icon={<Ambulance className="h-4 w-4" />}>Ambulancia</RoleButton>}
                   {canAmbulance && <RoleButton active={role === "ambulance" && ambulanceView === "episodes"} onClick={() => { setRole("ambulance"); setAmbulanceView("episodes"); }} icon={<ClipboardList className="h-4 w-4" />}>Episodios de la unidad</RoleButton>}
-                  {canUrgencias && <RoleButton active={role === "urgencias"} onClick={() => setRole("urgencias")} icon={<HeartPulse className="h-4 w-4" />}>Urgencias</RoleButton>}
+                  {canUrgencias && <RoleButton active={role === "urgencias" && urgenciasView === "incoming"} onClick={() => { setRole("urgencias"); setUrgenciasView("incoming"); }} icon={<HeartPulse className="h-4 w-4" />}>Urgencias</RoleButton>}
+                  {canUrgencias && <RoleButton active={role === "urgencias" && urgenciasView === "archive"} onClick={() => { setRole("urgencias"); setUrgenciasView("archive"); setSelectedId(null); }} icon={<Archive className="h-4 w-4" />}>Archivo de Urgencias</RoleButton>}
                   {canAdminister && <RoleButton active={role === "administration"} onClick={() => setRole("administration")} icon={<Activity className="h-4 w-4" />}>Administración</RoleButton>}
                 </div>
               )}
@@ -453,14 +488,31 @@ export function LocalPortal() {
               ) : role === "urgencias" && canUrgencias ? (
                 <section className="mt-5">
                   <div className="flex items-end justify-between gap-3">
-                    <div><h2 className="text-lg font-bold">Episodios autorizados</h2><p className="mt-1 text-sm text-muted-dark">Actualización periódica local; sin WebSocket.</p></div>
+                    <div><h2 className="text-lg font-bold">{urgenciasView === "incoming" ? "Episodios entrantes" : "Archivo de episodios"}</h2><p className="mt-1 text-sm text-muted-dark">Actualización periódica local; sin WebSocket.</p></div>
                     <button onClick={() => void refreshEmergencies()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><RefreshCw className="h-4 w-4" /> Actualizar</button>
                   </div>
-                  {sortedEmergencies.length === 0 ? <p className="mt-5 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios en el ámbito de esta cuenta.</p> : (
-                    <div className="mt-4 space-y-2">{sortedEmergencies.map((item) => <button key={item.id} onClick={() => setSelectedId(item.id)} className="w-full rounded-xl border border-white/10 bg-ink/60 p-4 text-left transition hover:border-signal/40 hover:bg-white/5">
-                      <span className="flex flex-wrap items-center justify-between gap-2"><strong>{item.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{item.triage ?? "Sin clasificar"} · {emergencyStatusLabel(item.status)}</span></span>
-                      <span className="mt-1 block text-sm text-muted-dark">{item.reason}</span><span className="mt-2 block text-xs text-muted-dark">{item.destination_name} · {item.ambulance_code} · {new Date(item.created_at).toLocaleString()}</span>
-                    </button>)}</div>
+                  {urgenciasView === "incoming" ? (
+                    urgencyQueues.mainQueue.length === 0 ? <p className="mt-5 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios entrantes.</p> : (
+                      <div className="mt-4 space-y-2">{urgencyQueues.mainQueue.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} onSelect={() => setSelectedId(item.id)} />)}</div>
+                    )
+                  ) : (
+                    <>
+                      <div className="mt-4 grid gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 sm:grid-cols-4">
+                        <label className="text-sm">Día
+                          <select value={archiveFilters.day} onChange={(event) => setArchiveFilters((current) => ({ ...current, day: event.target.value }))} className="mt-1 block h-10 w-full rounded-lg border border-white/15 bg-ink px-2"><option value="">Todos</option>{Array.from({ length: 31 }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}</option>)}</select>
+                        </label>
+                        <label className="text-sm">Mes
+                          <select value={archiveFilters.month} onChange={(event) => setArchiveFilters((current) => ({ ...current, month: event.target.value }))} className="mt-1 block h-10 w-full rounded-lg border border-white/15 bg-ink px-2"><option value="">Todos</option>{Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option key={month} value={month}>{new Date(2000, month - 1, 1).toLocaleString("es-CL", { month: "long" })}</option>)}</select>
+                        </label>
+                        <label className="text-sm">Año
+                          <select value={archiveFilters.year} onChange={(event) => setArchiveFilters((current) => ({ ...current, year: event.target.value }))} className="mt-1 block h-10 w-full rounded-lg border border-white/15 bg-ink px-2"><option value="">Todos</option>{archiveYears.map((year) => <option key={year} value={year}>{year}</option>)}</select>
+                        </label>
+                        <label className="text-sm">Estado
+                          <select value={archiveFilters.status} onChange={(event) => setArchiveFilters((current) => ({ ...current, status: event.target.value }))} className="mt-1 block h-10 w-full rounded-lg border border-white/15 bg-ink px-2"><option value="all">Todos</option><option value="cancelada">Cancelada</option><option value="llegado">Llegado</option><option value="cerrada">Cerrada</option></select>
+                        </label>
+                      </div>
+                      {filteredArchive.length === 0 ? <p className="mt-4 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios que coincidan con estos filtros.</p> : <div className="mt-4 space-y-2">{filteredArchive.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} archived onSelect={() => setSelectedId(item.id)} />)}</div>}
+                    </>
                   )}
                   {selected && <EmergencyDetail emergency={selected} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} onCloseEmergency={() => void runTransition(() => closeEmergency(selected), "Episodio cerrado.")} />}
                 </section>
@@ -491,6 +543,20 @@ function emergencyStatusLabel(status: BackendEmergency["status"]) {
   if (status === "cancelada") return "Cancelada";
   if (status === "cerrada") return "Cerrada";
   return "Notificada";
+}
+
+function urgenciasStatusLabel(status: BackendEmergency["status"]) {
+  if (status === "en_traslado") return "Llegando · En traslado";
+  if (status === "notificada") return "Pendiente de traslado";
+  return emergencyStatusLabel(status);
+}
+
+function UrgenciasEmergencyCard({ emergency, archived = false, onSelect }: { emergency: BackendEmergency; archived?: boolean; onSelect: () => void }) {
+  return <button type="button" onClick={onSelect} className="w-full rounded-xl border border-white/10 bg-ink/60 p-4 text-left transition hover:border-signal/40 hover:bg-white/5">
+    <span className="flex flex-wrap items-center justify-between gap-2"><strong>{emergency.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{emergency.triage ?? "Sin clasificar"} · {urgenciasStatusLabel(emergency.status)}</span></span>
+    <span className="mt-1 block text-sm text-muted-dark">{emergency.reason}</span>
+    <span className="mt-2 block text-xs text-muted-dark">{emergency.destination_name} · {emergency.ambulance_code} · {new Date(archived ? archiveEventDate(emergency) : emergency.created_at).toLocaleString()}</span>
+  </button>;
 }
 
 function EmergencyDetail({ emergency, onClose, onMarkArrived, onCloseEmergency }: { emergency: BackendEmergency; onClose: () => void; onMarkArrived: (reason: string) => void; onCloseEmergency: () => void }) {

@@ -236,8 +236,18 @@ export async function listDestinations(): Promise<Destination[]> {
 }
 
 export async function listEmergencies(): Promise<BackendEmergency[]> {
-  const page = await request<{ results: BackendEmergency[] }>("/api/v1/emergencies/?page_size=100");
-  return page.results;
+  const results: BackendEmergency[] = [];
+  let pageNumber = 1;
+  let hasNextPage = true;
+  while (hasNextPage) {
+    const page = await request<{ results: BackendEmergency[]; next: string | null }>(
+      `/api/v1/emergencies/?page_size=100&page=${pageNumber}`,
+    );
+    results.push(...page.results);
+    hasNextPage = page.next !== null;
+    pageNumber += 1;
+  }
+  return results;
 }
 
 export async function createEmergency(payload: Record<string, unknown>): Promise<BackendEmergency> {

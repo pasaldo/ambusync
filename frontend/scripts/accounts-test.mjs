@@ -60,16 +60,37 @@ try {
   await operatorContext.close();
 
   const urgenciasContext = await browser.newContext();
-  await mockAuthenticatedApi(urgenciasContext, { groups: ["urgencias"] });
+  await mockAuthenticatedApi(urgenciasContext, { groups: ["urgencias"], includeUrgenciasQueue: true });
   const urgenciasPage = await urgenciasContext.newPage();
   await urgenciasPage.goto(`${BASE}/`, { waitUntil: "networkidle" });
   await urgenciasPage.getByLabel("Usuario").fill("synthetic_urgencias");
   await urgenciasPage.getByLabel("Contraseña").fill("local-test-password");
   await urgenciasPage.getByRole("button", { name: "Iniciar sesión" }).click();
-  await urgenciasPage.getByRole("button", { name: /Prueba sintética de llegada/ }).click();
+  await urgenciasPage.getByRole("heading", { name: "Episodios entrantes" }).waitFor({ state: "visible" });
+  await urgenciasPage.getByRole("button", { name: /Caso en traslado/ }).waitFor({ state: "visible" });
+  const incomingCards = urgenciasPage.locator("section.mt-5 button.w-full.rounded-xl");
+  if (await incomingCards.count() !== 20) throw new Error("La cola de Urgencias no conserva el límite de 20 episodios");
+  const firstIncoming = await incomingCards.first().innerText();
+  const lastIncoming = await incomingCards.last().innerText();
+  if (!firstIncoming.includes("Llegando · En traslado") || !lastIncoming.includes("Pendiente de traslado")) {
+    throw new Error("Los episodios entrantes no respetan el orden de prioridad");
+  }
+  await urgenciasPage.getByRole("button", { name: "Archivo de Urgencias" }).click();
+  await urgenciasPage.getByRole("heading", { name: "Archivo de episodios" }).waitFor({ state: "visible" });
+  const archiveCards = urgenciasPage.locator("section.mt-5 button.w-full.rounded-xl");
+  if (await archiveCards.count() !== 4) throw new Error("No se archivaron las cancelaciones y llegadas antiguas esperadas");
+  await urgenciasPage.getByLabel("Estado").selectOption("cancelada");
+  await urgenciasPage.getByLabel("Año").selectOption("2025");
+  await urgenciasPage.getByLabel("Mes").selectOption("2");
+  await urgenciasPage.getByLabel("Día").selectOption("10");
+  if (await archiveCards.count() !== 1 || !(await archiveCards.first().innerText()).includes("Cancelado sintético")) {
+    throw new Error("Los filtros de fecha/estado del archivo no coinciden");
+  }
+  await urgenciasPage.getByRole("button", { name: "Urgencias", exact: true }).click();
+  await urgenciasPage.getByRole("button", { name: /Caso en traslado/ }).click();
   await urgenciasPage.getByRole("button", { name: "Marcar como llegado a Urgencias" }).click();
   await urgenciasPage.getByText(/Llegada registrada:/).waitFor({ state: "visible" });
-  await urgenciasPage.getByText(/Llegado a Urgencias/).waitFor({ state: "visible" });
+  await urgenciasPage.getByRole("button", { name: "Cerrar episodio" }).waitFor({ state: "visible" });
   await urgenciasContext.close();
 
   console.log("✓ Admin de Urgencias crea cuentas; ambulancias no y Urgencias confirma llegada");
