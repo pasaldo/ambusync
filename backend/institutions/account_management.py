@@ -15,7 +15,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -319,7 +319,7 @@ class ManagedAccountDeactivateView(APIView):
             if membership and membership.institution_id != institution.pk and not created_event:
                 membership = None
             if membership is None:
-                raise ValidationError({"account": "La cuenta no existe en este establecimiento."})
+                raise NotFound("La cuenta no está disponible en este establecimiento.")
             target = membership.user
             target_institution = membership.institution
             if target.pk == request.user.pk:
@@ -406,9 +406,7 @@ class ManagedAccountResendActivationView(APIView):
                 if membership and membership.institution_id != institution.pk and not created_event:
                     membership = None
                 if membership is None:
-                    raise ValidationError(
-                        {"account": "No hay una invitación pendiente para esa cuenta."}
-                    )
+                    raise NotFound("La invitación no está disponible en este establecimiento.")
                 AccountActivation.objects.update_or_create(
                     user=membership.user,
                     defaults={

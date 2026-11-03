@@ -408,3 +408,35 @@ class InstitutionAccountManagementTests(TestCase):
         self.assertEqual(response.status_code, 400)
         operator.refresh_from_db()
         self.assertTrue(operator.is_active)
+
+    def test_missing_managed_account_uses_not_found_error_contract(self):
+        response = self.client.post(
+            "/api/v1/institutions/management/accounts/999999/deactivate/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assert_error_contract(response)
+        self.assertEqual(response.data["code"], "not_found")
+
+    def test_missing_pending_activation_uses_not_found_error_contract(self):
+        response = self.client.post(
+            "/api/v1/institutions/management/accounts/999999/resend-activation/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assert_error_contract(response)
+        self.assertEqual(response.data["code"], "not_found")
+
+    def assert_error_contract(self, response):
+        self.assertEqual(set(response.data), {"code", "message", "fields", "correlation_id"})
+        self.assertIsInstance(response.data["code"], str)
+        self.assertIsInstance(response.data["message"], str)
+        self.assertIsInstance(response.data["fields"], dict)
+        self.assertRegex(
+            response.data["correlation_id"],
+            r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        )

@@ -110,8 +110,49 @@ class SessionSecurityTests(TestCase):
         response = self.client.get("/api/v1/auth/me/")
 
         self.assertEqual(response.status_code, 401)
+        self.assert_error_contract(response)
         self.assertEqual(response.json()["code"], "not_authenticated")
         self.assertEqual(response.json()["message"], "La sesión no está iniciada.")
+
+    def test_anonymous_authenticated_endpoints_share_error_contract(self):
+        endpoints = [
+            ("get", "/api/v1/auth/me/"),
+            ("post", "/api/v1/auth/logout/"),
+            ("get", "/api/v1/institutions/destinations/"),
+            ("get", "/api/v1/institutions/management/accounts/"),
+            ("get", "/api/v1/institutions/management/ambulances/"),
+            ("get", "/api/v1/institutions/management/config/"),
+            ("get", "/api/v1/emergencies/"),
+        ]
+        for method, url in endpoints:
+            response = (
+                getattr(self.client, method)(url, {}, format="json")
+                if method == "post"
+                else getattr(self.client, method)(url)
+            )
+            expected_status = 403 if url.endswith("/logout/") else 401
+            self.assertEqual(response.status_code, expected_status, url)
+            self.assert_error_contract(response)
+
+    def test_malformed_activation_body_keeps_fields_as_an_object(self):
+        response = APIClient().post(
+            "/api/v1/auth/activate/",
+            ["not", "an", "object"],
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assert_error_contract(response)
+        self.assertEqual(response.json()["code"], "validation_error")
+        self.assertIn("request", response.json()["fields"])
+
+    def assert_error_contract(self, response):
+        self.assertEqual(set(response.json()), {"code", "message", "fields", "correlation_id"})
+        self.assertIsInstance(response.json()["fields"], dict)
+        self.assertRegex(
+            response.json()["correlation_id"],
+            r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        )
 
     def test_absolute_twelve_hour_session_expiry(self):
         self.assertEqual(self.login().status_code, 200)

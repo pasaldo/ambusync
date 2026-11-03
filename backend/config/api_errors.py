@@ -42,10 +42,14 @@ def api_exception_handler(exc, context):
         code = getattr(detail, "code", "request_error")
         message = str(detail)
         fields = {}
-    else:
+    elif isinstance(data, dict):
         code = "validation_error"
         message = "Revisa los campos indicados."
         fields = data
+    else:
+        code = "validation_error"
+        message = "Revisa el formato de la solicitud."
+        fields = {"request": data}
 
     response.data = {
         "code": str(code),

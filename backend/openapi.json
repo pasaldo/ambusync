@@ -42,6 +42,7 @@
         "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }],
         "responses": {
           "204": { "description": "Sesión cerrada." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" }
         }
       }
@@ -98,8 +99,9 @@
         "responses": {
           "201": { "description": "Cuenta pendiente creada; correo de activación enviado.", "content": { "application/json": { "schema": { "type": "object", "required": ["id", "username", "activation_sent"], "properties": { "id": { "type": "string" }, "username": { "type": "string" }, "activation_sent": { "type": "boolean", "const": true } } } } } },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
-          "503": { "description": "No se pudo enviar la activación; la creación fue revertida." }
+          "503": { "$ref": "#/components/responses/ServiceUnavailable" }
         }
       }
     },
@@ -108,7 +110,7 @@
         "operationId": "deactivateInstitutionAccount",
         "security": [{ "sessionCookie": [] }],
         "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/ManagedUserId" }],
-        "responses": { "204": { "description": "Cuenta desactivada; sesiones y asignación revocadas." }, "400": { "$ref": "#/components/responses/BadRequest" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+        "responses": { "204": { "description": "Cuenta desactivada; sesiones y asignación revocadas." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
       }
     },
     "/api/v1/institutions/management/accounts/{user_id}/resend-activation/": {
@@ -116,21 +118,21 @@
         "operationId": "resendInstitutionAccountActivation",
         "security": [{ "sessionCookie": [] }],
         "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/ManagedUserId" }],
-        "responses": { "200": { "description": "Enlace de activación rotado y reenviado." }, "400": { "$ref": "#/components/responses/BadRequest" }, "403": { "$ref": "#/components/responses/Forbidden" }, "503": { "description": "No se pudo enviar el correo; cambios revertidos." } }
+        "responses": { "200": { "description": "Enlace de activación rotado y reenviado." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "503": { "$ref": "#/components/responses/ServiceUnavailable" } }
       }
     },
     "/api/v1/institutions/management/ambulances/": {
       "get": {
         "operationId": "listInstitutionAmbulances",
         "security": [{ "sessionCookie": [] }],
-        "responses": { "200": { "description": "Unidades habilitadas de instituciones operadoras; solo las consulta administración de Urgencias.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedAmbulance" } } } } }, "403": { "$ref": "#/components/responses/Forbidden" } }
+        "responses": { "200": { "description": "Unidades habilitadas de instituciones operadoras; solo las consulta administración de Urgencias.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedAmbulance" } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
       }
     },
     "/api/v1/institutions/management/config/": {
       "get": {
         "operationId": "getInstitutionAccountManagementConfig",
         "security": [{ "sessionCookie": [] }],
-        "responses": { "200": { "description": "Nombre del establecimiento y permisos delegables según su tipo.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountManagementConfig" } } } }, "403": { "$ref": "#/components/responses/Forbidden" } }
+        "responses": { "200": { "description": "Nombre del establecimiento y permisos delegables según su tipo.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountManagementConfig" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
       }
     },
     "/api/v1/emergencies/": {
@@ -144,6 +146,7 @@
         ],
         "responses": {
           "200": { "description": "Página dentro del ámbito autorizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmergencyPage" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" }
         }
       },
@@ -169,6 +172,7 @@
         "parameters": [{ "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
         "responses": {
           "200": { "description": "Episodio si pertenece al ámbito autorizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Emergency" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
@@ -189,6 +193,7 @@
         "responses": {
           "200": { "description": "Llegada confirmada; una repetición idempotente devuelve el episodio sin duplicar auditoría.", "headers": { "Idempotent-Replay": { "schema": { "type": "string", "const": "true" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Emergency" } } } },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "409": { "$ref": "#/components/responses/Conflict" }
@@ -201,7 +206,7 @@
         "security": [{ "sessionCookie": [] }],
         "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmergencyOperation" } } } },
-        "responses": { "200": { "$ref": "#/components/responses/TransitionSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
+        "responses": { "200": { "$ref": "#/components/responses/TransitionSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
       }
     },
     "/api/v1/emergencies/{emergency_id}/cancel/": {
@@ -210,7 +215,7 @@
         "security": [{ "sessionCookie": [] }],
         "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmergencyCancellation" } } } },
-        "responses": { "200": { "$ref": "#/components/responses/TransitionSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
+        "responses": { "200": { "$ref": "#/components/responses/TransitionSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
       }
     },
     "/api/v1/emergencies/{emergency_id}/close/": {
@@ -219,7 +224,7 @@
         "security": [{ "sessionCookie": [] }],
         "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmergencyOperation" } } } },
-        "responses": { "200": { "$ref": "#/components/responses/TransitionSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
+        "responses": { "200": { "$ref": "#/components/responses/TransitionSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
       }
     }
   },
@@ -237,6 +242,7 @@
       "Forbidden": { "description": "CSRF inválido o acción no autorizada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "NotFound": { "description": "Recurso no disponible dentro del ámbito.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "Conflict": { "description": "Estado o UUID de operación incompatible con la acción solicitada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "ServiceUnavailable": { "description": "Dependencia temporalmente no disponible; la operación fue revertida.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "TransitionSuccess": { "description": "Transición confirmada o repetición idempotente; no duplica fecha ni auditoría.", "headers": { "Idempotent-Replay": { "schema": { "type": "string", "const": "true" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Emergency" } } } },
       "TooManyRequests": { "description": "Umbral por cuenta u origen excedido; reintentar después de Retry-After.", "headers": { "Retry-After": { "schema": { "type": "integer", "minimum": 1 } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
     },
