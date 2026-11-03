@@ -9,6 +9,7 @@ export interface BackendUser {
   username: string;
   groups: string[];
   institutions: { id: string; name: string }[];
+  ambulance: { id: string; code: string; institution_name: string } | null;
   session: BackendSession;
 }
 

@@ -464,6 +464,58 @@ class EmergencyFlowTests(EmergencyFixtureMixin, TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data["code"], "validation_error")
 
+    def test_unknown_vital_fields_are_rejected(self):
+        self.authenticate_with_csrf(self.operator)
+        response = self.client.post(
+            "/api/v1/emergencies/",
+            self.payload(
+                vitals={
+                    "hr": 80,
+                    "taken_at": "2026-10-29T17:00:00Z",
+                    "oxygen_saturation_source": "synthetic-extra-field",
+                }
+            ),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["code"], "validation_error")
+        self.assertEqual(Emergency.objects.count(), 0)
+
+    def test_emergency_list_is_scoped_paginated_and_stably_ordered(self):
+        self.authenticate_with_csrf(self.operator)
+        created_ids = []
+        for index in range(3):
+            response = self.client.post(
+                "/api/v1/emergencies/",
+                self.payload(
+                    operation_id=str(uuid.uuid4()),
+                    reason=f"Caso sintético ordenable {index}",
+                ),
+                format="json",
+            )
+            self.assertEqual(response.status_code, 201, response.data)
+            created_ids.append(response.data["id"])
+
+        page = self.client.get("/api/v1/emergencies/?page_size=2&page=1")
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(len(page.data["results"]), 2)
+        self.assertEqual(page.data["count"], 3)
+        self.assertIsNotNone(page.data["next"])
+        self.assertEqual(
+            [item["id"] for item in page.data["results"]],
+            list(reversed(created_ids[-2:])),
+        )
+
+        second_page = self.client.get("/api/v1/emergencies/?page_size=2&page=2")
+        self.assertEqual(second_page.status_code, 200)
+        self.assertEqual([item["id"] for item in second_page.data["results"]], [created_ids[0]])
+
+        receiver_client = APIClient()
+        receiver_client.force_login(self.receiver_user)
+        receiver_page = receiver_client.get("/api/v1/emergencies/?page_size=100")
+        self.assertEqual(receiver_page.status_code, 200)
+        self.assertEqual(receiver_page.data["count"], 3)
+
 
 class ConcurrentIdempotencyTests(EmergencyFixtureMixin, TransactionTestCase):
     def post_concurrently(self, payloads):

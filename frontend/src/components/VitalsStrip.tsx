@@ -15,6 +15,11 @@ function fmt(value: number | null): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+function worstStatus(left: ReturnType<typeof statusFor>, right: ReturnType<typeof statusFor>) {
+  const severity = { normal: 0, warn: 1, crit: 2 } as const;
+  return severity[left] >= severity[right] ? left : right;
+}
+
 /**
  * Tira de signos vitales — el elemento firma del diseño.
  * Mono tabular para que los números no "salten". El color resalta lo anormal.
@@ -27,12 +32,16 @@ export function VitalsStrip({ vitals, tone = "light", dense = false, className }
       label: "PA",
       unit: "mmHg",
       display: `${fmt(vitals.bpSys)}/${fmt(vitals.bpDia)}`,
-      status: statusFor("bpSys", vitals.bpSys),
+      status: worstStatus(statusFor("bpSys", vitals.bpSys), statusFor("bpDia", vitals.bpDia)),
     },
     ...VITAL_SPECS.map((s) => ({
       label: s.label,
       unit: s.unit,
-      display: fmt(vitals[s.key] as number | null),
+      display: s.key === "spo2"
+        ? `${fmt(vitals[s.key] as number | null)}%`
+        : s.key === "tempC"
+          ? `${fmt(vitals[s.key] as number | null)}°C`
+          : fmt(vitals[s.key] as number | null),
       status: statusFor(s.key, vitals[s.key] as number | null),
     })),
   ];
@@ -70,7 +79,7 @@ export function VitalsStrip({ vitals, tone = "light", dense = false, className }
               "tabular font-mono font-bold leading-none",
               dense ? "text-sm" : "text-base",
               isDark ? "text-white" : "text-ink",
-              c.status !== "normal" && VITAL_STATUS_CLASS[c.status],
+               VITAL_STATUS_CLASS[c.status],
             )}
           >
             {c.display}

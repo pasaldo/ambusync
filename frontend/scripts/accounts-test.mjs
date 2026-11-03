@@ -44,6 +44,8 @@ try {
   await operatorPage.getByRole("button", { name: "Iniciar sesión" }).click();
   await operatorPage.getByRole("button", { name: "Ambulancia" }).click();
   await operatorPage.getByRole("heading", { name: "Nueva emergencia" }).waitFor({ state: "visible" });
+  await operatorPage.getByText("Unidad", { exact: true }).first().waitFor({ state: "visible" });
+  await operatorPage.getByText("SYN-01", { exact: true }).waitFor({ state: "visible" });
   if (await operatorPage.getByRole("heading", { name: "Episodios de la unidad" }).count()) {
     throw new Error("La lista de episodios ocupa la vista del formulario");
   }
@@ -75,6 +77,12 @@ try {
   if (!firstIncoming.includes("Llegando · En traslado") || !lastIncoming.includes("Pendiente de traslado")) {
     throw new Error("Los episodios entrantes no respetan el orden de prioridad");
   }
+  const firstCard = incomingCards.first();
+  if (await firstCard.getByText("FC", { exact: true }).count() !== 1
+    || await firstCard.getByText("124", { exact: true }).count() !== 1
+    || await firstCard.getByText("SatO₂", { exact: true }).count() !== 1) {
+    throw new Error("La tarjeta de Urgencias no muestra los signos vitales en la vista principal");
+  }
   await urgenciasPage.getByRole("button", { name: "Archivo de Urgencias" }).click();
   await urgenciasPage.getByRole("heading", { name: "Archivo de episodios" }).waitFor({ state: "visible" });
   const archiveCards = urgenciasPage.locator("section.mt-5 button.w-full.rounded-xl");
@@ -91,6 +99,7 @@ try {
   await urgenciasPage.getByRole("button", { name: "Marcar como llegado a Urgencias" }).click();
   await urgenciasPage.getByText(/Llegada registrada:/).waitFor({ state: "visible" });
   await urgenciasPage.getByRole("button", { name: "Cerrar episodio" }).waitFor({ state: "visible" });
+
   await urgenciasContext.close();
 
   console.log("✓ Admin de Urgencias crea cuentas; ambulancias no y Urgencias confirma llegada");
