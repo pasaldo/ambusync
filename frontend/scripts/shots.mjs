@@ -1,5 +1,5 @@
-// Genera capturas de las pantallas principales para el README.
-// Uso: con el dev server corriendo en http://localhost:5173 → node scripts/shots.mjs
+// Genera capturas de las vistas actuales conectadas al backend local simulado.
+// Uso: con el dev server corriendo en http://localhost:5173 → npm run shots
 import { chromium } from "playwright";
 import { mockAuthenticatedApi } from "./mock-auth-api.mjs";
 import { fileURLToPath } from "node:url";
@@ -9,110 +9,75 @@ import { mkdirSync } from "node:fs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(__dirname, "../../docs/screenshots");
 mkdirSync(OUT, { recursive: true });
-
 const BASE = process.env.BASE_URL || "http://localhost:5173";
 const VIEWPORT = { width: 820, height: 920 };
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 const browser = await chromium.launch();
-const ctx = await browser.newContext({
-  viewport: VIEWPORT,
-  deviceScaleFactor: 2, // capturas nítidas (retina)
-  reducedMotion: "reduce", // congela animaciones → estado final limpio
-});
-await mockAuthenticatedApi(ctx);
-const page = await ctx.newPage();
 
-async function shot(name) {
-  await page.screenshot({ path: resolve(OUT, name) });
+async function screenshot(page, name) {
+  await page.screenshot({ path: resolve(OUT, name), fullPage: true });
   console.log("✓", name);
 }
 
-async function clickText(text) {
-  await page.getByRole("button", { name: text, exact: false }).first().click();
+async function loginLocal(page, username) {
+  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await page.getByLabel("Usuario").fill(username);
+  await page.getByLabel("Contraseña").fill("local-test-password");
+  await page.getByRole("button", { name: "Iniciar sesión" }).click();
+  await page.getByText("Backend local").waitFor({ state: "visible" });
 }
 
-// 1 — Ingreso centralizado
-await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
-await page.getByLabel("Usuario").waitFor({ state: "visible" });
-await shot("01-inicio-sesion.png");
+try {
+  const loginContext = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, reducedMotion: "reduce" });
+  await mockAuthenticatedApi(loginContext, { groups: ["ambulance"] });
+  const loginPage = await loginContext.newPage();
+  await loginPage.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await loginPage.getByLabel("Usuario").waitFor({ state: "visible" });
+  await screenshot(loginPage, "01-inicio-sesion.png");
+  await loginContext.close();
 
-// Las capturas posteriores usan una sesión de cuenta demo simulada; no llaman al backend.
-await page.getByLabel("Usuario").fill("demo_ambulancia");
-await page.getByLabel("Contraseña").fill("local-test-password");
-await page.getByRole("button", { name: "Iniciar sesión" }).click();
-await page.getByRole("heading", { name: "Nueva emergencia" }).waitFor({ state: "visible" });
+  const ambulanceContext = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, reducedMotion: "reduce" });
+  await mockAuthenticatedApi(ambulanceContext, { groups: ["ambulance"] });
+  const ambulancePage = await ambulanceContext.newPage();
+  await loginLocal(ambulancePage, "demo_ambulancia");
+  await ambulancePage.getByRole("heading", { name: "Nueva emergencia" }).waitFor({ state: "visible" });
+  await screenshot(ambulancePage, "02-ambulancia-inicio.png");
+  await ambulancePage.getByLabel("Destino receptor").selectOption("demo-hospital-id");
+  await ambulancePage.getByLabel("Motivo de consulta").fill("Dolor torácico opresivo");
+  await ambulancePage.getByLabel("Identidad desconocida").uncheck();
+  await ambulancePage.getByLabel("Alias").fill("Paciente sintético Bravo");
+  await ambulancePage.getByLabel("Frecuencia cardíaca").fill("76");
+  await ambulancePage.getByLabel("Presión sistólica").fill("120");
+  await ambulancePage.getByLabel("Presión diastólica").fill("80");
+  await ambulancePage.getByLabel("SpO₂").fill("98");
+  await ambulancePage.getByLabel("Frecuencia respiratoria").fill("16");
+  await ambulancePage.getByLabel("Temperatura").fill("36.7");
+  await ambulancePage.getByLabel("Glasgow").fill("15");
+  await screenshot(ambulancePage, "03-ingreso-episodio.png");
+  await ambulancePage.getByLabel("Triaje (opcional)").selectOption("C3");
+  await screenshot(ambulancePage, "04-vista-previa-vitales.png");
+  await ambulancePage.getByRole("button", { name: "Episodios de la unidad" }).click();
+  await ambulancePage.getByRole("heading", { name: "Episodios de la unidad" }).waitFor({ state: "visible" });
+  await screenshot(ambulancePage, "05-episodios-unidad.png");
+  await ambulanceContext.close();
 
-// 2 — Inicio de la ambulancia
-await page.goto(`${BASE}/ambulancia`, { waitUntil: "networkidle" });
-await sleep(400);
-await shot("02-ambulancia-inicio.png");
-
-// 3 — Wizard: datos del paciente
-await page.locator("button.group").first().click();
-await page.waitForSelector("#cc", { state: "visible" });
-await sleep(300);
-await page.fill("#alias", "Paciente Bravo");
-await page.fill("#age", "58");
-await page.fill("#cc", "Dolor torácico opresivo");
-for (const s of ["Disnea", "Sudoración"]) {
-  try {
-    await page.getByText(s, { exact: true }).click({ timeout: 3000 });
-  } catch {
-    /* chip opcional */
-  }
+  const urgenciasContext = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, reducedMotion: "reduce" });
+  await mockAuthenticatedApi(urgenciasContext, { groups: ["urgencias"], includeUrgenciasQueue: true });
+  const urgenciasPage = await urgenciasContext.newPage();
+  await loginLocal(urgenciasPage, "synthetic_urgencias");
+  await urgenciasPage.getByRole("heading", { name: "Episodios entrantes" }).waitFor({ state: "visible" });
+  await screenshot(urgenciasPage, "06-urgencias-entrantes.png");
+  await urgenciasPage.getByRole("button", { name: "Archivo de Urgencias" }).click();
+  await urgenciasPage.getByRole("heading", { name: "Archivo de episodios" }).waitFor({ state: "visible" });
+  await screenshot(urgenciasPage, "07-archivo-urgencias.png");
+  await urgenciasPage.getByRole("button", { name: "Urgencias", exact: true }).click();
+  await urgenciasPage.getByRole("button", { name: /Caso en traslado/ }).click();
+  await urgenciasPage.getByRole("dialog", { name: "Detalle de episodio" }).waitFor({ state: "visible" });
+  await screenshot(urgenciasPage, "08-detalle-episodio.png");
+  await urgenciasPage.getByRole("button", { name: "Cerrar", exact: true }).click();
+  await urgenciasPage.getByRole("button", { name: /Marcar como llegado/ }).first().click();
+  await screenshot(urgenciasPage, "09-llegada-registrada.png");
+  await urgenciasContext.close();
+} finally {
+  await browser.close();
 }
-await sleep(250);
-await shot("03-wizard-paciente.png");
-
-// 4 — Wizard: signos vitales
-await clickText("Continuar");
-await sleep(350);
-const bump = async (label, n) => {
-  for (let i = 0; i < n; i++) {
-    await page.locator(`button[aria-label="Aumentar ${label}"]`).click();
-    await sleep(90);
-  }
-};
-await bump("FC", 44); // ~124 desde 80
-await bump("SatO₂", 0);
-await page.locator(`button[aria-label="Disminuir SatO₂"]`).click(); // 97 → 96... lo dejamos bajo
-for (let i = 0; i < 8; i++) await page.locator(`button[aria-label="Disminuir SatO₂"]`).click();
-await bump("PA sistólica", 0);
-await page.locator(`button[aria-label="Disminuir PA sistólica"]`).click();
-await bump("FR", 10);
-await sleep(250);
-await shot("04-wizard-vitales.png");
-
-// 5 — Wizard: triage
-await clickText("Continuar");
-await sleep(350);
-await page.getByText("Crítico", { exact: true }).click();
-await sleep(250);
-await shot("05-wizard-triage.png");
-
-// 6 — Wizard: resumen
-await clickText("Continuar"); // destino (defaults)
-await sleep(300);
-await clickText("Continuar"); // resumen
-await sleep(350);
-await shot("06-wizard-resumen.png");
-
-// 7 — Confirmación de transmisión
-await clickText("Transmitir al hospital");
-await sleep(2200); // espera el pulso + estado "Transmitido"
-await shot("07-transmision.png");
-
-// 8 — Tablero de Urgencias (sembrado)
-await page.goto(`${BASE}/urgencias`, { waitUntil: "networkidle" });
-await sleep(700);
-await shot("08-urgencias-tablero.png");
-
-// 9 — Detalle del paciente
-await page.locator("button.group").first().click();
-await sleep(500);
-await shot("09-urgencias-detalle.png");
-
-await browser.close();
 console.log("\nListo →", OUT);

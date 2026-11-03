@@ -36,39 +36,37 @@ no una sesión ni datos leídos del backend.
   <img src="docs/screenshots/01-inicio-sesion.png" alt="Inicio de sesión AmbuSync" width="420" />
 </p>
 
-### 2. Ambulancia — captura del paciente
+### 2. Portal local de ambulancia
 
-El paramédico abre una nueva emergencia y completa un wizard de 5 pasos. Los signos
-vitales se ingresan con controles grandes y se previsualizan en la tira del monitor;
-el triage viaja con el paciente.
+La vista actual permite ingresar una emergencia desde el portal local, muestra la unidad
+asignada y previsualiza los signos vitales que verá Urgencias al confirmar.
 
 <table>
   <tr>
     <td align="center"><img src="docs/screenshots/02-ambulancia-inicio.png" alt="Inicio de la ambulancia" width="230" /><br/><sub>Inicio de la unidad</sub></td>
-    <td align="center"><img src="docs/screenshots/03-wizard-paciente.png" alt="Datos del paciente" width="230" /><br/><sub>1 · Datos del paciente</sub></td>
-    <td align="center"><img src="docs/screenshots/04-wizard-vitales.png" alt="Signos vitales" width="230" /><br/><sub>2 · Signos vitales</sub></td>
+    <td align="center"><img src="docs/screenshots/03-ingreso-episodio.png" alt="Ingreso de episodio local" width="230" /><br/><sub>Ingreso de episodio</sub></td>
+    <td align="center"><img src="docs/screenshots/04-vista-previa-vitales.png" alt="Vista previa de signos vitales" width="230" /><br/><sub>Vista previa de vitales</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/05-wizard-triage.png" alt="Clasificación de triage" width="230" /><br/><sub>3 · Triage por color</sub></td>
-    <td align="center"><img src="docs/screenshots/06-wizard-resumen.png" alt="Resumen del caso" width="230" /><br/><sub>5 · Resumen</sub></td>
-    <td align="center"><img src="docs/screenshots/07-transmision.png" alt="Confirmación de transmisión" width="230" /><br/><sub>Transmitido ✓</sub></td>
+    <td align="center"><img src="docs/screenshots/05-episodios-unidad.png" alt="Episodios de la unidad" width="230" /><br/><sub>Episodios de la unidad</sub></td>
+    <td align="center"><img src="docs/screenshots/06-urgencias-entrantes.png" alt="Episodios entrantes de Urgencias" width="340" /><br/><sub>Urgencias entrantes</sub></td>
+    <td align="center"><img src="docs/screenshots/07-archivo-urgencias.png" alt="Archivo de Urgencias" width="340" /><br/><sub>Archivo filtrable</sub></td>
   </tr>
 </table>
 
-### 3. Urgencias — tablero en vivo
+### 3. Portal local de Urgencias
 
-El tablero recibe los casos ordenados por triage y ETA, con el countdown corriendo en
-vivo y los signos anormales resaltados. Al tocar una tarjeta se abre el detalle con las
-acciones de recepción.
+La bandeja actual ordena los episodios, muestra triage y signos vitales directamente,
+permite registrar la llegada desde la tarjeta y conserva un archivo filtrable.
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/08-urgencias-tablero.png" alt="Tablero de Urgencias" width="340" /><br/><sub>Tablero "Pacientes entrantes"</sub></td>
-    <td align="center"><img src="docs/screenshots/09-urgencias-detalle.png" alt="Detalle del paciente" width="340" /><br/><sub>Detalle + acciones</sub></td>
+    <td align="center"><img src="docs/screenshots/08-detalle-episodio.png" alt="Detalle de episodio local" width="340" /><br/><sub>Detalle + signos vitales</sub></td>
+    <td align="center"><img src="docs/screenshots/09-llegada-registrada.png" alt="Llegada registrada desde la tarjeta" width="340" /><br/><sub>Llegada desde la bandeja</sub></td>
   </tr>
 </table>
 
-> Las capturas se regeneran con `npm run shots` (requiere el dev server corriendo en `:5173`).
+> Las capturas se regeneran con `npm run shots` y muestran las vistas actuales de `/local` con el mock de backend sintético (requiere el dev server corriendo en `:5173`); no corresponden al simulador demo `/ambulancia`/`/urgencias`.
 
 ## Stack
 

@@ -56,6 +56,12 @@ npm run test:accounts
 
 `npm run test:accounts` ejecuta el flujo Playwright de cuentas, unidad ambulancia, vistas de episodios, bandeja/archivo de Urgencias y confirmación de llegada con el mock sintético.
 
+`npm run shots` genera las nueve capturas documentales actuales del portal `/local` (inicio
+de sesión, formulario de ambulancia, previsualización de vitales, episodios de la unidad,
+bandeja/archivo de Urgencias, detalle y llegada). Usa el mock sintético de Playwright y no
+captura las rutas demo `/ambulancia` ni `/urgencias`; sobrescribe los archivos correspondientes
+en `docs/screenshots/`.
+
 ```sh
 cd frontend
 BASE_URL=http://127.0.0.1:5173 npm run test:sync
