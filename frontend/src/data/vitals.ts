@@ -11,39 +11,46 @@ export interface VitalSpec {
 // Orden y etiquetas de la tira de signos vitales (elemento firma del diseño).
 export const VITAL_SPECS: VitalSpec[] = [
   { key: "hr", label: "FC", unit: "lpm" },
-  { key: "spo2", label: "SatO₂", unit: "%" },
+  { key: "spo2", label: "SatO₂", unit: "" },
   { key: "rr", label: "FR", unit: "rpm" },
-  { key: "tempC", label: "Temp", unit: "°C" },
+  { key: "tempC", label: "Temp", unit: "" },
   { key: "glasgow", label: "Glasgow", unit: "" },
 ];
 
-/** Clasifica un valor para resaltar lo anormal (rojo/ámbar) en el monitor. */
+/**
+ * Clasifica los signos vitales para lectura rápida en las tarjetas.
+ * Verde = rango esperado; amarillo = desviación cercana; rojo = desviación crítica.
+ */
 export function statusFor(key: keyof Vitals, value: number | null): VitalStatus {
   if (value === null || Number.isNaN(value)) return "normal";
   switch (key) {
     case "hr":
       if (value < 40 || value > 130) return "crit";
-      if (value < 50 || value > 110) return "warn";
+      if (value < 60 || value > 80) return "warn";
       return "normal";
     case "spo2":
-      if (value < 88) return "crit";
-      if (value < 93) return "warn";
+      if (value < 90) return "crit";
+      if (value < 95) return "warn";
       return "normal";
     case "rr":
       if (value < 8 || value > 30) return "crit";
-      if (value < 12 || value > 24) return "warn";
+      if (value < 12 || value > 20) return "warn";
       return "normal";
     case "tempC":
-      if (value >= 39.5 || value < 35) return "crit";
-      if (value >= 38 || value < 36) return "warn";
+      if (value < 34 || value > 40) return "crit";
+      if (value < 36 || value > 37.5) return "warn";
       return "normal";
     case "glasgow":
       if (value <= 8) return "crit";
-      if (value <= 13) return "warn";
+      if (value < 15) return "warn";
       return "normal";
     case "bpSys":
       if (value < 90 || value > 200) return "crit";
-      if (value < 100 || value > 160) return "warn";
+      if (value !== 120) return "warn";
+      return "normal";
+    case "bpDia":
+      if (value < 50 || value > 90) return "crit";
+      if (value !== 80) return "warn";
       return "normal";
     default:
       return "normal";
@@ -51,7 +58,7 @@ export function statusFor(key: keyof Vitals, value: number | null): VitalStatus 
 }
 
 export const VITAL_STATUS_CLASS: Record<VitalStatus, string> = {
-  normal: "text-inherit",
+  normal: "text-triage-4",
   warn: "text-triage-3",
   crit: "text-triage-1",
 };

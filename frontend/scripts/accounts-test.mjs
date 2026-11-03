@@ -75,6 +75,12 @@ try {
   if (!firstIncoming.includes("Llegando · En traslado") || !lastIncoming.includes("Pendiente de traslado")) {
     throw new Error("Los episodios entrantes no respetan el orden de prioridad");
   }
+  const firstCard = incomingCards.first();
+  if (await firstCard.getByText("FC", { exact: true }).count() !== 1
+    || await firstCard.getByText("124", { exact: true }).count() !== 1
+    || await firstCard.getByText("SatO₂", { exact: true }).count() !== 1) {
+    throw new Error("La tarjeta de Urgencias no muestra los signos vitales en la vista principal");
+  }
   await urgenciasPage.getByRole("button", { name: "Archivo de Urgencias" }).click();
   await urgenciasPage.getByRole("heading", { name: "Archivo de episodios" }).waitFor({ state: "visible" });
   const archiveCards = urgenciasPage.locator("section.mt-5 button.w-full.rounded-xl");

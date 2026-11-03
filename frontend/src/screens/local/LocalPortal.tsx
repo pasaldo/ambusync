@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Activity, Ambulance, Archive, ClipboardList, HeartPulse, LogOut, RefreshCw, Server } from "lucide-react";
+import { VitalsStrip } from "@/components/VitalsStrip";
+import { TRIAGE } from "@/data/triage";
+import type { Vitals } from "@/types";
 import { AdminAccountsPanel } from "@/screens/local/AdminAccountsPanel";
 import {
   BackendApiError,
@@ -323,6 +326,17 @@ export function LocalPortal() {
     await runTransition(() => markEmergencyArrived(emergency, reason), "Llegada a Urgencias registrada.");
   }
 
+  function confirmArrivalFromCard(emergency: BackendEmergency) {
+    let reason = "";
+    if (emergency.status === "notificada") {
+      const entered = window.prompt("No hay inicio de traslado registrado. Indica el motivo de la llegada excepcional:");
+      if (entered === null) return;
+      reason = entered.trim();
+      if (!reason) return;
+    }
+    void confirmArrival(emergency.id, reason);
+  }
+
   async function runTransition(operation: () => Promise<BackendEmergency>, successMessage: string) {
     setError("");
     try {
@@ -493,7 +507,7 @@ export function LocalPortal() {
                   </div>
                   {urgenciasView === "incoming" ? (
                     urgencyQueues.mainQueue.length === 0 ? <p className="mt-5 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios entrantes.</p> : (
-                      <div className="mt-4 space-y-2">{urgencyQueues.mainQueue.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} onSelect={() => setSelectedId(item.id)} />)}</div>
+                      <div className="mt-4 space-y-2">{urgencyQueues.mainQueue.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} onSelect={() => setSelectedId(item.id)} onMarkArrived={() => confirmArrivalFromCard(item)} />)}</div>
                     )
                   ) : (
                     <>
@@ -551,12 +565,56 @@ function urgenciasStatusLabel(status: BackendEmergency["status"]) {
   return emergencyStatusLabel(status);
 }
 
-function UrgenciasEmergencyCard({ emergency, archived = false, onSelect }: { emergency: BackendEmergency; archived?: boolean; onSelect: () => void }) {
-  return <button type="button" onClick={onSelect} className="w-full rounded-xl border border-white/10 bg-ink/60 p-4 text-left transition hover:border-signal/40 hover:bg-white/5">
-    <span className="flex flex-wrap items-center justify-between gap-2"><strong>{emergency.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{emergency.triage ?? "Sin clasificar"} · {urgenciasStatusLabel(emergency.status)}</span></span>
+function backendVitalsToDisplay(emergency: BackendEmergency): Vitals {
+  const values: Vitals = {
+    hr: null,
+    bpSys: null,
+    bpDia: null,
+    spo2: null,
+    rr: null,
+    tempC: null,
+    glasgow: null,
+    takenAt: 0,
+  };
+  const kindToKey: Record<string, keyof Omit<Vitals, "takenAt">> = {
+    heart_rate: "hr",
+    systolic_pressure: "bpSys",
+    diastolic_pressure: "bpDia",
+    spo2: "spo2",
+    respiratory_rate: "rr",
+    temperature: "tempC",
+    glasgow: "glasgow",
+  };
+  for (const measurement of emergency.vital_measurements) {
+    const key = kindToKey[measurement.kind];
+    if (key) values[key] = measurement.value;
+  }
+  return values;
+}
+
+const VITAL_LABELS: Record<string, string> = {
+  heart_rate: "Frecuencia cardíaca",
+  systolic_pressure: "Presión sistólica",
+  diastolic_pressure: "Presión diastólica",
+  spo2: "Saturación de oxígeno",
+  respiratory_rate: "Frecuencia respiratoria",
+  temperature: "Temperatura corporal",
+  glasgow: "Escala de Glasgow",
+};
+
+function UrgenciasEmergencyCard({ emergency, archived = false, onSelect, onMarkArrived }: { emergency: BackendEmergency; archived?: boolean; onSelect: () => void; onMarkArrived?: () => void }) {
+  const triageLevel = emergency.triage ? Number(emergency.triage.slice(1)) as 1 | 2 | 3 | 4 | 5 : null;
+  const triage = triageLevel ? TRIAGE[triageLevel] : null;
+  return <div className="relative w-full overflow-hidden rounded-xl border border-white/10 bg-ink/60 p-4 pl-5 text-left transition hover:border-signal/40 hover:bg-white/5">
+    <span className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: triage?.color ?? "#64748B" }} aria-hidden="true" />
+    <button type="button" onClick={onSelect} className="block w-full rounded-xl text-left"><span className="flex flex-wrap items-center justify-between gap-2"><strong>{emergency.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs" style={triage ? { color: triage.color } : undefined}>{emergency.triage ?? "Sin clasificar"} · {urgenciasStatusLabel(emergency.status)}</span></span>
     <span className="mt-1 block text-sm text-muted-dark">{emergency.reason}</span>
+    <span className="mt-3 block text-[10px] font-semibold uppercase tracking-widest text-muted-dark">Signos vitales</span>
+    <VitalsStrip vitals={backendVitalsToDisplay(emergency)} tone="dark" dense className="mt-4" />
     <span className="mt-2 block text-xs text-muted-dark">{emergency.destination_name} · {emergency.ambulance_code} · {new Date(archived ? archiveEventDate(emergency) : emergency.created_at).toLocaleString()}</span>
-  </button>;
+    </button>
+    {onMarkArrived && (emergency.status === "notificada" || emergency.status === "en_traslado") && <button type="button" onClick={(event) => { event.stopPropagation(); onMarkArrived(); }} className="absolute right-4 top-[3.75rem] inline-flex h-8 items-center gap-2 rounded-lg bg-signal px-3 text-xs font-semibold text-ink hover:brightness-110"><Activity className="h-3.5 w-3.5" />Marcar como llegado</button>}
+  </div>;
 }
 
 function EmergencyDetail({ emergency, onClose, onMarkArrived, onCloseEmergency }: { emergency: BackendEmergency; onClose: () => void; onMarkArrived: (reason: string) => void; onCloseEmergency: () => void }) {
@@ -577,7 +635,7 @@ function EmergencyDetail({ emergency, onClose, onMarkArrived, onCloseEmergency }
       <p className="mt-3 rounded-lg bg-white/5 p-3">{emergency.reason}</p>
       <p className="mt-2 text-sm text-muted-dark">Edad: {emergency.patient.age_value === null ? "No informada" : `${emergency.patient.age_value} ${ageUnit}`} · Sexo: {emergency.patient.recorded_sex ?? "No informado"}</p>
       <p className="mt-2 text-sm text-muted-dark">Síntomas: {emergency.symptoms.length ? emergency.symptoms.join(", ") : "No informados"}</p>
-      <div className="mt-4"><h4 className="text-sm font-semibold">Mediciones vitales</h4>{emergency.vital_measurements.length ? <ul className="mt-2 space-y-1 text-sm text-muted-dark">{emergency.vital_measurements.map((measurement, index) => <li key={`${measurement.kind}-${index}`}>{measurement.kind}: <strong className="text-white">{measurement.value} {measurement.unit}</strong> · {new Date(measurement.measured_at).toLocaleString()}</li>)}</ul> : <p className="mt-1 text-sm text-muted-dark">No medidas</p>}</div>
+       <div className="mt-4"><h4 className="text-sm font-semibold">Mediciones vitales</h4>{emergency.vital_measurements.length ? <ul className="mt-2 space-y-1 text-sm text-muted-dark">{emergency.vital_measurements.map((measurement, index) => <li key={`${measurement.kind}-${index}`}>{VITAL_LABELS[measurement.kind] ?? "Medición vital"}: <strong className="text-white">{measurement.value}{measurement.kind === "spo2" ? "%" : ` ${measurement.unit}`}</strong> · {new Date(measurement.measured_at).toLocaleString()}</li>)}</ul> : <p className="mt-1 text-sm text-muted-dark">No se registraron mediciones.</p>}</div>
       {emergency.notes && <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white/5 p-3 text-sm">{emergency.notes}</p>}
       {emergency.arrived_at && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Llegada registrada: {new Date(emergency.arrived_at).toLocaleString()}{emergency.arrival_reason ? ` · Motivo: ${emergency.arrival_reason}` : ""}</p>}
       {(emergency.status === "notificada" || emergency.status === "en_traslado") && <button onClick={confirmArrival} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-semibold text-ink"><Activity className="h-4 w-4" />Marcar como llegado a Urgencias</button>}
