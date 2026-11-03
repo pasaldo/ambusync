@@ -1,6 +1,6 @@
 # Etapa 1 — backend local mínimo
 
-Fecha de inicio: 29/10/2026. Estado: **primer backend local implementado; completar endurecimiento y ampliar pruebas**.
+Fecha de inicio: 29/10/2026. Estado: **primer backend local implementado y contratos del primer slice endurecidos; etapa abierta**.
 
 ## Propósito y límites
 
@@ -11,8 +11,8 @@ Construir el primer flujo vertical de backend para el piloto usando hospitales d
 | Punto | Acuerdo/estado | Criterio de salida |
 |---|---|---|
 | 1. Runtime | Evaluación local autorizada; lock fija Python 3.14.10, Django 5.2.18, DRF 3.18.3 y psycopg 3.3.6. El grupo dev fija Channels 4.3.2/`channels_redis` 4.3.0 solo para smoke test. | `pip-audit` sin vulnerabilidades conocidas y licencias revisadas. La prueba real `group_add/send/receive/discard` pasó en Python 3.14.10 contra Valkey 9.0.3 local; su matriz publicada no declara Python 3.14. Channels/Valkey no se habilitan en la app. PostgreSQL 18.6 ya corre en el clúster aislado del piloto. |
-| 2. Contratos | Primer contrato HTTP implementado en `backend/openapi.json`, validación y permisos en DRF; D-005 a D-014 siguen siendo autoridad. | CI remoto del commit `9e8bc59` (run 41152402319): 23 pruebas backend pasaron; también pasaron OpenAPI, Ruff, auditoría de dependencias, frontend y escaneo de secretos. La suite incluye concurrencia de reintentos idénticos, colisión concurrente con contenido distinto e idempotencia por operador. Otros flujos siguen fuera del primer slice. |
-| 3. Alcance | Implementados localmente sesión, permisos esenciales, auditoría y gestión inicial de cuentas institucionales; ciclo inicial de emergencias y vistas separadas de ambulancia/urgencias, con bandeja priorizada y archivo filtrable. | Migraciones y pruebas usan PostgreSQL aislado; no es deploy ni release. Sin WebSocket, GPS ni cambios de destino. La gestión de unidades, reasignación de cuentas y recuperación siguen pendientes. |
+| 2. Contratos | Primer contrato HTTP implementado en `backend/openapi.json`, validación y permisos en DRF; D-005 a D-014 siguen siendo autoridad. | La PR #5 quedó fusionada en `main` mediante squash en `23ad80d` (3/11/2026). Se verificaron 52 pruebas backend en la rama de trabajo, contratos OpenAPI, errores uniformes y respuestas 401/403/404/409/503. La suite incluye concurrencia de reintentos idénticos, colisión concurrente con contenido distinto e idempotencia por operador. Otros flujos siguen fuera del primer slice. |
+| 3. Alcance | Implementados localmente sesión, permisos esenciales, auditoría y gestión inicial de cuentas institucionales; ciclo inicial de emergencias y vistas separadas de ambulancia/urgencias, con bandeja priorizada, archivo filtrable, unidad asignada visible y previsualización de signos vitales. | Migraciones y pruebas usan PostgreSQL aislado; no es deploy ni release. Sin WebSocket, GPS ni cambios de destino. La gestión de unidades, reasignación de cuentas y recuperación siguen pendientes. |
 | 4. Entorno | Python 3.14.10 instalado. PostgreSQL 18.6 responde en clúster separado `127.0.0.1:55432`; base/rol `ambusync_dev`, secretos aleatorios en `backend/.env` ignorado por Git. Docker no está instalado. | Versión actualizada y migraciones/pruebas comprobadas. Reproducir arranque con las rutas documentadas; no usar el servicio preexistente en `5432`. |
 
 El primer slice sí está implementado y probado localmente; la etapa 1 continúa abierta. No se instaló ni desplegó servicio externo. La base local contiene cuentas demo, hospitales de ejemplo y campos de prueba; no borrar sus datos automáticamente.
@@ -54,7 +54,9 @@ El primer slice sí está implementado y probado localmente; la etapa 1 continú
 - La creación y su `AuditEvent` se confirman en una misma transacción. El evento contiene actor, institución/unidad, acción, objeto, resultado, fecha y correlación; no duplica relato ni payload clínico. No se expone un endpoint de auditoría.
 - La creación se confirma en PostgreSQL antes de responder éxito. No afirmar entrega en tiempo real: Channels/WebSocket y el channel layer quedan fuera del primer flujo; más adelante se añadirá reconciliación sin cambiar la autoridad de la API.
 - `GET /api/v1/institutions/destinations/` ofrece instituciones receptoras habilitadas a cuentas con rol de ambulancia. La ruta SPA `/local` usa sesión/CSRF para seleccionar destino y crear emergencias; no modifica el simulador ni persiste datos del backend en `localStorage`.
+- `GET /api/v1/auth/me/` incluye la unidad ambulancia activa (`id`, `code`, `institution_name`) cuando la cuenta tiene una asignación vigente; la SPA la muestra junto a la sesión local y no permite elegir una unidad arbitraria.
 - Síntomas y mediciones vitales aprobadas en D-007 se conservan en la API: por ejemplo, «Disnea», frecuencia cardíaca (lpm) y SpO₂ (%). Las mediciones son independientes y opcionales, con unidad, instante de medición y autor. La SPA no inventa valores ausentes. El catálogo UI aún es una lista de ejemplo, no un catálogo institucional dinámico.
+- El formulario de ambulancia muestra una previsualización de la tira de signos vitales antes de guardar. En Urgencias, las tarjetas muestran triage, mediciones y colores de lectura rápida; la llegada puede confirmarse desde la tarjeta sin abrir el detalle. Los rangos y colores son una ayuda visual del piloto sintético, no una validación clínica.
 
 ### Criterios verificables
 
@@ -68,7 +70,7 @@ El primer slice sí está implementado y probado localmente; la etapa 1 continú
 
 ## Exclusiones de este primer alcance
 
-WebSocket/Valkey en runtime, GPS, cambio de destino D-014, corrección de mediciones, informes, recuperación administrativa D-013, entrega de correo, datos persistidos offline, tarea de retención D-010/D-011, copias, HTTPS público, Docker/deploy y toda atención real. Sus reglas no se contradicen; cada función se incorpora con contratos y pruebas propios antes de habilitarla.
+WebSocket/Valkey en runtime, GPS, cambio de destino D-014, corrección de mediciones, informes, recuperación administrativa D-013, entrega de correo externo, datos persistidos offline, tarea de retención D-010/D-011, copias, HTTPS público, Docker/deploy y toda atención real. La unidad mostrada proviene de la asignación existente; la gestión administrativa de unidades y reasignaciones sigue fuera de alcance. Sus reglas no se contradicen; cada función se incorpora con contratos y pruebas propios antes de habilitarla.
 
 ## Entorno local reproducible (PowerShell)
 

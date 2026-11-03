@@ -1,6 +1,6 @@
 # Guía de desarrollo y contribución
 
-Esta guía describe el estado actual del repositorio, cómo preparar frontend y backend local y cómo revisar cambios. La SPA es un prototipo con **datos sintéticos**; no está autorizado para atención clínica real. El backend implementa solo el primer slice local de etapa 1; Channels, WebSocket y despliegue siguen pendientes. Consulta [ETAPA_1.md](ETAPA_1.md) para su entorno y alcance.
+Esta guía describe el estado actual del repositorio, cómo preparar frontend y backend local y cómo revisar cambios. La SPA es un prototipo con **datos sintéticos**; no está autorizado para atención clínica real. El backend implementa el primer slice local de etapa 1 y sus contratos/error responses están endurecidos; Channels, WebSocket y despliegue siguen pendientes. Consulta [ETAPA_1.md](ETAPA_1.md) para su entorno y alcance.
 
 ## Preparar el entorno
 
@@ -49,9 +49,12 @@ npm run lint
 npm run test:unit
 npm run check:diagrams
 npm run build
+npm run test:accounts
 ```
 
 `npm run lint` ejecuta TypeScript; no hay ESLint configurado. `check:diagrams` usa Chromium local. La prueba `test:sync` necesita el servidor de desarrollo y Chromium: mantén Vite corriendo en una terminal y ejecuta en otra:
+
+`npm run test:accounts` ejecuta el flujo Playwright de cuentas, unidad ambulancia, vistas de episodios, bandeja/archivo de Urgencias y confirmación de llegada con el mock sintético.
 
 ```sh
 cd frontend

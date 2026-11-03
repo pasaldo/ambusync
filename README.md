@@ -93,6 +93,14 @@ usa cookie de sesión y no persiste respuestas del backend en `localStorage`. Ch
 la sincronización entre dispositivos siguen pendientes; consulta
 [docs/ETAPA_1.md](docs/ETAPA_1.md).
 
+## Estado del piloto local
+
+La ruta `/local` integra el primer slice de Django/DRF con la SPA. Una cuenta de ambulancia ve su unidad asignada junto a la sesión y puede ingresar episodios con una previsualización de signos vitales. Urgencias dispone de una bandeja priorizada y un archivo filtrable; cada tarjeta muestra triage, signos vitales y permite confirmar la llegada sin abrir el detalle. La vista demo `/ambulancia` y `/urgencias` continúa separada de estos datos del backend.
+
+Los colores y rangos de signos vitales son exclusivamente una ayuda visual para datos sintéticos del piloto; no constituyen reglas clínicas ni autorización de atención real.
+
+El estado integrado actual está en `main`, commit `23ad80d` (PR #5). La documentación y el código no autorizan despliegue; permanecen pendientes WebSocket entre dispositivos, GPS, retención, copias/restauración, recuperación administrativa y una alternativa de hosting con costo recurrente $0.
+
 ## Cómo correrlo
 
 Requiere **Node.js 24.20.0**, **npm 11.19.0** y el backend local configurado según

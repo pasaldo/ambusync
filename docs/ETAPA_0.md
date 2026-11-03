@@ -679,11 +679,11 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 - [x] Políticas de sesión, contraseñas y recuperación aprobadas (D-008, 29/10/2026); detalles técnicos/operativos pendientes según secciones 6 y 7.
 - [ ] Implementar y probar retención D-010/D-011; resolver proveedor/ubicación de copias compatible con Chile y $0, custodia de claves y procedimiento de restauración antes del despliegue. Mailpit queda como patrón local; no se habilita entrega externa.
 - [x] Modelo/contratos mínimos y dependencias de tareas revisados (D-009, 29/10/2026).
-- [ ] Contratos técnicos detallados y excepciones pendientes resueltos antes de habilitar cada operación, según ARQUITECTURA_PILOTO.md.
+- [ ] Contratos técnicos detallados y excepciones pendientes resueltos antes de habilitar cada operación, según ARQUITECTURA_PILOTO.md. El primer slice HTTP y sus respuestas de error ya están implementados y verificados; permanecen pendientes los contratos de operaciones futuras.
 - [x] Dependencias vulnerables del frontend tratadas (`npm audit` 0); primer backend auditado localmente (`pip-audit` 0 vulnerabilidades conocidas). Reauditar antes de exponer servicios.
 - [x] Pruebas frontend repetibles con evidencia (AS-008).
 - [x] CI operativo en PR con evidencia de ejecución exitosa y fallo controlado local (AS-009); no implica merge ni ejecución sobre `main`.
 - [ ] Entorno e instrucciones verificadas por otro integrante cuando sea posible.
 - [ ] Rúbrica de Nota 3, fecha de defensa y disponibilidad del equipo confirmadas.
 
-**Estado:** AS-010 documentada y verificada en el entorno actual. La etapa 0 no está cerrada: quedan pendientes, entre otros, revisión de las instrucciones por otro integrante, backend, detalles técnicos/operativos, rúbrica y calendario; consultar checklist y estados en la sección 11.
+**Estado:** AS-010 documentada y verificada en el entorno actual. La etapa 0 no está cerrada: quedan pendientes, entre otros, revisión de las instrucciones por otro integrante, retención/copias/restauración, contratos de operaciones futuras, rúbrica y calendario; consultar checklist y estados en la sección 11. El primer slice backend local está integrado en `main` mediante la PR #5 (`23ad80d`).
