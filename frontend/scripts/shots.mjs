@@ -13,8 +13,8 @@ const BASE = process.env.BASE_URL || "http://localhost:5173";
 const VIEWPORT = { width: 820, height: 920 };
 const browser = await chromium.launch();
 
-async function screenshot(page, name) {
-  await page.screenshot({ path: resolve(OUT, name), fullPage: true });
+async function screenshot(page, name, { fullPage = true } = {}) {
+  await page.screenshot({ path: resolve(OUT, name), fullPage });
   console.log("✓", name);
 }
 
@@ -65,17 +65,17 @@ try {
   const urgenciasPage = await urgenciasContext.newPage();
   await loginLocal(urgenciasPage, "synthetic_urgencias");
   await urgenciasPage.getByRole("heading", { name: "Episodios entrantes" }).waitFor({ state: "visible" });
-  await screenshot(urgenciasPage, "06-urgencias-entrantes.png");
+  await screenshot(urgenciasPage, "06-urgencias-entrantes.png", { fullPage: false });
   await urgenciasPage.getByRole("button", { name: "Archivo de Urgencias" }).click();
   await urgenciasPage.getByRole("heading", { name: "Archivo de episodios" }).waitFor({ state: "visible" });
   await screenshot(urgenciasPage, "07-archivo-urgencias.png");
   await urgenciasPage.getByRole("button", { name: "Urgencias", exact: true }).click();
   await urgenciasPage.getByRole("button", { name: /Caso en traslado/ }).click();
   await urgenciasPage.getByRole("dialog", { name: "Detalle de episodio" }).waitFor({ state: "visible" });
-  await screenshot(urgenciasPage, "08-detalle-episodio.png");
+  await screenshot(urgenciasPage, "08-detalle-episodio.png", { fullPage: false });
   await urgenciasPage.getByRole("button", { name: "Cerrar", exact: true }).click();
   await urgenciasPage.getByRole("button", { name: /Marcar como llegado/ }).first().click();
-  await screenshot(urgenciasPage, "09-llegada-registrada.png");
+  await screenshot(urgenciasPage, "09-llegada-registrada.png", { fullPage: false });
   await urgenciasContext.close();
 } finally {
   await browser.close();
