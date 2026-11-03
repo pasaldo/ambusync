@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 
 from accounts.security import clear_login_failures, login_is_throttled, record_login_failure
 from config.api_errors import error_response
-from institutions.models import InstitutionMembership
+from institutions.models import AmbulanceAssignment, InstitutionMembership
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
@@ -106,6 +106,7 @@ class MeView(APIView):
                     {"id": str(item.institution_id), "name": item.institution.name}
                     for item in memberships
                 ],
+                "ambulance": self._active_ambulance(request.user),
                 "session": {
                     "started_at": request.session.get(settings.SESSION_STARTED_AT_KEY),
                     "idle_expires_at": request.session.get("ambusync_last_interaction_at", 0)
@@ -115,3 +116,23 @@ class MeView(APIView):
                 },
             }
         )
+
+    @staticmethod
+    def _active_ambulance(user):
+        assignment = (
+            AmbulanceAssignment.objects.filter(
+                user=user,
+                active=True,
+                ambulance__enabled=True,
+                ambulance__institution__enabled=True,
+            )
+            .select_related("ambulance__institution")
+            .first()
+        )
+        if assignment is None:
+            return None
+        return {
+            "id": str(assignment.ambulance_id),
+            "code": assignment.ambulance.code,
+            "institution_name": assignment.ambulance.institution.name,
+        }

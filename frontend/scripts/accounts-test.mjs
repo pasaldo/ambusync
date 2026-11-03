@@ -44,6 +44,8 @@ try {
   await operatorPage.getByRole("button", { name: "Iniciar sesión" }).click();
   await operatorPage.getByRole("button", { name: "Ambulancia" }).click();
   await operatorPage.getByRole("heading", { name: "Nueva emergencia" }).waitFor({ state: "visible" });
+  await operatorPage.getByText("Unidad", { exact: true }).first().waitFor({ state: "visible" });
+  await operatorPage.getByText("SYN-01", { exact: true }).waitFor({ state: "visible" });
   if (await operatorPage.getByRole("heading", { name: "Episodios de la unidad" }).count()) {
     throw new Error("La lista de episodios ocupa la vista del formulario");
   }
@@ -97,6 +99,7 @@ try {
   await urgenciasPage.getByRole("button", { name: "Marcar como llegado a Urgencias" }).click();
   await urgenciasPage.getByText(/Llegada registrada:/).waitFor({ state: "visible" });
   await urgenciasPage.getByRole("button", { name: "Cerrar episodio" }).waitFor({ state: "visible" });
+
   await urgenciasContext.close();
 
   console.log("✓ Admin de Urgencias crea cuentas; ambulancias no y Urgencias confirma llegada");

@@ -69,6 +69,7 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
     username: groups.includes("institution_admin") ? "synthetic_admin" : "demo_ambulancia",
     groups,
     institutions: [{ id: "demo-hospital-id", name: "Hospital Central Demo" }],
+    ambulance: groups.includes("ambulance") ? { id: "demo-ambulance-id", code: "SYN-01", institution_name: "Hospital Operador Demo" } : null,
     session: {
       started_at: 1_800_000_000,
       idle_expires_at: 1_800_001_800,

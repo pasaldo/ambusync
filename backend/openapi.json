@@ -53,7 +53,7 @@
         "security": [{ "sessionCookie": [] }],
         "parameters": [{ "$ref": "#/components/parameters/UserInteraction" }],
         "responses": {
-          "200": { "description": "Cuenta, ámbitos y vencimientos de sesión.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CurrentUser" } } } },
+          "200": { "description": "Cuenta, ámbitos, unidad asignada y vencimientos de sesión.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CurrentUser" } } } },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" }
         }
@@ -259,12 +259,13 @@
       },
       "CurrentUser": {
         "type": "object",
-        "required": ["id", "username", "groups", "institutions", "session"],
+        "required": ["id", "username", "groups", "institutions", "ambulance", "session"],
         "properties": {
           "id": { "type": "string" },
           "username": { "type": "string" },
           "groups": { "type": "array", "items": { "type": "string" } },
           "institutions": { "type": "array", "items": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" } } } },
+          "ambulance": { "oneOf": [{ "type": "object", "required": ["id", "code", "institution_name"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" }, "institution_name": { "type": "string" } } }, { "type": "null" }] },
           "session": { "type": "object", "required": ["started_at", "idle_expires_at", "absolute_expires_at"], "properties": { "started_at": { "type": "number", "description": "Unix timestamp en segundos." }, "idle_expires_at": { "type": "number", "description": "Expiración por inactividad; 30 minutos tras interacción humana." }, "absolute_expires_at": { "type": "number", "description": "Expiración absoluta; máximo 12 horas desde el inicio." } } }
         }
       },

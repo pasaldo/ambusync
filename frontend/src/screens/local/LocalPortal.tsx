@@ -394,7 +394,10 @@ export function LocalPortal() {
                   <p className="text-xs uppercase tracking-widest text-muted-dark">Sesión local</p>
                   <h1 className="mt-1 text-xl font-bold">{user.username}</h1>
                 </div>
-                <button onClick={() => void handleLogout()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><LogOut className="h-4 w-4" /> Cerrar sesión</button>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {canAmbulance && user.ambulance && <span className="inline-flex items-center gap-2 rounded-lg border border-signal/30 bg-signal/10 px-3 py-2 text-sm text-signal-soft"><Ambulance className="h-4 w-4" /><span><span className="text-xs text-muted-dark">Unidad</span> <strong className="font-mono">{user.ambulance.code}</strong></span></span>}
+                  <button onClick={() => void handleLogout()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><LogOut className="h-4 w-4" /> Cerrar sesión</button>
+                </div>
               </div>
 
               {sessionWarning && (
@@ -468,7 +471,7 @@ export function LocalPortal() {
                         <textarea required minLength={3} maxLength={2000} rows={3} value={draft.reason} onChange={(event) => updateDraft({ reason: event.target.value })} className="mt-1.5 w-full rounded-lg border border-white/15 bg-ink px-3 py-2 text-white outline-none focus:border-signal" />
                       </label>
 
-                      <fieldset className="rounded-xl border border-white/10 p-4">
+                       <fieldset className="rounded-xl border border-white/10 p-4">
                         <legend className="px-1 text-sm font-semibold">Síntomas (opcionales)</legend>
                         <div className="mt-1 grid gap-2 sm:grid-cols-2">
                           {SYMPTOMS.map((symptom) => <label key={symptom} className="flex items-center gap-2 text-sm text-muted-dark"><input type="checkbox" checked={draft.symptoms.includes(symptom)} onChange={(event) => updateDraft({ symptoms: event.target.checked ? [...draft.symptoms, symptom] : draft.symptoms.filter((item) => item !== symptom) })} /> {symptom}</label>)}
@@ -483,9 +486,14 @@ export function LocalPortal() {
                             <input type="number" min={"min" in field ? field.min : "0"} max={"max" in field ? field.max : undefined} step={field.step} value={draft.vitals[field.key] ?? ""} onChange={(event) => updateDraft({ vitals: { ...draft.vitals, [field.key]: event.target.value } })} className="mt-1.5 h-10 w-full rounded-lg border border-white/15 bg-ink px-3 text-white" />
                           </label>)}
                         </div>
-                      </fieldset>
+                       </fieldset>
+                       <div className="rounded-xl border border-signal/20 bg-signal/5 p-4">
+                         <p className="text-xs font-semibold uppercase tracking-widest text-signal-soft">Vista previa al confirmar</p>
+                         <p className="mt-1 text-xs text-muted-dark">Así verá Urgencias los signos vitales enviados con este episodio.</p>
+                         <VitalsStrip vitals={draftVitalsToDisplay(draft.vitals)} tone="dark" dense className="mt-3" />
+                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-2">
+                       <div className="grid gap-3 sm:grid-cols-2">
                         <label className="block text-sm">Triaje (opcional)
                           <select value={draft.triage} onChange={(event) => updateDraft({ triage: event.target.value as EmergencyDraft["triage"] })} className="mt-1.5 h-10 w-full rounded-lg border border-white/15 bg-ink px-3"><option value="">Sin clasificar</option>{[1, 2, 3, 4, 5].map((level) => <option key={level} value={`C${level}`}>C{level}</option>)}</select>
                         </label>
@@ -563,6 +571,19 @@ function urgenciasStatusLabel(status: BackendEmergency["status"]) {
   if (status === "en_traslado") return "Llegando · En traslado";
   if (status === "notificada") return "Pendiente de traslado";
   return emergencyStatusLabel(status);
+}
+
+function draftVitalsToDisplay(values: Record<string, string>): Vitals {
+  return {
+    hr: values.hr ? Number(values.hr) : null,
+    bpSys: values.bp_sys ? Number(values.bp_sys) : null,
+    bpDia: values.bp_dia ? Number(values.bp_dia) : null,
+    spo2: values.spo2 ? Number(values.spo2) : null,
+    rr: values.rr ? Number(values.rr) : null,
+    tempC: values.temp_c ? Number(values.temp_c) : null,
+    glasgow: values.glasgow ? Number(values.glasgow) : null,
+    takenAt: 0,
+  };
 }
 
 function backendVitalsToDisplay(emergency: BackendEmergency): Vitals {
