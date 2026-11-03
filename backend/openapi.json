@@ -157,6 +157,7 @@
           "200": { "description": "Reintento idempotente; incluye Idempotent-Replay: true.", "headers": { "Idempotent-Replay": { "schema": { "type": "string", "const": "true" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Emergency" } } } },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "403": { "$ref": "#/components/responses/Forbidden" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "409": { "$ref": "#/components/responses/Conflict" }
         }
       }

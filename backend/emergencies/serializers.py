@@ -28,6 +28,16 @@ class VitalsCreateSerializer(serializers.Serializer):
     glasgow = serializers.IntegerField(min_value=3, max_value=15, required=False, allow_null=True)
     taken_at = serializers.DateTimeField(required=False)
 
+    def to_internal_value(self, data):
+        if not isinstance(data, dict):
+            return super().to_internal_value(data)
+        unknown_fields = set(data) - set(self.fields)
+        if unknown_fields:
+            raise serializers.ValidationError(
+                "La solicitud contiene campos de signos vitales no admitidos."
+            )
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
         measured_values = [attrs.get(name) for name in VITAL_FIELD_TO_KIND]
         has_measurement = any(value is not None for value in measured_values)
