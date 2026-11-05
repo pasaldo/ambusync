@@ -70,7 +70,7 @@ El primer slice sí está implementado y probado localmente; la etapa 1 continú
 
 ## Exclusiones de este primer alcance
 
-WebSocket/Valkey en runtime, GPS, cambio de destino D-014, corrección de mediciones, informes, recuperación administrativa D-013, entrega de correo externo, datos persistidos offline, tarea de retención D-010/D-011, copias, HTTPS público, Docker/deploy y toda atención real. La unidad mostrada proviene de la asignación existente; la gestión administrativa de unidades y reasignaciones sigue fuera de alcance. Sus reglas no se contradicen; cada función se incorpora con contratos y pruebas propios antes de habilitarla.
+WebSocket/Valkey en runtime, GPS, cambio de destino D-014, corrección de mediciones, informes, recuperación administrativa D-013, entrega de correo externo, datos persistidos offline, HTTPS público, Docker/deploy y toda atención real. La retención D-010/D-011 tiene comando, logs, pruebas de límites y restauración sintética local; el flujo de copias PostgreSQL hacia R2 y restauración aislada está documentado y verificado manualmente, y sigue siendo operación de respaldo, no hosting. La unidad mostrada proviene de la asignación existente; la gestión administrativa de unidades y reasignaciones sigue fuera de alcance. Sus reglas no se contradicen; cada función se incorpora con contratos y pruebas propios antes de habilitarla.
 
 ## Entorno local reproducible (PowerShell)
 

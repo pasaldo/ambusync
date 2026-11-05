@@ -47,3 +47,12 @@ desktop.ini
 # ── Logs varios ──────────────────────────────────────────────
 logs/
 *.log
+
+# ── backup (no se publica) ──────────────────────────────────────────────
+ops/restic-repository/
+ops/backup-test/
+Tokens.txt
+contra.txt
+ops/backup-work/
+ops/restore-*/
+ops/restic-repository/

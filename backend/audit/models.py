@@ -65,3 +65,35 @@ class SessionRevocationEvent(models.Model):
 
     class Meta:
         ordering = ("-occurred_at", "id")
+
+
+class RetentionExecution(models.Model):
+    class Mode(models.TextChoices):
+        DRY_RUN = "dry_run", "Simulación"
+        APPLY = "apply", "Aplicación"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    mode = models.CharField(max_length=16, choices=Mode.choices)
+    command_version = models.CharField(max_length=32)
+    as_of = models.DateTimeField()
+    executed_at = models.DateTimeField(auto_now_add=True)
+    executor = models.CharField(max_length=255)
+    result = models.CharField(max_length=16)
+    counts = models.JSONField(default=dict)
+    errors = models.JSONField(default=list)
+
+
+class TechnicalLog(models.Model):
+    """Minimal application log retained for the approved 30-day window."""
+
+    class Level(models.TextChoices):
+        INFO = "info", "Información"
+        WARNING = "warning", "Advertencia"
+        ERROR = "error", "Error"
+
+    occurred_at = models.DateTimeField(auto_now_add=True)
+    level = models.CharField(max_length=16, choices=Level.choices)
+    event = models.CharField(max_length=96)
+    result = models.CharField(max_length=32, default="success")
+    correlation_id = models.UUIDField(null=True, blank=True)
+    details = models.JSONField(default=dict)
