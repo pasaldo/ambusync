@@ -176,6 +176,12 @@ los mensajes sintéticos y sus enlaces de activación. La configuración actual 
 externos. Solo puede omitirse Mailpit si se ejecutan exclusivamente los flujos que no crean ni
 activan cuentas.
 
+```powershell
+# Reemplaza la ruta por la carpeta real donde está instalado mailpit.exe.
+$env:Path += ";C:\ruta\a\mailpit"
+mailpit.exe --smtp 127.0.0.1:1025 --listen 127.0.0.1:8025
+```
+
 ### 7. Detener PostgreSQL
 
 Cuando termines el trabajo local:
