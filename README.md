@@ -101,23 +101,110 @@ El estado integrado actual está en `main`, commit `23ad80d` (PR #5). La documen
 
 ## Cómo correrlo
 
-Requiere **Node.js 24.20.0**, **npm 11.19.0** y el backend local configurado según
-[docs/ETAPA_1.md](docs/ETAPA_1.md). La versión de Node está fijada en `.nvmrc` y `frontend/package.json` declara el rango compatible.
+El proyecto local tiene tres servicios/componentes principales: PostgreSQL aislado, backend
+Django/DRF y frontend Vite. **Mailpit también forma parte del entorno local actual cuando se
+prueba la administración de cuentas**, porque el backend entrega allí los enlaces de activación.
+No se inicia WebSocket/Channels en esta versión y no se debe exponer ningún
+servicio a una red pública.
 
-```bash
-cd frontend
+Requiere **Python 3.14.10**, `uv`, **Node.js 24.20.0**, **npm 11.19.0** y el backend local
+configurado según [docs/ETAPA_1.md](docs/ETAPA_1.md). Node está fijado en `.nvmrc`, Python en
+`.python-version` y npm en `frontend/package.json`.
+
+### 1. Preparar dependencias y secretos locales
+
+Desde la raíz del repositorio, instala las dependencias del backend y frontend. El archivo
+`backend/.env` debe existir con `DATABASE_URL`, `DJANGO_SECRET_KEY` y los demás valores locales;
+no lo copies al repositorio ni compartas sus secretos.
+
+```powershell
+uv sync --directory backend --locked --all-groups
+Set-Location frontend
 npm ci
 npx playwright install chromium
+```
+
+### 2. Iniciar PostgreSQL aislado
+
+Usa el clúster de desarrollo de AmbuSync en `127.0.0.1:55432`; no uses ni modifiques el
+servicio PostgreSQL preexistente en `5432`.
+
+```powershell
+$pgBin = "$env:LOCALAPPDATA\AmbuSync\postgresql-18.6-binaries\pgsql\bin"
+$dataDir = "$env:LOCALAPPDATA\AmbuSync\postgres-dev-18.6"
+& "$pgBin\pg_ctl.exe" -D $dataDir -o "-h 127.0.0.1 -p 55432" -l "$dataDir\server.log" start
+& "$pgBin\pg_isready.exe" -h 127.0.0.1 -p 55432
+```
+
+### 3. Preparar la base y cuentas sintéticas
+
+Ejecuta migraciones y crea las instituciones, unidad y cuentas de prueba. `seed_synthetic`
+solicita las contraseñas de forma oculta y no imprime credenciales.
+
+```powershell
+uv run --directory backend python manage.py migrate
+uv run --directory backend python manage.py seed_synthetic
+```
+
+### 4. Iniciar el backend Django
+
+En una terminal desde la raíz:
+
+```powershell
+uv run --directory backend python manage.py runserver 127.0.0.1:8000
+```
+
+### 5. Iniciar el frontend
+
+En otra terminal:
+
+```powershell
+cd frontend
 npm run dev -- --host 127.0.0.1
 ```
 
-Abre <http://127.0.0.1:5173> e inicia sesión con la cuenta local asignada. La aplicación abre el módulo correspondiente a los permisos de esa cuenta. No expongas los servidores de desarrollo a una red pública.
+Abre <http://127.0.0.1:5173> e inicia sesión con una cuenta sintética. El login abre `/local`
+y muestra el módulo permitido por los grupos de la cuenta. Las rutas `/ambulancia` y `/urgencias`
+son el simulador demo separado y también requieren sesión.
 
-Otros comandos:
+### 6. Mailpit para activaciones locales
+
+**Mailpit es obligatorio para probar la creación, activación o reenvío de cuentas desde
+Administración.** Inícialo antes de realizar esas operaciones. El backend usa SMTP local en
+`127.0.0.1:1025` y su interfaz web habitual está en <http://127.0.0.1:8025>, donde se consultan
+los mensajes sintéticos y sus enlaces de activación. La configuración actual no envía correos
+externos. Solo puede omitirse Mailpit si se ejecutan exclusivamente los flujos que no crean ni
+activan cuentas.
+
+### 7. Detener PostgreSQL
+
+Cuando termines el trabajo local:
+
+```powershell
+& "$pgBin\pg_ctl.exe" -D $dataDir -m fast stop
+```
+
+### Verificaciones
+
+Desde `frontend/`:
 
 ```bash
-npm run build     # typecheck (tsc -b) + build de producción en dist/
-npm run preview   # sirve el build de producción
+npm run lint
+npm run test:unit
+npm run check:diagrams
+npm run test:sync       # requiere Vite activo
+npm run test:accounts   # flujo local con mock sintético
+npm run build
+npm run shots           # actualiza capturas de /local; requiere Vite activo
+```
+
+Desde la raíz:
+
+```powershell
+uv run --directory backend python manage.py test
+uv run --directory backend ruff check .
+uv run --directory backend pip-audit
+uv run --directory backend openapi-spec-validator openapi.json
 ```
 
 ## Cómo demostrarlo
