@@ -6,7 +6,7 @@ const browser = await chromium.launch();
 
 try {
   const context = await browser.newContext();
-  const api = await mockAuthenticatedApi(context, { groups: ["institution_admin"] });
+  const api = await mockAuthenticatedApi(context, { groups: ["urgencias", "institution_admin"] });
   const page = await context.newPage();
 
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
@@ -24,7 +24,7 @@ try {
   await page.getByRole("status").filter({ hasText: "Se envió un enlace de activación" }).waitFor({ state: "visible" });
   await page.getByText("synthetic_operator_02").first().waitFor({ state: "visible" });
 
-  const created = api.managedAccounts[0];
+  const created = api.managedAccounts.at(-1);
   if (created.active || created.groups[0] !== "ambulance" || created.ambulance?.id !== "demo-ambulance-id" || created.institution_id !== "demo-operator-id") {
     throw new Error("La cuenta no quedó pendiente o sin el permiso/unidad solicitados");
   }
