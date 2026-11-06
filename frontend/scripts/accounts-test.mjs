@@ -13,6 +13,7 @@ try {
   await page.getByLabel("Usuario").fill("synthetic_admin");
   await page.getByLabel("Contraseña").fill("local-test-password");
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
+  await page.getByRole("button", { name: "Administración" }).click();
   await page.getByRole("heading", { name: "Cuentas de Hospital Central Demo" }).waitFor({ state: "visible" });
 
   await page.getByLabel("Nombre de usuario").fill("synthetic_operator_02");
