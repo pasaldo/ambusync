@@ -62,9 +62,15 @@ try {
     }
     $metadata | ConvertTo-Json | Set-Content -Path $metadataPath -Encoding UTF8
 
-    restic backup $workDir --tag $BackupTag --tag "synthetic-only"
-    if ($LASTEXITCODE -ne 0) {
-        throw "Restic backup terminó con código $LASTEXITCODE."
+    Push-Location $workDir
+    try {
+        restic backup "." --tag $BackupTag --tag "synthetic-only"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Restic backup terminó con código $LASTEXITCODE."
+        }
+    }
+    finally {
+        Pop-Location
     }
 
     if (-not $SkipCheck) {

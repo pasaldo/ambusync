@@ -15,10 +15,10 @@ $dumpPath = Join-Path $restoreDir "ambusync-postgres.dump"
 New-Item -ItemType Directory -Force -Path $restoreDir | Out-Null
 
 try {
-    restic restore $Snapshot --target $restoreDir
+    restic restore $Snapshot --target $restoreDir --include "ambusync-postgres.dump"
     $restoreExitCode = $LASTEXITCODE
 
-   if ($restoreExitCode -ne 0) {
+    if ($restoreExitCode -ne 0) {
     	$restoredDump = Get-ChildItem `
         -LiteralPath $restoreDir `
         -Filter "ambusync-postgres.dump" `
