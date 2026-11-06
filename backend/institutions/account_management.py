@@ -108,24 +108,24 @@ class AccountManagementConfigView(APIView):
 
     def get(self, request):
         institution = administrative_institution(request.user)
-        can_create_accounts = institution.kind in (
-            Institution.Kind.RECEIVER,
-            Institution.Kind.COMBINED,
+        can_create_accounts = (
+            institution.kind
+            in (
+                Institution.Kind.RECEIVER,
+                Institution.Kind.COMBINED,
+            )
+            and request.user.groups.filter(name="urgencias").exists()
         )
         delegable_groups = ["urgencias", "ambulance"] if can_create_accounts else []
         operator_institutions = []
-        for operator in (
-            Institution.objects.filter(
-                enabled=True,
-                kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
-                ambulances__enabled=True,
-            )
-            .distinct()
-            .order_by("name", "id")
-            if can_create_accounts
-            else []
-        ):
-            operator_institutions.append({"id": str(operator.pk), "name": operator.name})
+        if can_create_accounts:
+            operator_institutions = [
+                {"id": str(operator.pk), "name": operator.name}
+                for operator in Institution.objects.filter(
+                    enabled=True,
+                    kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
+                ).order_by("name", "id")
+            ]
         return Response(
             {
                 "institution_name": institution.name,
@@ -141,14 +141,13 @@ class ManagedAccountListCreateView(APIView):
 
     def get(self, request):
         institution = administrative_institution(request.user)
-        created_ids = [
-            int(value)
-            for value in accounts_created_by(request.user).values_list("object_id", flat=True)
-            if value.isdigit()
-        ]
         memberships = (
             InstitutionMembership.objects.filter(active=True)
-            .filter(Q(institution=institution) | Q(user_id__in=created_ids))
+            .filter(
+                Q(institution=institution)
+                | Q(user__ambulance_assignments__ambulance__institution__enabled=True)
+            )
+            .distinct()
             .select_related("user")
             .prefetch_related(
                 "user__groups",
@@ -168,8 +167,7 @@ class ManagedAccountListCreateView(APIView):
                         (
                             {"id": str(assignment.ambulance_id), "code": assignment.ambulance.code}
                             for assignment in item.user.ambulance_assignments.all()
-                            if assignment.active
-                            and assignment.ambulance.institution_id == item.institution_id
+                            if assignment.active and assignment.ambulance.institution.enabled
                         ),
                         None,
                     ),
@@ -435,6 +433,84 @@ class ManagedAccountResendActivationView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         return Response({"activation_sent": True}, status=status.HTTP_200_OK)
+
+
+class ManagedAmbulanceCreateView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        institution = administrative_institution(request.user)
+        if institution.kind not in (Institution.Kind.RECEIVER, Institution.Kind.COMBINED):
+            raise PermissionDenied("Solo la administración de Urgencias puede crear unidades.")
+        target_institution_id = (
+            request.data.get("institution_id") if isinstance(request.data, dict) else None
+        )
+        target_institution = Institution.objects.filter(
+            pk=target_institution_id,
+            enabled=True,
+            kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
+        ).first()
+        if target_institution is None:
+            raise ValidationError(
+                {"institution_id": "Selecciona una institución operadora habilitada."}
+            )
+        code = request.data.get("code") if isinstance(request.data, dict) else None
+        if not isinstance(code, str) or not code.strip() or len(code.strip()) > 40:
+            raise ValidationError({"code": "Indica un código de unidad válido."})
+        try:
+            ambulance = Ambulance.objects.create(institution=target_institution, code=code.strip())
+        except IntegrityError as error:
+            raise ValidationError(
+                {"code": "Ya existe una unidad con ese código en tu institución."}
+            ) from error
+        return Response(
+            {
+                "id": str(ambulance.pk),
+                "code": ambulance.code,
+                "institution_id": str(target_institution.pk),
+                "institution_name": target_institution.name,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ManagedAccountAssignmentView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, user_id):
+        administrative_institution(request.user)
+        ambulance_id = request.data.get("ambulance_id") if isinstance(request.data, dict) else None
+        membership = (
+            InstitutionMembership.objects.filter(user_id=user_id, active=True)
+            .select_related("user", "institution")
+            .first()
+        )
+        has_visible_assignment = AmbulanceAssignment.objects.filter(
+            user_id=user_id,
+            active=True,
+            ambulance__institution__enabled=True,
+        ).exists()
+        if (
+            membership is None
+            or not membership.user.groups.filter(name="ambulance").exists()
+            or not has_visible_assignment
+        ):
+            raise NotFound("La cuenta de ambulancia no está disponible en tu institución.")
+        ambulance = Ambulance.objects.filter(
+            pk=ambulance_id,
+            institution__enabled=True,
+            enabled=True,
+        ).first()
+        if ambulance is None:
+            raise ValidationError(
+                {"ambulance_id": "La unidad no pertenece a tu institución o no está habilitada."}
+            )
+        with transaction.atomic():
+            AmbulanceAssignment.objects.filter(user=membership.user, active=True).update(
+                active=False, unassigned_at=timezone.now()
+            )
+            AmbulanceAssignment.objects.create(user=membership.user, ambulance=ambulance)
+        return Response({"id": str(ambulance.pk), "code": ambulance.code})
 
 
 class AccountActivationView(APIView):

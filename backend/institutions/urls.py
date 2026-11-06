@@ -2,9 +2,11 @@ from django.urls import path
 
 from institutions.account_management import (
     AccountManagementConfigView,
+    ManagedAccountAssignmentView,
     ManagedAccountDeactivateView,
     ManagedAccountListCreateView,
     ManagedAccountResendActivationView,
+    ManagedAmbulanceCreateView,
     ManagedAmbulanceListView,
 )
 from institutions.views import DestinationListView
@@ -28,6 +30,16 @@ urlpatterns = [
     ),
     path(
         "management/ambulances/", ManagedAmbulanceListView.as_view(), name="managed-ambulance-list"
+    ),
+    path(
+        "management/ambulances/create/",
+        ManagedAmbulanceCreateView.as_view(),
+        name="managed-ambulance-create",
+    ),
+    path(
+        "management/accounts/<int:user_id>/assignment/",
+        ManagedAccountAssignmentView.as_view(),
+        name="managed-account-assignment",
     ),
     path(
         "management/config/",

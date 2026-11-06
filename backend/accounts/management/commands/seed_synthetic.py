@@ -32,7 +32,7 @@ class Command(BaseCommand):
 
         ambulance, _ = Ambulance.objects.get_or_create(
             institution=operator_institution,
-            code="DEMO-01",
+            code="Demo-01",
         )
         ambulance_group, _ = Group.objects.get_or_create(name="ambulance")
         receiver_group, _ = Group.objects.get_or_create(name="urgencias")

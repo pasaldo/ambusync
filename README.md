@@ -64,6 +64,13 @@ permite registrar la llegada desde la tarjeta y conserva un archivo filtrable.
     <td align="center"><img src="docs/screenshots/08-detalle-episodio.png" alt="Detalle de episodio local" width="340" /><br/><sub>Detalle + signos vitales</sub></td>
     <td align="center"><img src="docs/screenshots/09-llegada-registrada.png" alt="Llegada registrada desde la tarjeta" width="340" /><br/><sub>Llegada desde la bandeja</sub></td>
   </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/10-administracion-cuentas.png" alt="Administración de cuentas" width="340" /><br/><sub>Administración: crear cuentas</sub></td>
+    <td align="center"><img src="docs/screenshots/11-administracion-historial.png" alt="Historial de cuentas administradas" width="340" /><br/><sub>Historial y asignación de unidades</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/12-administracion-unidades.png" alt="Gestión de unidades de ambulancia" width="340" /><br/><sub>Unidades de ambulancia</sub></td>
+  </tr>
 </table>
 
 > Las capturas se regeneran con `npm run shots` y muestran las vistas actuales de `/local` con el mock de backend sintético (requiere el dev server corriendo en `:5173`); no corresponden al simulador demo `/ambulancia`/`/urgencias`.

@@ -1,7 +1,12 @@
 export async function mockAuthenticatedApi(context, { groups = ["ambulance"], canCreateAccounts = true, includeUrgenciasQueue = false } = {}) {
   let authenticated = false;
-  const managedAccounts = [];
   const demoAmbulances = [{ id: "demo-ambulance-id", code: "SYN-01", institution_id: "demo-operator-id", institution_name: "Hospital Operador Demo" }];
+  const managedAccounts = [
+    { id: "1", username: "demo_urgencias", email: "demo.urgencias@example.test", institution_name: "Hospital Central Demo", groups: ["urgencias"], active: true, ambulance: null },
+    { id: "2", username: "demo_ambulancia", email: "demo.ambulancia@example.test", institution_name: "Hospital Operador Demo", groups: ["ambulance"], active: true, ambulance: demoAmbulances[0] },
+    { id: "3", username: "prueba_urgencias", email: "prueba.urgencias@example.test", institution_name: "Hospital Central Demo", groups: ["urgencias"], active: false, ambulance: null },
+    { id: "4", username: "prueba_ambulancia", email: "prueba.ambulancia@example.test", institution_name: "Hospital Operador Demo", groups: ["ambulance"], active: false, ambulance: demoAmbulances[0] },
+  ];
   const demoEmergencies = [{
     id: "demo-emergency-id",
     operating_institution_id: "demo-operator-id",

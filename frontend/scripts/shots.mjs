@@ -61,7 +61,7 @@ try {
   await ambulanceContext.close();
 
   const urgenciasContext = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, reducedMotion: "reduce" });
-  await mockAuthenticatedApi(urgenciasContext, { groups: ["urgencias"], includeUrgenciasQueue: true });
+  await mockAuthenticatedApi(urgenciasContext, { groups: ["urgencias", "institution_admin"], includeUrgenciasQueue: true });
   const urgenciasPage = await urgenciasContext.newPage();
   await loginLocal(urgenciasPage, "synthetic_urgencias");
   await urgenciasPage.getByRole("heading", { name: "Episodios entrantes" }).waitFor({ state: "visible" });
@@ -76,6 +76,13 @@ try {
   await urgenciasPage.getByRole("button", { name: "Cerrar", exact: true }).click();
   await urgenciasPage.getByRole("button", { name: /Marcar como llegado/ }).first().click();
   await screenshot(urgenciasPage, "09-llegada-registrada.png", { fullPage: false });
+  await urgenciasPage.getByRole("button", { name: "Administración" }).click();
+  await urgenciasPage.getByRole("heading", { name: /Cuentas de/ }).waitFor({ state: "visible" });
+  await screenshot(urgenciasPage, "10-administracion-cuentas.png");
+  await urgenciasPage.getByRole("button", { name: "Historial de cuentas" }).click();
+  await screenshot(urgenciasPage, "11-administracion-historial.png");
+  await urgenciasPage.getByRole("button", { name: "Unidades de ambulancia" }).click();
+  await screenshot(urgenciasPage, "12-administracion-unidades.png");
   await urgenciasContext.close();
 } finally {
   await browser.close();

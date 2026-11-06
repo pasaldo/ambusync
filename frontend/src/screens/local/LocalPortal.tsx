@@ -156,7 +156,7 @@ export function LocalPortal() {
       .then((current) => {
         if (!active) return;
         acceptUser(current);
-        setRole(current.groups.includes("ambulance") ? "ambulance" : current.groups.includes("urgencias") ? "urgencias" : current.groups.includes("institution_admin") ? "administration" : null);
+        setRole(current.groups.includes("ambulance") ? "ambulance" : current.groups.includes("urgencias") ? "urgencias" : null);
       })
       .catch((requestError: unknown) => {
         if (!active) return;
@@ -222,7 +222,9 @@ export function LocalPortal() {
   const sessionWarning = user && remainingMs > 0 && remainingMs <= 120_000;
   const canAmbulance = user?.groups.includes("ambulance") ?? false;
   const canUrgencias = user?.groups.includes("urgencias") ?? false;
-  const canAdminister = user?.groups.includes("institution_admin") ?? false;
+  // La administración de cuentas pertenece exclusivamente a la cuenta administrativa de Urgencias.
+  // Una cuenta de ambulancia no debe heredar este módulo aunque comparta la institución.
+  const canAdminister = user?.groups.includes("institution_admin") === true && user?.groups.includes("urgencias") === true;
   const selected = emergencies.find((item) => item.id === selectedId) ?? null;
   const urgencyQueues = useMemo(() => {
     const priority: Record<BackendEmergency["status"], number> = {

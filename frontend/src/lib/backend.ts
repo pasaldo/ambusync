@@ -180,6 +180,16 @@ export async function listManagedAmbulances(): Promise<ManagedAmbulance[]> {
   return request("/api/v1/institutions/management/ambulances/");
 }
 
+export async function createManagedAmbulance(code: string, institutionId: string): Promise<ManagedAmbulance> {
+  const token = await ensureCsrf();
+  return request("/api/v1/institutions/management/ambulances/create/", { method: "POST", headers: { "X-CSRFToken": token }, body: JSON.stringify({ code, institution_id: institutionId }), humanInteraction: true });
+}
+
+export async function assignManagedAccount(userId: string, ambulanceId: string): Promise<{ id: string; code: string }> {
+  const token = await ensureCsrf();
+  return request(`/api/v1/institutions/management/accounts/${encodeURIComponent(userId)}/assignment/`, { method: "POST", headers: { "X-CSRFToken": token }, body: JSON.stringify({ ambulance_id: ambulanceId }), humanInteraction: true });
+}
+
 export async function getAccountManagementConfig(): Promise<AccountManagementConfig> {
   return request("/api/v1/institutions/management/config/");
 }

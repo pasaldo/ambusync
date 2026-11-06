@@ -161,23 +161,7 @@ class InstitutionAccountManagementTests(TestCase):
         denied = ordinary_client.get("/api/v1/institutions/management/accounts/")
 
         self.assertEqual(denied.status_code, 403)
-        self.assertEqual(
-            self.client.get("/api/v1/institutions/management/ambulances/").json(),
-            [
-                {
-                    "id": str(self.ambulance.pk),
-                    "code": "SYN-01",
-                    "institution_id": str(self.operator.pk),
-                    "institution_name": self.operator.name,
-                },
-                {
-                    "id": str(self.other_ambulance.pk),
-                    "code": "SYN-02",
-                    "institution_id": str(self.other_operator.pk),
-                    "institution_name": self.other_operator.name,
-                },
-            ],
-        )
+        self.assertEqual(self.client.get("/api/v1/institutions/management/ambulances/").json(), [])
 
         foreign = User.objects.create_user(username="synthetic-foreign-account", password="unused")
         InstitutionMembership.objects.create(user=foreign, institution=self.other_operator)
