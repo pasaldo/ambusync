@@ -56,8 +56,14 @@ try {
   if (await operatorPage.getByRole("heading", { name: "Nueva emergencia" }).count()) {
     throw new Error("El formulario sigue visible en la vista de episodios");
   }
-  await operatorPage.getByRole("button", { name: "Administración" }).click();
-  await operatorPage.getByRole("status").filter({ hasText: "reservada al perfil administrativo de Urgencias" }).waitFor({ state: "visible" });
+  if (await operatorPage.getByRole("button", { name: "Administración" }).count()) {
+    await operatorPage.getByRole("button", { name: "Administración" }).click();
+    await operatorPage.getByRole("status").filter({ hasText: "reservada al perfil administrativo de Urgencias" }).waitFor({ state: "visible" });
+  } else {
+    if (await operatorPage.getByRole("button", { name: "Crear y enviar activación" }).count()) {
+      throw new Error("El perfil demo de ambulancias muestra la creación de cuentas");
+    }
+  }
   if (await operatorPage.getByRole("button", { name: "Crear y enviar activación" }).count()) {
     throw new Error("El perfil demo de ambulancias muestra la creación de cuentas");
   }
