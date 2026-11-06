@@ -23,6 +23,7 @@ try {
   await page.getByLabel("Unidad asignada").selectOption("demo-ambulance-id");
   await page.getByRole("button", { name: "Crear y enviar activación" }).click();
   await page.getByRole("status").filter({ hasText: "Se envió un enlace de activación" }).waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Historial de cuentas" }).click();
   await page.getByText("synthetic_operator_02").first().waitFor({ state: "visible" });
 
   const created = api.managedAccounts.at(-1);
