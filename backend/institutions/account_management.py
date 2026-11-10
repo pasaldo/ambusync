@@ -492,9 +492,7 @@ class ManagedAccountAssignmentView(APIView):
             active=True,
             ambulance__institution__enabled=True,
         ).exists()
-        created_by_actor = accounts_created_by(request.user).filter(
-            object_id=str(user_id)
-        ).exists()
+        created_by_actor = accounts_created_by(request.user).filter(object_id=str(user_id)).exists()
         if (
             membership is None
             or not membership.user.groups.filter(name="ambulance").exists()

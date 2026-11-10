@@ -222,9 +222,7 @@ class InstitutionAccountManagementTests(TestCase):
 
         foreign_client = APIClient()
         foreign_client.force_authenticate(foreign_admin)
-        visible_to_creator = foreign_client.get(
-            "/api/v1/institutions/management/accounts/"
-        ).json()
+        visible_to_creator = foreign_client.get("/api/v1/institutions/management/accounts/").json()
         self.assertIn(str(foreign_user.pk), {item["id"] for item in visible_to_creator})
         reassigned = foreign_client.post(
             f"/api/v1/institutions/management/accounts/{foreign_user.pk}/assignment/",
