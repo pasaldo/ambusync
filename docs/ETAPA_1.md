@@ -1,6 +1,14 @@
 # Etapa 1 — backend local mínimo
 
-Fecha de inicio: 29/10/2026. Estado actualizado: 10/11/2026. **Backend local del primer slice y administración global sintética de instituciones implementados; etapa abierta**.
+Fecha de inicio: 29/10/2026. Estado actualizado: 10/11/2026. **En pausa; backend local del primer slice y administración global sintética de instituciones implementados; etapa abierta**.
+
+## Pausa del proyecto — 10/11/2026
+
+- No continuar desarrollo, iniciar servicios ni publicar nuevos cambios sin una nueva solicitud. Último commit funcional: `55cac2b` (`feat: configure institution operator visibility`), publicado en `origin/main`; árbol de trabajo limpio al pausar.
+- Verificaciones de este estado: backend `manage.py test` (72, 1 omitida), Ruff, `makemigrations --check`, OpenAPI validator; frontend lint/build y Playwright `test:accounts` + `test:system-admin`.
+- Datos locales (no están representados por el commit): **Clinica Indisa** está como `combined`; **Hospital Central Demo** tiene como única operadora autorizada a **Hospital Operador Demoo**. Hospital Operador Demoo sigue como `operator`; Hospital Central Demo sigue como `receiver`. Las demás instituciones no se alteraron. No se encontró una cuenta activa de Central Demo con ambos grupos `institution_admin` y `urgencias`, por lo que la relación se verificó en backend, no con una sesión de esa cuenta.
+- Servicios al pausar: Vite cerrado; no hay listeners del proyecto en `5173/5174`, Django `8000`, PostgreSQL aislado `55432`, Valkey `6379` ni Mailpit `1025/8025`. El PostgreSQL preexistente en `5432` continúa activo y no se modificó; no es el clúster de AmbuSync.
+- Para retomar, consultar primero las instrucciones de [entorno local reproducible](#entorno-local-reproducible-powershell), comprobar que no existan cambios o servicios de terceros, iniciar solo los servicios necesarios y repetir verificaciones antes de publicar.
 
 ## Propósito y límites
 
