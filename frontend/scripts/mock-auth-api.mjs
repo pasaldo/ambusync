@@ -7,6 +7,10 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
     { id: "3", username: "prueba_urgencias", email: "prueba.urgencias@example.test", institution_name: "Hospital Central Demo", groups: ["urgencias"], active: false, ambulance: null },
     { id: "4", username: "prueba_ambulancia", email: "prueba.ambulancia@example.test", institution_name: "Hospital Operador Demo", groups: ["ambulance"], active: false, ambulance: demoAmbulances[0] },
   ];
+  const managedInstitutions = [
+    { id: "demo-institution-id", name: "Hospital Central Demo", kind: "receiver", enabled: true, rut: "76.123.456-0", address: "Dirección sintética 123, Santiago", phone: "+56 2 2000 0000", email: "central@example.test" },
+    { id: "inactive-institution-id", name: "Hospital Inactivo Demo", kind: "receiver", enabled: false, rut: "77.123.456-0", address: "Dirección demo 45", phone: "", email: "inactivo@example.test" },
+  ];
   const demoEmergencies = [{
     id: "demo-emergency-id",
     operating_institution_id: "demo-operator-id",
@@ -71,7 +75,7 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
   }
   const demoUser = {
     id: "demo-user-id",
-    username: groups.includes("institution_admin") ? "synthetic_admin" : "demo_ambulancia",
+    username: groups.includes("system_admin") ? "synthetic_system_admin" : groups.includes("institution_admin") ? "synthetic_admin" : "demo_ambulancia",
     groups,
     institutions: [{ id: "demo-hospital-id", name: "Hospital Central Demo" }],
     ambulance: groups.includes("ambulance") ? { id: "demo-ambulance-id", code: "SYN-01", institution_name: "Hospital Operador Demo" } : null,
@@ -107,6 +111,54 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
     }
     if (pathname === "/api/v1/auth/activate/" && method === "POST") {
       await route.fulfill({ json: { activated: true } });
+      return;
+    }
+    if (pathname === "/api/v1/system/institutions/" && method === "GET") {
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get("status") ?? "all";
+      const query = (url.searchParams.get("q") ?? "").toLowerCase();
+      const results = managedInstitutions.filter((item) =>
+        (status === "all" || (status === "active") === item.enabled)
+        && (!query || item.name.toLowerCase().includes(query) || item.rut.toLowerCase().includes(query))
+      );
+      await route.fulfill({ json: results });
+      return;
+    }
+    if (pathname === "/api/v1/system/institutions/" && method === "POST") {
+      const input = route.request().postDataJSON();
+      const created = {
+        id: "demo-created-institution-id",
+        name: input.name,
+        kind: "receiver",
+        enabled: true,
+        rut: input.rut,
+        address: input.address,
+        phone: input.phone,
+        email: input.email,
+      };
+      managedInstitutions.push(created);
+      await route.fulfill({ status: 201, json: { ...created, first_account: { id: "demo-first-admin-id", username: input.first_username }, activation_sent: true } });
+      return;
+    }
+    const systemInstitutionPath = pathname.match(/^\/api\/v1\/system\/institutions\/([^/]+)(?:\/(deactivate|reactivate))?\/$/);
+    if (systemInstitutionPath && method === "PATCH") {
+      const target = managedInstitutions.find((item) => item.id === systemInstitutionPath[1]);
+      if (!target) {
+        await route.fulfill({ status: 404, json: { message: "No existe." } });
+        return;
+      }
+      Object.assign(target, route.request().postDataJSON());
+      await route.fulfill({ json: target });
+      return;
+    }
+    if (systemInstitutionPath && method === "POST") {
+      const target = managedInstitutions.find((item) => item.id === systemInstitutionPath[1]);
+      if (!target) {
+        await route.fulfill({ status: 404, json: { message: "No existe." } });
+        return;
+      }
+      target.enabled = systemInstitutionPath[2] === "reactivate";
+      await route.fulfill({ json: target });
       return;
     }
     if (pathname === "/api/v1/institutions/management/config/") {
@@ -175,5 +227,5 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
     await route.fulfill({ status: 404, json: { code: "not_found", message: "Ruta no simulada." } });
   });
 
-  return { managedAccounts };
+  return { managedAccounts, managedInstitutions };
 }

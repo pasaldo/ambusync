@@ -155,6 +155,10 @@ export function LocalPortal() {
     getCurrentUser()
       .then((current) => {
         if (!active) return;
+        if (current.groups.includes("system_admin")) {
+          navigate("/sistema", { replace: true });
+          return;
+        }
         acceptUser(current);
         setRole(current.groups.includes("ambulance") ? "ambulance" : current.groups.includes("urgencias") ? "urgencias" : null);
       })
@@ -166,7 +170,7 @@ export function LocalPortal() {
       })
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [acceptUser]);
+  }, [acceptUser, navigate]);
 
   useEffect(() => {
     if (!loading && !user && location.pathname !== "/") navigate("/", { replace: true });

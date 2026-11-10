@@ -26,6 +26,7 @@ Referencia: [diagnóstico del prototipo](ANALISIS_INICIAL.md) e Informe 2 aporta
 | D-012 | Tratamiento del formulario no enviado al vencer sesión aprobado el 29/10/2026 | Conservar solo en memoria para la misma cuenta; al reautenticar, comprobar identidad y permisos; no enviar automáticamente; descartar si cambia la cuenta; implementación/pruebas pendientes |
 | D-013 | Verificación administrativa de identidad para recuperar acceso al correo aprobada el 29/10/2026 | Contacto institucional previo registrado; anotar verificador, método, fecha y resultado; sin preguntas secretas ni cambio a correo no verificado; implementación/pruebas pendientes |
 | D-014 | Cambio de destino después de iniciado el traslado aprobado el 29/10/2026 | Operación atómica: cancelar episodio anterior y detener GPS; crear reemplazo con ID/contexto autorizado nuevos y seguimiento nuevo; conservar historial y no heredar acceso entre receptores; contratos exactos/pruebas pendientes |
+| D-015 | Administración global de instituciones aprobada el 10/11/2026 | Rol `system_admin` exclusivo, provisionado localmente, sin permisos clínicos ni membresía; gestiona instituciones Receptoras con baja lógica, auditoría y activación local de su primer administrador de Urgencias |
 
 D-002 modifica el diseño de cuentas por unidad del Informe 2. D-003 exige adaptar el campo de rol único del diccionario: proponer conjuntos de permisos/grupos, sin un booleano que conceda acceso total. Mantener trazabilidad de estas diferencias al actualizar el informe.
 
@@ -115,32 +116,34 @@ Esta es una condición de aceptación futura, no un resultado alcanzado. Los 20 
 
 ### Matriz de permisos aprobada
 
-| Operación | Ambulancia | Urgencias | Administración institucional |
-|---|---|---|---|
-| Crear/gestionar cuentas y unidades | No | No | Sí, solo institución propia y permisos delegables |
-| Crear emergencia | Sí, para unidad asignada | No | No |
-| Ver/actualizar antecedentes y mediciones del traslado | Unidad asignada y episodio activo | Consultar episodio del destino; no sobrescribir datos del emisor | No por defecto |
-| Registrar posición/inicio de traslado | Unidad asignada y episodio activo | Consultar posición autorizada | No por defecto |
-| Confirmar lectura/preparación | No | Sí, destino correspondiente | No por defecto |
-| Registrar llegada/cierre | No | Sí, destino correspondiente | No por defecto |
-| Cancelar antes de recepción | Unidad asignada, con motivo obligatorio | No | No por defecto |
-| Consultar histórico e informes clínicos | No por defecto | Con permiso adicional de informes, limitado al destino | No por defecto |
-| Desactivar paciente de prueba | No | Con permiso adicional, ámbito autorizado y sin episodio activo | No por defecto |
-| Acceder a auditoría administrativa | No por defecto | No por defecto | Sí, institución propia, sin contenido clínico |
-| Gestionar catálogo de síntomas | Solo con permiso adicional y dentro de su institución | Solo con permiso adicional y dentro de su institución | Solo con permiso adicional y dentro de su institución |
+| Operación | Ambulancia | Urgencias | Administración institucional | Administración global |
+|---|---|---|---|---|
+| Crear/gestionar cuentas y unidades | No | No | Sí, solo institución propia y permisos delegables | No |
+| Crear/editar/desactivar instituciones | No | No | No | Sí, solo instituciones y sin acceso clínico |
+| Crear emergencia | Sí, para unidad asignada | No | No | No |
+| Ver/actualizar antecedentes y mediciones del traslado | Unidad asignada y episodio activo | Consultar episodio del destino; no sobrescribir datos del emisor | No por defecto | No |
+| Registrar posición/inicio de traslado | Unidad asignada y episodio activo | Consultar posición autorizada | No por defecto | No |
+| Confirmar lectura/preparación | No | Sí, destino correspondiente | No por defecto | No |
+| Registrar llegada/cierre | No | Sí, destino correspondiente | No por defecto | No |
+| Cancelar antes de recepción | Unidad asignada, con motivo obligatorio | No | No por defecto | No |
+| Consultar histórico e informes clínicos | No por defecto | Con permiso adicional de informes, limitado al destino | No por defecto | No |
+| Desactivar paciente de prueba | No | Con permiso adicional, ámbito autorizado y sin episodio activo | No por defecto | No |
+| Acceder a auditoría administrativa | No por defecto | No por defecto | Sí, institución propia, sin contenido clínico | No |
+| Gestionar catálogo de síntomas | Solo con permiso adicional y dentro de su institución | Solo con permiso adicional y dentro de su institución | Solo con permiso adicional y dentro de su institución | No |
 
 «No por defecto» significa que se necesita otro permiso explícito; administrar usuarios no concede acceso clínico. Ningún permiso concede acceso fuera del ámbito autorizado.
 
 ### Responsabilidades y permisos adicionales
 
 - **Administración institucional:** gestiona y desactiva cuentas/ambulancias propias, asigna y retira personal, restablece acceso por procedimiento controlado y consulta auditoría administrativa. No administra otras instituciones, no modifica episodios ni confirma llegadas/cierres sin el permiso funcional correspondiente.
+- **Administración global (`system_admin`):** rol exclusivo de los creadores, sin membresía institucional ni grupos operativos. Lista todas las instituciones, administra datos y estado, y crea Receptoras junto con su primer administrador de Urgencias. No consulta ni modifica episodios, cuentas institucionales ni datos clínicos. El rol se crea localmente por comando y no mediante registro web ni privilegio Django de superusuario.
 - **Ambulancia:** crea episodios para su unidad asignada, actualiza antecedentes y agrega mediciones durante el traslado, registra posición/inicio y cancela antes de recepción con motivo. No suplanta unidades, no cambia directamente destino tras envío y no edita episodios cerrados/cancelados.
 - **Urgencias:** consulta antecedentes, mediciones y posición de episodios del destino; registra lectura, preparación, llegada y cierre. No sobrescribe mediciones del emisor ni cancela unilateralmente. Ante errores solicita corrección al operador; el procedimiento de contingencia se documentará en AS-003/AS-005.
 - **Informes:** permiso adicional al de urgencias para consultar histórico, filtros y resúmenes del destino autorizado.
 - **Desactivación de pacientes de prueba:** permiso adicional al de urgencias; solo pacientes sintéticos dentro del ámbito autorizado, sin episodios activos y conservando episodios/auditoría. No habilita borrado físico.
 - **Gestión de síntomas:** permiso adicional explícito para agregar/desactivar elementos del catálogo institucional, con una base inicial común. No modifica catálogos ajenos ni altera síntomas ya registrados en episodios.
 
-Una cuenta con administración + urgencias puede utilizar ambas funciones dentro de su ámbito; cada acción conserva autoría. El «maestro» es una cuenta personal con permisos administrativos, no una cuenta compartida ni un superusuario técnico. Se prohíbe autoescalamiento: solo se conceden permisos cuya delegación esté autorizada, nunca privilegios superiores a esa autorización. El primer administrador se provisiona mediante procedimiento controlado; no hay registro público ni contraseñas predeterminadas versionadas. Las cuentas técnicas de infraestructura se separan de las cuentas funcionales.
+Una cuenta con administración institucional + urgencias puede utilizar ambas funciones dentro de su ámbito; cada acción conserva autoría. El administrador de sistema es un rol global separado, no una extensión clínica del administrador institucional. Se prohíbe autoescalamiento: solo se conceden permisos cuya delegación esté autorizada, nunca privilegios superiores a esa autorización. Los administradores iniciales se provisionan mediante procedimiento controlado; no hay registro público ni contraseñas predeterminadas versionadas. Las cuentas técnicas de infraestructura se separan de las cuentas funcionales.
 
 ### Reasignación y desactivación
 
@@ -630,6 +633,7 @@ Estos identificadores son locales al proyecto, no números de GitHub Issues. No 
 | AS-008 | P1, AS-007 | Pruebas frontend repetibles y corrección del validador Mermaid; scripts fallan ante error real | Implementado y verificado (3 diagramas; 4 pruebas unitarias; sincronización entre pestañas) |
 | AS-009 | P1, AS-008 | CI en pull request y main; verificar una ejecución correcta y un fallo controlado | Workflows frontend/backend integrados. Los tests administrativos y verificaciones afectadas pasaron localmente; confirmar estado remoto del HEAD actual en GitHub Actions |
 | AS-010 | P1, AS-006/009 | Entorno reproducible, estrategia de ramas/releases y checklist de aceptación de etapa | Guía documentada y comandos verificados en entorno actual; revisión por otro integrante pendiente |
+| AS-011 | P1, AS-002/005/009 | Administración global de instituciones, alta con primer admin, baja lógica segura y aceptación | Aprobada como D-015; implementación y pruebas del rol global separadas de permisos clínicos |
 
 P0 = bloquea diseño seguro o elimina riesgo alto; P1 = prepara desarrollo reproducible. No significa que todas las tareas tengan que ejecutarse secuencialmente: AS-007 puede avanzar mientras se revisan reglas.
 

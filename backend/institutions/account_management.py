@@ -58,13 +58,16 @@ def accounts_created_by(actor):
     return AuditEvent.objects.filter(actor=actor, action="account.created", object_type="account")
 
 
-def send_activation_email(user, raw_token):
+def send_activation_email(user, raw_token, *, institution_name=None):
     query = urlencode({"uid": user.pk, "token": raw_token})
     activation_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/activar-cuenta?{query}"
+    institution_message = (
+        f" para {institution_name}" if institution_name else " para tu establecimiento"
+    )
     return send_mail(
         subject="Activa tu cuenta de AmbuSync",
         message=(
-            "Se creó una cuenta de prueba de AmbuSync para tu establecimiento. "
+            f"Se creó una cuenta de AmbuSync{institution_message}. "
             f"Define tu contraseña personal dentro de las próximas 24 horas: {activation_url}\n\n"
             "Si no esperabas este mensaje, contacta a la administración de tu establecimiento."
         ),

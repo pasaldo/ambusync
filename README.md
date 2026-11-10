@@ -17,18 +17,18 @@ La aplicación sigue siendo un prototipo de demostración, no un sistema clínic
 > antes del arribo.
 
 AmbuSync es una **web app mobile-first** que en escritorio se muestra dentro de un *marco de
-teléfono* (device shell) para emular una app nativa. Tiene dos vistas según el rol:
+teléfono* (device shell) para emular una app nativa. Incluye módulos separados por rol:
 
 - **Paramédico (ambulancia)** — captura del paciente. Modo claro, controles grandes (uso con guantes).
 - **Urgencias (hospital)** — tablero de pacientes entrantes. Modo oscuro tipo monitor, lectura de un vistazo.
+- **Administración global** — gestión del directorio institucional, sin acceso a episodios ni permisos clínicos.
 
 El MVP demuestra el flujo completo **capturar → transmitir → recibir** con datos de demo.
 
 ## Muestras del funcionamiento
 
-Capturas del ingreso y del simulador. La imagen de inicio corresponde a la pantalla de login;
-las siguientes muestran el simulador separado con una sesión de prueba interceptada localmente,
-no una sesión ni datos leídos del backend.
+Capturas de las vistas locales de ambulancia, Urgencias y administración global. Todas usan un
+mock con datos sintéticos; no representan sesiones ni datos leídos de un backend real.
 
 ### 1. Ingreso a la aplicación
 
@@ -73,7 +73,18 @@ permite registrar la llegada desde la tarjeta y conserva un archivo filtrable.
   </tr>
 </table>
 
-> Las capturas se regeneran con `npm run shots` y muestran las vistas actuales de `/local` con el mock de backend sintético (requiere el dev server corriendo en `:5173`); no corresponden al simulador demo `/ambulancia`/`/urgencias`.
+### 4. Administración global de instituciones
+
+El rol global exclusivo de administración lista instituciones activas e inactivas, permite editar
+sus datos y conservarlas mediante baja lógica. El alta crea una institución Receptora y una primera
+cuenta de Urgencias con administración institucional, pendiente de activar por correo local.
+
+<p align="center">
+  <img src="docs/screenshots/13-administracion-global-instituciones.png" alt="Panel global de administración de instituciones sintéticas" width="720" />
+</p>
+
+> Las capturas se regeneran con `npm run shots` y muestran vistas de `/local` y `/sistema` con el mock
+> sintético (requiere Vite activo en `:5173`); no representan datos de producción ni el simulador demo.
 
 ## Stack
 
@@ -84,6 +95,7 @@ permite registrar la llegada desde la tarjeta y conserva un archivo filtrable.
 
 El ingreso comienza con autenticación de cuenta en Django. Tras iniciar sesión, `/local` muestra
 el módulo permitido por los grupos de esa cuenta; no se selecciona libremente una identidad.
+La administración global se provisiona localmente mediante comando controlado y accede solo a `/sistema`.
 Las cuentas con administración institucional pueden crear usuarios dentro de su establecimiento,
 asignar permisos operativos delegables y vincular operadores a unidades existentes; la activación
 requiere que cada persona defina su propia contraseña mediante correo local.
@@ -208,7 +220,7 @@ npm run check:diagrams
 npm run test:sync       # requiere Vite activo
 npm run test:accounts   # flujo local con mock sintético
 npm run build
-npm run shots           # actualiza capturas de /local; requiere Vite activo
+npm run shots           # actualiza capturas de /local y /sistema; requiere Vite activo
 ```
 
 Desde la raíz:

@@ -84,6 +84,17 @@ try {
   await urgenciasPage.getByRole("button", { name: "Unidades de ambulancia" }).click();
   await screenshot(urgenciasPage, "12-administracion-unidades.png");
   await urgenciasContext.close();
+
+  const systemContext = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, reducedMotion: "reduce" });
+  await mockAuthenticatedApi(systemContext, { groups: ["system_admin"] });
+  const systemPage = await systemContext.newPage();
+  await systemPage.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await systemPage.getByLabel("Usuario").fill("synthetic_system_admin");
+  await systemPage.getByLabel("Contraseña").fill("local-test-password");
+  await systemPage.getByRole("button", { name: "Iniciar sesión" }).click();
+  await systemPage.getByRole("heading", { name: "AmbuSync · Sistema" }).waitFor({ state: "visible" });
+  await screenshot(systemPage, "13-administracion-global-instituciones.png");
+  await systemContext.close();
 } finally {
   await browser.close();
 }

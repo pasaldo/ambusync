@@ -12,6 +12,7 @@ from accounts.models import LoginThrottle, User
 from accounts.security import revoke_user_sessions
 from audit.models import SessionRevocationEvent
 from institutions.models import AmbulanceAssignment, Institution, InstitutionMembership
+from institutions.rut import normalize_company_rut
 
 
 class SyntheticBootstrapTests(TestCase):
@@ -46,6 +47,10 @@ class SyntheticBootstrapTests(TestCase):
         )
         self.assertEqual(AmbulanceAssignment.objects.filter(user=operator, active=True).count(), 1)
         self.assertEqual(InstitutionMembership.objects.filter(active=True).count(), 2)
+        for institution in Institution.objects.all():
+            self.assertIsNotNone(normalize_company_rut(institution.rut))
+            self.assertIn("@example.test", institution.email)
+            self.assertTrue(institution.address)
         self.assertNotIn("Faro-Clinico", output.getvalue())
 
     def test_rerunning_bootstrap_keeps_existing_passwords(self):

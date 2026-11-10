@@ -135,6 +135,74 @@
         "responses": { "200": { "description": "Nombre del establecimiento y permisos delegables según su tipo.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountManagementConfig" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
       }
     },
+    "/api/v1/system/institutions/": {
+      "get": {
+        "operationId": "listSystemInstitutions",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          { "name": "status", "in": "query", "required": false, "schema": { "type": "string", "enum": ["all", "active", "inactive"], "default": "all" } },
+          { "name": "q", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Busca por nombre o RUT." }
+        ],
+        "responses": {
+          "200": { "description": "Todas las instituciones disponibles para administración global, incluidas las inactivas.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/SystemInstitution" } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "operationId": "createSystemInstitution",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/UserInteraction" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SystemInstitutionCreate" } } } },
+        "responses": {
+          "201": { "description": "Institución receptora, cuenta Urgencias con administración institucional y activación local creadas.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SystemInstitutionCreated" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "503": { "$ref": "#/components/responses/ServiceUnavailable" }
+        }
+      }
+    },
+    "/api/v1/system/institutions/{institution_id}/": {
+      "patch": {
+        "operationId": "updateSystemInstitution",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/SystemInstitutionId" }, { "$ref": "#/components/parameters/UserInteraction" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SystemInstitutionUpdate" } } } },
+        "responses": {
+          "200": { "description": "Datos institucionales actualizados; tipo y estado no se modifican en esta operación.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SystemInstitution" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/system/institutions/{institution_id}/deactivate/": {
+      "post": {
+        "operationId": "deactivateSystemInstitution",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/SystemInstitutionId" }, { "$ref": "#/components/parameters/UserInteraction" }],
+        "responses": {
+          "200": { "description": "Baja lógica completada; sesiones de miembros revocadas.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SystemInstitution" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/system/institutions/{institution_id}/reactivate/": {
+      "post": {
+        "operationId": "reactivateSystemInstitution",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/SystemInstitutionId" }, { "$ref": "#/components/parameters/UserInteraction" }],
+        "responses": {
+          "200": { "description": "Institución reactivada sin eliminar historial ni membresías.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SystemInstitution" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
     "/api/v1/emergencies/": {
       "get": {
         "operationId": "listEmergencies",
@@ -233,6 +301,7 @@
     "parameters": {
       "CsrfToken": { "name": "X-CSRFToken", "in": "header", "required": true, "schema": { "type": "string" }, "description": "Valor obtenido en GET /api/v1/auth/csrf/." },
       "ManagedUserId": { "name": "user_id", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 } },
+      "SystemInstitutionId": { "name": "institution_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
       "UserInteraction": { "name": "X-AmbuSync-User-Interaction", "in": "header", "required": false, "schema": { "type": "string", "enum": ["1"] }, "description": "Enviar solo para acción humana; omitir en polling/telemetría. Renueva el vencimiento de inactividad (30 min), nunca el límite absoluto de 12 h." }
     },
     "headers": { "SessionCookie": { "description": "Cookie HttpOnly de sesión; Secure se activa para HTTPS.", "schema": { "type": "string" } } },
@@ -284,6 +353,59 @@
       },
       "ManagedAmbulance": { "type": "object", "required": ["id", "code", "institution_id", "institution_name"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" }, "institution_id": { "type": "string", "format": "uuid" }, "institution_name": { "type": "string" } } },
       "ManagedInstitution": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" } } },
+      "SystemInstitution": {
+        "type": "object",
+        "required": ["id", "name", "kind", "enabled", "rut", "address", "phone", "email"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string", "maxLength": 160 },
+          "kind": { "type": "string", "enum": ["operator", "receiver", "combined"] },
+          "enabled": { "type": "boolean" },
+          "rut": { "type": "string", "pattern": "^\\d{2}\\.\\d{3}\\.\\d{3}-[0-9K]$" },
+          "address": { "type": "string", "maxLength": 255 },
+          "phone": { "type": "string", "maxLength": 15 },
+          "email": { "type": "string", "format": "email", "maxLength": 254 }
+        }
+      },
+      "SystemInstitutionCreate": {
+        "type": "object",
+        "required": ["name", "rut", "address", "email", "first_username", "first_email"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 160, "description": "Letras, números, espacios y guiones." },
+          "rut": { "type": "string", "pattern": "^\\d{2}\\.\\d{3}\\.\\d{3}-[0-9K]$", "description": "RUT chileno con dígito módulo 11 y base entre 76.000.000 y 79.999.999." },
+          "address": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "phone": { "type": "string", "maxLength": 15, "pattern": "^[0-9+ ()-]{0,15}$" },
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "first_username": { "type": "string", "minLength": 1, "maxLength": 150 },
+          "first_email": { "type": "string", "format": "email", "maxLength": 254 }
+        }
+      },
+      "SystemInstitutionUpdate": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+          "rut": { "type": "string", "pattern": "^\\d{2}\\.\\d{3}\\.\\d{3}-[0-9K]$" },
+          "address": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "phone": { "type": "string", "maxLength": 15, "pattern": "^[0-9+ ()-]{0,15}$" },
+          "email": { "type": "string", "format": "email", "maxLength": 254 }
+        }
+      },
+      "SystemInstitutionCreated": {
+        "allOf": [
+          { "$ref": "#/components/schemas/SystemInstitution" },
+          {
+            "type": "object",
+            "required": ["first_account", "activation_sent"],
+            "properties": {
+              "first_account": { "type": "object", "required": ["id", "username"], "properties": { "id": { "type": "string" }, "username": { "type": "string" } } },
+              "activation_sent": { "type": "boolean", "const": true }
+            }
+          }
+        ]
+      },
       "AccountManagementConfig": { "type": "object", "required": ["institution_name", "delegable_groups", "operator_institutions", "can_create_accounts"], "properties": { "institution_name": { "type": "string" }, "delegable_groups": { "type": "array", "items": { "type": "string", "enum": ["ambulance", "urgencias"] } }, "operator_institutions": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedInstitution" } }, "can_create_accounts": { "type": "boolean" } } },
       "ManagedAccountCreate": {
         "type": "object",

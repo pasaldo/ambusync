@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
 
 
 class Institution(models.Model):
@@ -15,9 +16,21 @@ class Institution(models.Model):
     name = models.CharField(max_length=160)
     kind = models.CharField(max_length=16, choices=Kind.choices)
     enabled = models.BooleanField(default=True)
+    rut = models.CharField(max_length=12, blank=True, default="")
+    address = models.CharField(max_length=255, blank=True, default="")
+    phone = models.CharField(max_length=15, blank=True, default="")
+    email = models.EmailField(max_length=254, blank=True, default="")
 
     class Meta:
         ordering = ("name", "id")
+        constraints = [
+            models.UniqueConstraint(
+                Lower("rut"), condition=~Q(rut=""), name="uniq_institution_rut_ci_nonempty"
+            ),
+            models.UniqueConstraint(
+                Lower("email"), condition=~Q(email=""), name="uniq_institution_email_ci_nonempty"
+            ),
+        ]
 
     def __str__(self):
         return self.name

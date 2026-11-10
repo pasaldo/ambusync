@@ -1,6 +1,6 @@
 # Etapa 1 — backend local mínimo
 
-Fecha de inicio: 29/10/2026. Estado actualizado: 09/11/2026. **Backend local del primer slice implementado; administración institucional ampliada y flujo de copias sintéticas ensayado; etapa abierta**.
+Fecha de inicio: 29/10/2026. Estado actualizado: 10/11/2026. **Backend local del primer slice y administración global sintética de instituciones implementados; etapa abierta**.
 
 ## Propósito y límites
 
@@ -14,8 +14,11 @@ Construir el flujo vertical local del piloto usando **Hospital Operador Demo**, 
 | 2. Contratos | Contrato HTTP del primer slice en `backend/openapi.json`, validación y permisos en DRF; D-005 a D-014 siguen siendo la autoridad funcional. | La PR #5 está integrada en `main`. La suite llegó a 59 pruebas backend (1 omitida) en la última ejecución local registrada; incluye autenticación, emergencias, aislamiento, auditoría e idempotencia/concurrencia. Los contratos de operaciones futuras continúan pendientes. |
 | 3. Alcance | Implementados localmente sesión, permisos, auditoría, emergencias, vistas de ambulancia y Urgencias, y administración de cuentas/unidades. La administración de Urgencias tiene subpaneles para crear cuentas, consultar historial y crear unidades; permite asignar o cambiar unidad a cuentas de ambulancia. | Migraciones y pruebas usan PostgreSQL aislado. No es despliegue ni release. WebSocket, GPS, cambio de destino, recuperación de cuenta, informes y otros flujos aprobados siguen pendientes. |
 | 4. Entorno | Python 3.14.10 instalado. PostgreSQL 18.6 responde en clúster separado `127.0.0.1:55432`; base/rol `ambusync_dev`, secretos aleatorios en `backend/.env` ignorado por Git. Docker no está instalado. | Versión actualizada y migraciones/pruebas comprobadas. Reproducir arranque con las rutas documentadas; no usar el servicio preexistente en `5432`. |
+| 5. Administración global | D-015: rol `system_admin` exclusivo, sin membresía institucional ni permisos clínicos; comando local para aprovisionarlo. El panel crea Receptoras y la primera cuenta Urgencias con administración institucional. | Lista instituciones, edita datos, conserva bajas lógicas y permite reactivar. Desactivación bloquea login y revoca sesiones; se impide si la institución está vinculada como origen/destino a episodios no terminales. Pruebas sintéticas en curso. |
 
 El primer slice y las ampliaciones administrativas descritas sí están implementados localmente; la etapa 1 continúa abierta. Las pruebas frontend y backend se ejecutan localmente y también están configuradas en CI; un resultado local no sustituye la verificación de cada ejecución remota. No se desplegó servicio de aplicación. La base local contiene cuentas y datos sintéticos; no borrar sus datos automáticamente.
+
+La administración global está separada de `/local`: el inicio de sesión lleva `system_admin` exclusivamente a `/sistema`. El alta institucional fija tipo Receptora, valida RUT empresa chileno (76.000.000–79.999.999, dígito módulo 11), nombre, dirección, teléfono opcional y correo único. En la misma transacción crea la cuenta pendiente de Urgencias, grupos `urgencias` + `institution_admin`, membresía y activación de 24 horas por correo local. Un fallo de entrega revierte toda la creación. `system_admin` se crea con `create_system_admin <usuario> <correo>`; no se utiliza Django `is_staff`/`is_superuser` ni hay registro web.
 
 ## Stack bajo evaluación local
 
@@ -67,6 +70,7 @@ El primer slice y las ampliaciones administrativas descritas sí están implemen
 5. Reintento idempotente no duplica; mismo UUID con contenido distinto y versión/estado obsoletos se rechazan.
 6. Fixtures/pruebas no contienen personas, instituciones ni credenciales reales; logs no revelan secretos ni payloads clínicos.
 7. CI frontend/backend configurado. Las pruebas backend usan PostgreSQL; CI frontend incluye sincronización Playwright y flujo de cuentas. Valkey/Channels pueden estar disponibles como servicio de prueba, pero no se habilitan en el runtime. Los últimos ajustes a `test:accounts` fueron probados localmente; confirmar en GitHub Actions el resultado remoto del commit vigente antes de declarar CI remoto verde.
+8. `system_admin` está separado de los roles operativos; no tiene membresía institucional. Los datos de instituciones sintéticas heredadas se completan mediante `seed_synthetic`; las migraciones no inventan información. La documentación y capturas incluyen el nuevo panel.
 
 ## Exclusiones de este primer alcance
 
@@ -108,6 +112,21 @@ Para probar únicamente con las cuentas sintéticas existentes, se puede provisi
 Solo la cuenta con administración institucional y perfil de Urgencias puede crear cuentas desde la SPA. Puede crear cuentas de Urgencias para su institución y cuentas de ambulancia para una institución operadora habilitada. **Al crear una cuenta de ambulancia es obligatorio asignarle una unidad habilitada de esa institución operadora.** Posteriormente, su administración creadora puede cambiar la unidad desde el historial de cuentas; no se admite crearla sin unidad para asignarla después. El panel local permite consultar cuentas de Urgencias del establecimiento y cuentas de ambulancia creadas por esa administración para instituciones operadoras habilitadas; además, la API permite administrar cuentas de la propia institución. Se añadió una prueba con dos instituciones receptoras: una administración no puede listar ni reasignar una cuenta de ambulancia creada por la otra, pero su creador sí puede reasignarla. La selección de instituciones/unidades operadoras habilitadas sigue siendo un directorio compartido para administraciones de Urgencias y no representa propiedad de dichas instituciones. Las cuentas de administración de ambulancias no pueden crear usuarios. Las altas quedan inactivas hasta completar activación por enlace de un solo uso de 24 horas, entregado por SMTP local; no hay correo externo. Reenviar activación rota el token. Desactivar una cuenta revoca sus sesiones y asignaciones con protecciones de continuidad; las acciones relevantes se auditan.
 
 El desarrollo usa SMTP local de Mailpit en `127.0.0.1:1025` (configurable con `EMAIL_HOST` y `EMAIL_PORT`; UI local habitual `127.0.0.1:8025`). La configuración predeterminada no envía a servicios externos; iniciar Mailpit antes de crear cuentas. Si no se puede entregar el correo, la creación/rotación falla y revierte sus cambios. La gestión local de unidades y reasignaciones está implementada; recuperación de cuenta, cambio de permisos desde la interfaz y entrega externa continúan pendientes.
+
+### Administración global de instituciones (D-015)
+
+- La cuenta global se aprovisiona solo desde backend local; contraseña oculta, mínimo 15 caracteres. Puede haber varias cuentas. El grupo `system_admin` debe ser el único grupo del usuario y no puede tener membresías, `is_staff` ni `is_superuser`:
+
+  ```powershell
+  uv run --directory backend python manage.py create_system_admin <usuario> <correo>
+  ```
+
+- El login la dirige a `/sistema`. La API global vive bajo `/api/v1/system/institutions/`; sus endpoints exigen sesión, CSRF en mutaciones y rol global exclusivo. El listado incluye activas/inactivas y permite filtrar por estado/buscar por nombre o RUT.
+- El alta crea solo una institución Receptora y su primera cuenta de Urgencias con `institution_admin`. El correo institucional de contacto y el de activación son campos independientes, pueden coincidir y el correo institucional debe ser único. La cuenta queda pendiente hasta que defina contraseña desde su enlace de activación local de 24 horas. Institución, cuenta, grupos, membresía, activación y auditoría se crean en transacción; si falla SMTP, se revierte todo.
+- RUT acepta formato `NN.NNN.NNN-D`, base entre 76.000.000 y 79.999.999 y dígito verificador módulo 11; se normaliza y no se duplica. Nombre admite letras Unicode, números, espacios y guion (160); dirección 255; teléfono opcional 15 caracteres (`0-9`, `+`, espacios, paréntesis y guion); correo de formato válido, dominio libre y único.
+- La edición modifica nombre, RUT, dirección, teléfono o correo por campo; tipo y estado no se cambian en edición. La desactivación conserva institución, membresías, cuentas, unidades e historial, revoca sesiones y bloquea el login de miembros mientras la institución esté deshabilitada. Se rechaza si hay episodios no terminales en que figure como institución operadora o destino. Reactivar vuelve a permitir el login de cuentas que sigan activas; las sesiones anteriores no reviven.
+- Cada alta, edición, baja y reactivación registra evento de auditoría. El rol global no lista ni opera emergencias, no administra cuentas institucionales ya existentes fuera de la cuenta inicial y no adquiere permisos clínicos.
+- La migración agrega metadata opcional para no fabricar datos. En el entorno sintético, `seed_synthetic` completa los registros institucionales heredados con RUT/dirección/teléfono/correo de prueba de manera idempotente; correos usan `example.test`. No aplicar datos sintéticos a instituciones reales.
 
 ### Retención y respaldo sintético
 

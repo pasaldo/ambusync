@@ -50,11 +50,12 @@ npm run test:unit
 npm run check:diagrams
 npm run build
 npm run test:accounts
+npm run test:system-admin
 ```
 
 `npm run lint` ejecuta TypeScript; no hay ESLint configurado. `check:diagrams` usa Chromium local. La prueba `test:sync` necesita el servidor de desarrollo y Chromium: mantén Vite corriendo en una terminal y ejecuta en otra:
 
-`npm run test:accounts` ejecuta el flujo Playwright de cuentas, unidad ambulancia, vistas de episodios, bandeja/archivo de Urgencias y confirmación de llegada con el mock sintético.
+`npm run test:accounts` ejecuta el flujo Playwright de cuentas, unidad ambulancia, vistas de episodios, bandeja/archivo de Urgencias y confirmación de llegada con el mock sintético. `npm run test:system-admin` valida el acceso exclusivo al panel global, alta institucional con cuenta inicial, edición, baja lógica y reactivación.
 
 `npm run shots` genera las nueve capturas documentales actuales del portal `/local` (inicio
 de sesión, formulario de ambulancia, previsualización de vitales, episodios de la unidad,

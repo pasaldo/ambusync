@@ -5,15 +5,16 @@ import { ActivateAccountScreen } from "@/screens/ActivateAccountScreen";
 import { AmbulanceApp } from "@/screens/ambulance/AmbulanceApp";
 import { ErApp } from "@/screens/er/ErApp";
 import { LocalPortal } from "@/screens/local/LocalPortal";
+import { SystemAdminPortal } from "@/screens/system/SystemAdminPortal";
 import { getCurrentUser } from "@/lib/backend";
 
 function AuthenticatedDemo({ children }: { children: ReactNode }) {
-  const [access, setAccess] = useState<"checking" | "allowed" | "login">("checking");
+  const [access, setAccess] = useState<"checking" | "allowed" | "system" | "login">("checking");
 
   useEffect(() => {
     let active = true;
     getCurrentUser()
-      .then(() => active && setAccess("allowed"))
+      .then((user) => active && setAccess(user.groups.includes("system_admin") ? "system" : "allowed"))
       .catch(() => active && setAccess("login"));
     return () => {
       active = false;
@@ -24,6 +25,7 @@ function AuthenticatedDemo({ children }: { children: ReactNode }) {
     return <p role="status" className="grid-monitor min-h-[100dvh] bg-ink p-8 text-center text-sm text-muted-dark">Comprobando sesión…</p>;
   }
   if (access === "login") return <Navigate to="/" replace />;
+  if (access === "system") return <Navigate to="/sistema" replace />;
   return children;
 }
 
@@ -33,6 +35,7 @@ export default function App() {
       <Route path="/" element={<LoginScreen />} />
       <Route path="/activar-cuenta" element={<ActivateAccountScreen />} />
       <Route path="/local/*" element={<LocalPortal />} />
+      <Route path="/sistema/*" element={<SystemAdminPortal />} />
       <Route path="/ambulancia/*" element={<AuthenticatedDemo><AmbulanceApp /></AuthenticatedDemo>} />
       <Route path="/urgencias/*" element={<AuthenticatedDemo><ErApp /></AuthenticatedDemo>} />
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -137,6 +137,7 @@ jobs:
 
           BASE_URL=http://127.0.0.1:5173 npm run test:sync
           BASE_URL=http://127.0.0.1:5173 npm run test:accounts
+          BASE_URL=http://127.0.0.1:5173 npm run test:system-admin
 
       - name: Build frontend
         working-directory: frontend

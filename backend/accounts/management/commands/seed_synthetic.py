@@ -8,27 +8,37 @@ from django.db import transaction
 
 from accounts.models import User
 from institutions.models import Ambulance, AmbulanceAssignment, Institution, InstitutionMembership
+from institutions.rut import synthetic_company_rut
 
 
 class Command(BaseCommand):
     help = "Crea cuentas de demostración para Hospital Operador Demo y Hospital Central Demo."
 
-    @transaction.atomic
     def handle(self, *args, **options):
-        operator_institution = self._institution(
-            "Hospital Operador Demo",
-            "Demo sintética operadora",
-            Institution.Kind.OPERATOR,
-        )
-        receiver_institution = self._institution(
-            "Hospital Central Demo",
-            "Demo sintética receptora",
-            Institution.Kind.RECEIVER,
-        )
-        if operator_institution.kind != Institution.Kind.OPERATOR:
-            raise CommandError("Hospital Operador Demo tiene un tipo incompatible.")
-        if receiver_institution.kind != Institution.Kind.RECEIVER:
-            raise CommandError("Hospital Central Demo tiene un tipo incompatible.")
+        with transaction.atomic():
+            operator_institution = self._institution(
+                "Hospital Operador Demo",
+                "Demo sintética operadora",
+                Institution.Kind.OPERATOR,
+            )
+            receiver_institution = self._institution(
+                "Hospital Central Demo",
+                "Demo sintética receptora",
+                Institution.Kind.RECEIVER,
+            )
+            if operator_institution.kind != Institution.Kind.OPERATOR:
+                raise CommandError("Hospital Operador Demo tiene un tipo incompatible.")
+            if receiver_institution.kind != Institution.Kind.RECEIVER:
+                raise CommandError("Hospital Central Demo tiene un tipo incompatible.")
+
+        with transaction.atomic():
+            for institution in Institution.objects.order_by("pk"):
+                self._complete_synthetic_institution(institution)
+
+        self._create_accounts(operator_institution, receiver_institution)
+
+    @transaction.atomic
+    def _create_accounts(self, operator_institution, receiver_institution):
 
         ambulance, _ = Ambulance.objects.get_or_create(
             institution=operator_institution,
@@ -98,3 +108,26 @@ class Command(BaseCommand):
             defaults={"kind": kind},
         )
         return institution
+
+    def _complete_synthetic_institution(self, institution):
+        update_fields = []
+        if not institution.rut:
+            occupied = {
+                value.replace(".", "").upper()
+                for value in Institution.objects.exclude(pk=institution.pk)
+                .exclude(rut="")
+                .values_list("rut", flat=True)
+            }
+            institution.rut = synthetic_company_rut(str(institution.pk), occupied)
+            update_fields.append("rut")
+        if not institution.address:
+            institution.address = "Dirección sintética de demostración, Santiago"
+            update_fields.append("address")
+        if not institution.phone:
+            institution.phone = "+56 2 2000 0000"
+            update_fields.append("phone")
+        if not institution.email:
+            institution.email = f"demo-{institution.pk.hex}@example.test"
+            update_fields.append("email")
+        if update_fields:
+            institution.save(update_fields=update_fields)

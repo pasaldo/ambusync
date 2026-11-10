@@ -1,6 +1,6 @@
 # Arquitectura y contratos mínimos del piloto
 
-Fecha: 29/10/2026. Tarea: AS-006. Decisión: D-009.
+Fecha base: 29/10/2026. Actualización: 10/11/2026. Tarea: AS-006/AS-011. Decisiones: D-009/D-015.
 
 **Diseño aprobado por el responsable del proyecto. Implementación parcial:** el primer slice backend local se registra en [ETAPA_1.md](ETAPA_1.md); el resto de la arquitectura no está implementado. No introduce uso clínico real ni sustituye validación profesional. Proveedores, versiones y pendientes operativos se especifican antes de habilitar las funciones correspondientes.
 
@@ -65,9 +65,10 @@ La estructura es un contrato de organización futuro, no directorios ya creados.
 
 | Entidad | Información principal |
 |---|---|
-| Institución | Nombre, tipo, coordenadas y estado |
+| Institución | Nombre, tipo, RUT, dirección, teléfono, correo de contacto y estado |
 | Usuario | Cuenta personal, institución, correo verificado y estado |
 | Grupos/permisos | Capacidades funcionales y delegación autorizada |
+| Administración global | Grupo exclusivo `system_admin`, aprovisionamiento local, gestión institucional sin permiso clínico ni membresía |
 | Ambulancia | Institución, código y estado |
 | Asignación de unidad | Persona, ambulancia, inicio y fin |
 | Paciente | Institución operadora, identidad conocida/desconocida, edad con unidad, sexo y estado |

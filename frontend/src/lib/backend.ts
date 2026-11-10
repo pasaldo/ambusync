@@ -180,6 +180,27 @@ export async function listManagedAmbulances(): Promise<ManagedAmbulance[]> {
   return request("/api/v1/institutions/management/ambulances/");
 }
 
+export interface SystemInstitution {
+  id: string;
+  name: string;
+  kind: "operator" | "receiver" | "combined";
+  enabled: boolean;
+  rut: string;
+  address: string;
+  phone: string;
+  email: string;
+}
+
+export interface NewSystemInstitution {
+  name: string;
+  rut: string;
+  address: string;
+  phone: string;
+  email: string;
+  first_username: string;
+  first_email: string;
+}
+
 export async function createManagedAmbulance(code: string, institutionId: string): Promise<ManagedAmbulance> {
   const token = await ensureCsrf();
   return request("/api/v1/institutions/management/ambulances/create/", { method: "POST", headers: { "X-CSRFToken": token }, body: JSON.stringify({ code, institution_id: institutionId }), humanInteraction: true });
@@ -192,6 +213,44 @@ export async function assignManagedAccount(userId: string, ambulanceId: string):
 
 export async function getAccountManagementConfig(): Promise<AccountManagementConfig> {
   return request("/api/v1/institutions/management/config/");
+}
+
+export async function listSystemInstitutions(status: "all" | "active" | "inactive" = "all", query = ""): Promise<SystemInstitution[]> {
+  const search = new URLSearchParams({ status, ...(query ? { q: query } : {}) });
+  return request(`/api/v1/system/institutions/?${search.toString()}`);
+}
+
+export async function createSystemInstitution(payload: NewSystemInstitution): Promise<SystemInstitution & {
+  first_account: { id: string; username: string };
+  activation_sent: boolean;
+}> {
+  const token = await ensureCsrf();
+  return request("/api/v1/system/institutions/", {
+    method: "POST",
+    headers: { "X-CSRFToken": token },
+    body: JSON.stringify(payload),
+    humanInteraction: true,
+  });
+}
+
+export async function updateSystemInstitution(id: string, payload: Omit<NewSystemInstitution, "first_username" | "first_email">): Promise<SystemInstitution> {
+  const token = await ensureCsrf();
+  return request(`/api/v1/system/institutions/${encodeURIComponent(id)}/`, {
+    method: "PATCH",
+    headers: { "X-CSRFToken": token },
+    body: JSON.stringify(payload),
+    humanInteraction: true,
+  });
+}
+
+export async function setSystemInstitutionEnabled(id: string, enabled: boolean): Promise<SystemInstitution> {
+  const token = await ensureCsrf();
+  return request(`/api/v1/system/institutions/${encodeURIComponent(id)}/${enabled ? "reactivate" : "deactivate"}/`, {
+    method: "POST",
+    headers: { "X-CSRFToken": token },
+    body: "{}",
+    humanInteraction: true,
+  });
 }
 
 export async function createManagedAccount(payload: {

@@ -14,6 +14,9 @@ from accounts.security import clear_login_failures, login_is_throttled, record_l
 from config.api_errors import error_response
 from institutions.models import AmbulanceAssignment, InstitutionMembership
 
+SYSTEM_ADMIN_GROUP = "system_admin"
+OPERATIONAL_GROUPS = {"ambulance", "urgencias", "institution_admin"}
+
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
 class CsrfTokenView(APIView):
@@ -61,7 +64,7 @@ class LoginView(APIView):
             return response
 
         user = authenticate(request, username=username, password=password)
-        if user is None:
+        if user is None or not self._account_has_enabled_scope(user):
             record_login_failure(username, remote_addr)
             return error_response(
                 "credentials_invalid",
@@ -77,6 +80,21 @@ class LoginView(APIView):
         request.session[settings.SESSION_VERSION_KEY] = user.session_version
         request.session.set_expiry(settings.SESSION_IDLE_AGE)
         return Response({"id": str(user.pk), "username": user.get_username()})
+
+    @staticmethod
+    def _account_has_enabled_scope(user):
+        groups = set(user.groups.values_list("name", flat=True))
+        if SYSTEM_ADMIN_GROUP in groups:
+            return (
+                groups == {SYSTEM_ADMIN_GROUP}
+                and not user.is_staff
+                and not user.is_superuser
+                and not InstitutionMembership.objects.filter(user=user).exists()
+            )
+        memberships = InstitutionMembership.objects.filter(user=user, active=True)
+        if memberships.exists():
+            return memberships.filter(institution__enabled=True).exists()
+        return not (groups & OPERATIONAL_GROUPS)
 
 
 @method_decorator(csrf_protect, name="dispatch")

@@ -6,7 +6,12 @@ import { Logo } from "@/components/Logo";
 import { BackendApiError, getCurrentUser, login, logout } from "@/lib/backend";
 
 function canEnterPortal(groups: string[]) {
+  if (groups.includes("system_admin")) return groups.length === 1;
   return groups.includes("ambulance") || groups.includes("urgencias") || groups.includes("institution_admin");
+}
+
+function destinationFor(groups: string[]) {
+  return groups.includes("system_admin") ? "/sistema" : "/local";
 }
 
 function errorMessage(error: unknown) {
@@ -32,7 +37,7 @@ export function LoginScreen() {
     getCurrentUser()
       .then((user) => {
         if (!active) return;
-        if (canEnterPortal(user.groups)) navigate("/local", { replace: true });
+        if (canEnterPortal(user.groups)) navigate(destinationFor(user.groups), { replace: true });
         else setError("La cuenta no tiene un módulo operativo habilitado.");
       })
       .catch((requestError: unknown) => {
@@ -60,7 +65,7 @@ export function LoginScreen() {
         setPassword("");
         return;
       }
-      navigate("/local", { replace: true });
+      navigate(destinationFor(user.groups), { replace: true });
     } catch (loginError) {
       setError(errorMessage(loginError));
       setPassword("");
