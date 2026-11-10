@@ -16,13 +16,18 @@ try {
   await page.getByRole("heading", { name: "AmbuSync · Sistema" }).waitFor({ state: "visible" });
   await page.getByText("Hospital Central Demo").waitFor({ state: "visible" });
   await page.getByText("Hospital Inactivo Demo").waitFor({ state: "visible" });
+  if (await page.getByLabel("Nombre institución").count()) {
+    throw new Error("El formulario debe permanecer oculto hasta iniciar un alta o edición.");
+  }
   if (await page.getByRole("button", { name: "Administración", exact: true }).count()) {
     throw new Error("El administrador global no debe entrar al módulo institucional.");
   }
 
   await page.getByRole("button", { name: "Nueva institución" }).click();
   await page.getByLabel("Nombre institución").fill("Hospital Sintético Nuevo");
-  await page.getByLabel("RUT empresa").fill("76.123.456-0");
+  await page.getByLabel("RUT empresa").fill("76.125.185-9");
+  await page.getByText("El dígito verificador no coincide; para esta base debe ser 6.").waitFor({ state: "visible" });
+  await page.getByLabel("RUT empresa").fill("76.125.185");
   await page.getByLabel("Dirección").fill("Dirección sintética 321, Santiago");
   await page.getByLabel("Teléfono (opcional)").fill("+56 2 2000 0000");
   await page.getByLabel("Correo de contacto").fill("contacto-nuevo@example.test");
@@ -32,16 +37,20 @@ try {
   await page.getByRole("status").filter({ hasText: "Se envió la activación para synthetic_first_admin" }).waitFor({ state: "visible" });
   const createdCard = page.locator("article").filter({ hasText: "Hospital Sintético Nuevo" });
   await createdCard.waitFor({ state: "visible" });
-  if (!api.managedInstitutions.some((item) => item.name === "Hospital Sintético Nuevo" && item.kind === "receiver")) {
+  if (!api.managedInstitutions.some((item) => item.name === "Hospital Sintético Nuevo" && item.kind === "receiver" && item.rut === "76.125.185-6")) {
     throw new Error("La nueva institución no quedó registrada como receptora.");
   }
 
   await createdCard.getByRole("button", { name: "Editar" }).click();
   await page.getByLabel("Nombre institución").fill("Hospital Sintético Actualizado");
+  await page.getByLabel("RUT empresa").fill("76.125.185");
   await page.getByRole("button", { name: "Guardar cambios" }).click();
   await page.getByRole("status").filter({ hasText: "Los datos de la institución se actualizaron" }).waitFor({ state: "visible" });
   const updatedCard = page.locator("article").filter({ hasText: "Hospital Sintético Actualizado" });
   await updatedCard.waitFor({ state: "visible" });
+  if (api.managedInstitutions.find((item) => item.name === "Hospital Sintético Actualizado")?.rut !== "76.125.185-6") {
+    throw new Error("La edición debe enviar el RUT con dígito verificador calculado.");
+  }
 
   page.on("dialog", (dialog) => dialog.accept());
   await updatedCard.getByRole("button", { name: "Desactivar" }).click();
