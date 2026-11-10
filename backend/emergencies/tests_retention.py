@@ -16,6 +16,7 @@ from institutions.models import Ambulance, Institution
 
 class RetentionCommandTests(TestCase):
     def setUp(self):
+        self.as_of = timezone.datetime(2026, 11, 5, 12, tzinfo=UTC)
         operator = Institution.objects.create(name="Operadora retención", kind="operator")
         receiver = Institution.objects.create(name="Receptora retención", kind="receiver")
         ambulance = Ambulance.objects.create(institution=operator, code="RET-01")
@@ -30,14 +31,14 @@ class RetentionCommandTests(TestCase):
             status=Emergency.Status.CLOSED,
             patient_identity_unknown=True,
             reason="Caso sintético de retención",
-            closed_at=timezone.now() - timedelta(days=91),
+            closed_at=self.as_of - timedelta(days=91),
         )
         VitalMeasurement.objects.create(
             emergency=self.emergency,
             kind=VitalMeasurement.Kind.HEART_RATE,
             value=70,
             unit=VitalMeasurement.Unit.BEATS_PER_MINUTE,
-            measured_at=timezone.now() - timedelta(days=91),
+            measured_at=self.as_of - timedelta(days=91),
             recorded_by=actor,
         )
         ProcessedOperation.objects.create(
@@ -45,7 +46,7 @@ class RetentionCommandTests(TestCase):
             operation_id=uuid.uuid4(),
             request_hash="a" * 64,
             emergency=self.emergency,
-            created_at=timezone.now() - timedelta(days=91),
+            created_at=self.as_of - timedelta(days=91),
         )
         AuditEvent.objects.create(
             actor=actor,
@@ -55,7 +56,7 @@ class RetentionCommandTests(TestCase):
             object_id=str(self.emergency.pk),
             result=AuditEvent.Result.SUCCESS,
             correlation_id=uuid.uuid4(),
-            occurred_at=timezone.now() - timedelta(days=366),
+            occurred_at=self.as_of - timedelta(days=366),
         )
 
     def test_dry_run_reports_without_deleting(self):
