@@ -185,6 +185,37 @@ class InstitutionAccountManagementTests(TestCase):
         accounts = self.client.get("/api/v1/institutions/management/accounts/").json()
         self.assertEqual({item["id"] for item in accounts}, {str(self.admin.pk)})
 
+    def test_explicit_operator_allowlist_scopes_receiver_admin_unit_directory(self):
+        self.receiver.operator_institutions.set([self.operator])
+        urgency_group, _ = Group.objects.get_or_create(name="urgencias")
+        self.admin.groups.add(urgency_group)
+
+        config = self.client.get("/api/v1/institutions/management/config/").json()
+        listed_units = self.client.get("/api/v1/institutions/management/ambulances/").json()
+        denied_unit = self.client.post(
+            "/api/v1/institutions/management/ambulances/create/",
+            {"institution_id": str(self.other_operator.pk), "code": "NOT-OWNED"},
+            format="json",
+        )
+        denied_account = self.create_account(
+            username="synthetic-disallowed-operator",
+            email="disallowed-operator@example.test",
+            institution_id=str(self.other_operator.pk),
+            ambulance_id=str(self.other_ambulance.pk),
+        )
+
+        self.assertEqual(
+            config["operator_institutions"],
+            [{"id": str(self.operator.pk), "name": self.operator.name}],
+        )
+        self.assertEqual([unit["id"] for unit in listed_units], [str(self.ambulance.pk)])
+        self.assertEqual(denied_unit.status_code, 400)
+        self.assertEqual(denied_account.status_code, 400)
+        self.assertFalse(
+            Ambulance.objects.filter(institution=self.other_operator, code="NOT-OWNED").exists()
+        )
+        self.assertFalse(User.objects.filter(username="synthetic-disallowed-operator").exists())
+
     def test_foreign_operator_account_is_visible_only_to_its_creating_admin(self):
         foreign_receiver = Institution.objects.create(
             name="Otro Receptor Sintético", kind=Institution.Kind.RECEIVER

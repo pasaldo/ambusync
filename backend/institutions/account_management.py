@@ -58,6 +58,20 @@ def accounts_created_by(actor):
     return AuditEvent.objects.filter(actor=actor, action="account.created", object_type="account")
 
 
+def operator_institutions_for_admin(institution):
+    operators = Institution.objects.filter(
+        enabled=True,
+        kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
+    )
+    if institution.kind == Institution.Kind.COMBINED:
+        return operators.filter(pk=institution.pk)
+    configured_operators = institution.operator_institutions.all()
+    if configured_operators.exists():
+        return operators.filter(pk__in=configured_operators.values("pk"))
+    # Preserve the shared legacy directory for receivers that have no explicit allowlist.
+    return operators
+
+
 def send_activation_email(user, raw_token, *, institution_name=None):
     query = urlencode({"uid": user.pk, "token": raw_token})
     activation_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/activar-cuenta?{query}"
@@ -84,10 +98,10 @@ class ManagedAmbulanceListView(APIView):
         institution = administrative_institution(request.user)
         if institution.kind not in (Institution.Kind.RECEIVER, Institution.Kind.COMBINED):
             return Response([])
+        operators = operator_institutions_for_admin(institution)
         ambulances = (
             Ambulance.objects.filter(
-                institution__enabled=True,
-                institution__kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
+                institution__in=operators,
                 enabled=True,
             )
             .select_related("institution")
@@ -124,15 +138,9 @@ class AccountManagementConfigView(APIView):
         delegable_groups = ["urgencias", "ambulance"] if can_create_accounts else []
         operator_institutions = []
         if can_create_accounts:
-            operators = Institution.objects.filter(
-                enabled=True,
-                kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
-            )
-            if institution.kind == Institution.Kind.COMBINED:
-                operators = operators.filter(pk=institution.pk)
             operator_institutions = [
                 {"id": str(operator.pk), "name": operator.name}
-                for operator in operators.order_by("name", "id")
+                for operator in operator_institutions_for_admin(institution).order_by("name", "id")
             ]
         return Response(
             {
@@ -233,21 +241,14 @@ class ManagedAccountListCreateView(APIView):
         if has_ambulance:
             if not body.get("institution_id"):
                 raise ValidationError({"institution_id": "Selecciona la institución operadora."})
-            target_institution = Institution.objects.filter(
-                pk=body["institution_id"],
-                enabled=True,
-                kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
-            ).first()
+            target_institution = (
+                operator_institutions_for_admin(institution)
+                .filter(pk=body["institution_id"])
+                .first()
+            )
             if target_institution is None:
                 raise ValidationError(
                     {"institution_id": "La institución operadora no está habilitada."}
-                )
-            if (
-                institution.kind == Institution.Kind.COMBINED
-                and target_institution.pk != institution.pk
-            ):
-                raise ValidationError(
-                    {"institution_id": "Solo puedes crear unidades para tu propia institución."}
                 )
         elif body.get("institution_id"):
             raise ValidationError(
@@ -462,21 +463,16 @@ class ManagedAmbulanceCreateView(APIView):
         target_institution_id = (
             request.data.get("institution_id") if isinstance(request.data, dict) else None
         )
-        target_institution = Institution.objects.filter(
-            pk=target_institution_id,
-            enabled=True,
-            kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
-        ).first()
+        target_institution = (
+            operator_institutions_for_admin(institution)
+            .filter(
+                pk=target_institution_id,
+            )
+            .first()
+        )
         if target_institution is None:
             raise ValidationError(
                 {"institution_id": "Selecciona una institución operadora habilitada."}
-            )
-        if (
-            institution.kind == Institution.Kind.COMBINED
-            and target_institution.pk != institution.pk
-        ):
-            raise ValidationError(
-                {"institution_id": "Solo puedes crear unidades para tu propia institución."}
             )
         code = request.data.get("code") if isinstance(request.data, dict) else None
         if not isinstance(code, str) or not code.strip() or len(code.strip()) > 40:
@@ -524,15 +520,9 @@ class ManagedAccountAssignmentView(APIView):
             raise NotFound("La cuenta de ambulancia no está disponible en tu institución.")
         ambulance = Ambulance.objects.filter(
             pk=ambulance_id,
-            institution__enabled=True,
+            institution__in=operator_institutions_for_admin(institution),
             enabled=True,
         ).first()
-        if (
-            institution.kind == Institution.Kind.COMBINED
-            and ambulance is not None
-            and ambulance.institution_id != institution.pk
-        ):
-            ambulance = None
         if ambulance is None:
             raise ValidationError(
                 {"ambulance_id": "La unidad no pertenece a tu institución o no está habilitada."}
