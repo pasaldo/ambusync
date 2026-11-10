@@ -93,6 +93,8 @@ class ManagedAmbulanceListView(APIView):
             .select_related("institution")
             .order_by("institution__name", "code")
         )
+        if institution.kind == Institution.Kind.COMBINED:
+            ambulances = ambulances.filter(institution=institution)
         return Response(
             [
                 {
@@ -122,12 +124,15 @@ class AccountManagementConfigView(APIView):
         delegable_groups = ["urgencias", "ambulance"] if can_create_accounts else []
         operator_institutions = []
         if can_create_accounts:
+            operators = Institution.objects.filter(
+                enabled=True,
+                kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
+            )
+            if institution.kind == Institution.Kind.COMBINED:
+                operators = operators.filter(pk=institution.pk)
             operator_institutions = [
                 {"id": str(operator.pk), "name": operator.name}
-                for operator in Institution.objects.filter(
-                    enabled=True,
-                    kind__in=(Institution.Kind.OPERATOR, Institution.Kind.COMBINED),
-                ).order_by("name", "id")
+                for operator in operators.order_by("name", "id")
             ]
         return Response(
             {
@@ -236,6 +241,13 @@ class ManagedAccountListCreateView(APIView):
             if target_institution is None:
                 raise ValidationError(
                     {"institution_id": "La institución operadora no está habilitada."}
+                )
+            if (
+                institution.kind == Institution.Kind.COMBINED
+                and target_institution.pk != institution.pk
+            ):
+                raise ValidationError(
+                    {"institution_id": "Solo puedes crear unidades para tu propia institución."}
                 )
         elif body.get("institution_id"):
             raise ValidationError(
@@ -459,6 +471,13 @@ class ManagedAmbulanceCreateView(APIView):
             raise ValidationError(
                 {"institution_id": "Selecciona una institución operadora habilitada."}
             )
+        if (
+            institution.kind == Institution.Kind.COMBINED
+            and target_institution.pk != institution.pk
+        ):
+            raise ValidationError(
+                {"institution_id": "Solo puedes crear unidades para tu propia institución."}
+            )
         code = request.data.get("code") if isinstance(request.data, dict) else None
         if not isinstance(code, str) or not code.strip() or len(code.strip()) > 40:
             raise ValidationError({"code": "Indica un código de unidad válido."})
@@ -508,6 +527,12 @@ class ManagedAccountAssignmentView(APIView):
             institution__enabled=True,
             enabled=True,
         ).first()
+        if (
+            institution.kind == Institution.Kind.COMBINED
+            and ambulance is not None
+            and ambulance.institution_id != institution.pk
+        ):
+            ambulance = None
         if ambulance is None:
             raise ValidationError(
                 {"ambulance_id": "La unidad no pertenece a tu institución o no está habilitada."}

@@ -71,7 +71,7 @@ def validate_institution_fields(data, *, creating=False):
     if creating or "rut" in data:
         rut_result = normalize_company_rut(raw_rut) if isinstance(raw_rut, str) else None
         if rut_result is None:
-            errors["rut"] = "Indica un RUT empresa válido entre 76.000.000 y 79.999.999."
+            errors["rut"] = "El RUT está equivocado."
         else:
             values["rut_normalized"], values["rut"] = rut_result
 
@@ -206,7 +206,7 @@ class SystemInstitutionListCreateView(APIView):
             with transaction.atomic():
                 institution = Institution.objects.create(
                     name=values["name"],
-                    kind=Institution.Kind.RECEIVER,
+                    kind=Institution.Kind.COMBINED,
                     rut=values["rut"],
                     address=values["address"],
                     phone=values["phone"],

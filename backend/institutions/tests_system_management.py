@@ -12,7 +12,7 @@ from rest_framework.test import APIClient
 from accounts.models import AccountActivation, User
 from audit.models import AuditEvent
 from emergencies.models import Emergency
-from institutions.models import Ambulance, Institution, InstitutionMembership
+from institutions.models import Ambulance, AmbulanceAssignment, Institution, InstitutionMembership
 from institutions.rut import format_company_rut, normalize_company_rut
 
 
@@ -57,7 +57,7 @@ class SystemInstitutionManagementTests(TestCase):
         self.assertEqual(response.status_code, 201, response.content)
         institution = Institution.objects.get(rut=self.institution_payload()["rut"])
         user = User.objects.get(username="synthetic-first-urgencias")
-        self.assertEqual(institution.kind, Institution.Kind.RECEIVER)
+        self.assertEqual(institution.kind, Institution.Kind.COMBINED)
         self.assertTrue(institution.enabled)
         self.assertFalse(user.is_active)
         self.assertFalse(user.has_usable_password())
@@ -116,6 +116,14 @@ class SystemInstitutionManagementTests(TestCase):
             )
             self.assertEqual(response.status_code, 400, invalid)
             self.assertFalse(Institution.objects.exists(), invalid)
+
+        invalid_rut = self.client.post(
+            "/api/v1/system/institutions/",
+            self.institution_payload(rut="76.125.185-9"),
+            format="json",
+        )
+        self.assertEqual(invalid_rut.status_code, 400)
+        self.assertEqual(invalid_rut.json()["fields"]["rut"], "El RUT está equivocado.")
 
         created = self.client.post(
             "/api/v1/system/institutions/", self.institution_payload(), format="json"
@@ -340,3 +348,78 @@ class SystemInstitutionManagementTests(TestCase):
         current = login_client.get("/api/v1/auth/me/").json()
         self.assertEqual(set(current["groups"]), {"urgencias", "institution_admin"})
         self.assertEqual(current["institutions"][0]["name"], "Hospital Nuevo Demo")
+
+    def test_new_combined_institution_sees_and_manages_only_its_own_units(self):
+        response = self.client.post(
+            "/api/v1/system/institutions/", self.institution_payload(), format="json"
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        institution = Institution.objects.get(pk=response.json()["id"])
+        admin = User.objects.get(username="synthetic-first-urgencias")
+        admin.is_active = True
+        admin.save(update_fields=["is_active"])
+        own_unit = Ambulance.objects.create(institution=institution, code="OWN-01")
+        other_institution = Institution.objects.create(
+            name="Otra Institución Operadora Demo", kind=Institution.Kind.COMBINED
+        )
+        other_unit = Ambulance.objects.create(institution=other_institution, code="OTHER-01")
+
+        admin_client = APIClient()
+        admin_client.force_authenticate(admin)
+        config = admin_client.get("/api/v1/institutions/management/config/").json()
+        listed_units = admin_client.get("/api/v1/institutions/management/ambulances/").json()
+
+        self.assertEqual(
+            config["operator_institutions"], [{"id": str(institution.pk), "name": institution.name}]
+        )
+        self.assertEqual([unit["id"] for unit in listed_units], [str(own_unit.pk)])
+        self.assertNotIn(str(other_unit.pk), {unit["id"] for unit in listed_units})
+
+        own_created = admin_client.post(
+            "/api/v1/institutions/management/ambulances/create/",
+            {"institution_id": str(institution.pk), "code": "OWN-02"},
+            format="json",
+        )
+        foreign_create = admin_client.post(
+            "/api/v1/institutions/management/ambulances/create/",
+            {"institution_id": str(other_institution.pk), "code": "OTHER-02"},
+            format="json",
+        )
+        self.assertEqual(own_created.status_code, 201, own_created.content)
+        self.assertEqual(foreign_create.status_code, 400)
+        self.assertFalse(
+            Ambulance.objects.filter(institution=other_institution, code="OTHER-02").exists()
+        )
+
+        foreign_account_create = admin_client.post(
+            "/api/v1/institutions/management/accounts/",
+            {
+                "username": "synthetic-foreign-ambulance",
+                "email": "foreign-ambulance@example.test",
+                "groups": ["ambulance"],
+                "institution_id": str(other_institution.pk),
+                "ambulance_id": str(other_unit.pk),
+            },
+            format="json",
+        )
+        self.assertEqual(foreign_account_create.status_code, 400)
+        self.assertFalse(User.objects.filter(username="synthetic-foreign-ambulance").exists())
+
+        ambulance_user = User.objects.create_user(
+            username="synthetic-owned-ambulance", password="Synthetic-Owned-Ambulance-26!"
+        )
+        ambulance_group, _ = Group.objects.get_or_create(name="ambulance")
+        ambulance_user.groups.add(ambulance_group)
+        InstitutionMembership.objects.create(user=ambulance_user, institution=institution)
+        AmbulanceAssignment.objects.create(user=ambulance_user, ambulance=own_unit)
+        foreign_reassignment = admin_client.post(
+            f"/api/v1/institutions/management/accounts/{ambulance_user.pk}/assignment/",
+            {"ambulance_id": str(other_unit.pk)},
+            format="json",
+        )
+        self.assertEqual(foreign_reassignment.status_code, 400)
+        self.assertTrue(
+            AmbulanceAssignment.objects.filter(
+                user=ambulance_user, ambulance=own_unit, active=True
+            ).exists()
+        )

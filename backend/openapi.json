@@ -155,7 +155,7 @@
         "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/UserInteraction" }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SystemInstitutionCreate" } } } },
         "responses": {
-          "201": { "description": "Institución receptora, cuenta Urgencias con administración institucional y activación local creadas.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SystemInstitutionCreated" } } } },
+          "201": { "description": "Institución operadora y receptora (tipo combined), cuenta Urgencias con administración institucional y activación local creadas.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SystemInstitutionCreated" } } } },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },

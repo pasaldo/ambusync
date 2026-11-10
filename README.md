@@ -76,7 +76,8 @@ permite registrar la llegada desde la tarjeta y conserva un archivo filtrable.
 ### 4. Administración global de instituciones
 
 El rol global exclusivo de administración lista instituciones activas e inactivas, permite editar
-sus datos y conservarlas mediante baja lógica. El alta crea una institución Receptora y una primera
+sus datos y conservarlas mediante baja lógica. El alta crea una institución Operadora y Receptora
+que administra sus propias unidades, junto con una primera
 cuenta de Urgencias con administración institucional, pendiente de activar por correo local.
 
 <p align="center">

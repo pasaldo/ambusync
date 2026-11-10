@@ -129,7 +129,7 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
       const created = {
         id: "demo-created-institution-id",
         name: input.name,
-        kind: "receiver",
+        kind: "combined",
         enabled: true,
         rut: input.rut,
         address: input.address,

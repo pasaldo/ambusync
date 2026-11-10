@@ -67,9 +67,6 @@ export function SystemAdminPortal() {
             </button>
           </div>
         </header>
-        <p className="my-5 rounded-xl border border-amber-200/15 bg-amber-200/[0.04] p-3 text-sm text-amber-100/80">
-          Panel de administración de instituciones. No habilita operaciones clínicas ni reemplaza los permisos institucionales.
-        </p>
         {error ? <p role="alert" className="mb-5 rounded-lg border border-rose-300/20 bg-rose-300/10 p-3 text-sm text-rose-100">{error}</p> : null}
         {!error ? <SystemInstitutionsPanel /> : null}
       </div>

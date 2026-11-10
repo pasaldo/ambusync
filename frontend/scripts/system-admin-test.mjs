@@ -37,8 +37,8 @@ try {
   await page.getByRole("status").filter({ hasText: "Se envió la activación para synthetic_first_admin" }).waitFor({ state: "visible" });
   const createdCard = page.locator("article").filter({ hasText: "Hospital Sintético Nuevo" });
   await createdCard.waitFor({ state: "visible" });
-  if (!api.managedInstitutions.some((item) => item.name === "Hospital Sintético Nuevo" && item.kind === "receiver" && item.rut === "76.125.185-6")) {
-    throw new Error("La nueva institución no quedó registrada como receptora.");
+  if (!api.managedInstitutions.some((item) => item.name === "Hospital Sintético Nuevo" && item.kind === "combined" && item.rut === "76.125.185-6")) {
+    throw new Error("La nueva institución no quedó registrada como operadora y receptora.");
   }
 
   await createdCard.getByRole("button", { name: "Editar" }).click();
