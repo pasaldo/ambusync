@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 from datetime import timedelta
 from io import StringIO
 from urllib.parse import parse_qs, urlparse
@@ -183,6 +184,54 @@ class InstitutionAccountManagementTests(TestCase):
         InstitutionMembership.objects.create(user=foreign, institution=self.other_operator)
         accounts = self.client.get("/api/v1/institutions/management/accounts/").json()
         self.assertEqual({item["id"] for item in accounts}, {str(self.admin.pk)})
+
+    def test_foreign_operator_account_is_visible_only_to_its_creating_admin(self):
+        foreign_receiver = Institution.objects.create(
+            name="Otro Receptor Sintético", kind=Institution.Kind.RECEIVER
+        )
+        foreign_admin = User.objects.create_user(
+            username="synthetic-other-receiver-admin", password="unused"
+        )
+        foreign_admin.groups.add(Group.objects.get(name="institution_admin"))
+        InstitutionMembership.objects.create(user=foreign_admin, institution=foreign_receiver)
+        foreign_user = User.objects.create_user(
+            username="synthetic-foreign-operator", password="unused"
+        )
+        ambulance_group, _ = Group.objects.get_or_create(name="ambulance")
+        foreign_user.groups.add(ambulance_group)
+        InstitutionMembership.objects.create(user=foreign_user, institution=self.other_operator)
+        AmbulanceAssignment.objects.create(user=foreign_user, ambulance=self.other_ambulance)
+        AuditEvent.objects.create(
+            actor=foreign_admin,
+            institution=self.other_operator,
+            action="account.created",
+            object_type="account",
+            object_id=str(foreign_user.pk),
+            result=AuditEvent.Result.SUCCESS,
+            correlation_id=uuid.uuid4(),
+        )
+
+        listed = self.client.get("/api/v1/institutions/management/accounts/").json()
+        self.assertNotIn(str(foreign_user.pk), {item["id"] for item in listed})
+        denied = self.client.post(
+            f"/api/v1/institutions/management/accounts/{foreign_user.pk}/assignment/",
+            {"ambulance_id": str(self.ambulance.pk)},
+            format="json",
+        )
+        self.assertEqual(denied.status_code, 404)
+
+        foreign_client = APIClient()
+        foreign_client.force_authenticate(foreign_admin)
+        visible_to_creator = foreign_client.get(
+            "/api/v1/institutions/management/accounts/"
+        ).json()
+        self.assertIn(str(foreign_user.pk), {item["id"] for item in visible_to_creator})
+        reassigned = foreign_client.post(
+            f"/api/v1/institutions/management/accounts/{foreign_user.pk}/assignment/",
+            {"ambulance_id": str(self.other_ambulance.pk)},
+            format="json",
+        )
+        self.assertEqual(reassigned.status_code, 200)
 
     def test_first_institution_admin_is_provisioned_only_for_existing_member(self):
         user = User.objects.create_user(username="synthetic-new-admin", password="unused")

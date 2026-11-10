@@ -141,12 +141,14 @@ class ManagedAccountListCreateView(APIView):
 
     def get(self, request):
         institution = administrative_institution(request.user)
+        created_account_ids = [
+            int(object_id)
+            for object_id in accounts_created_by(request.user).values_list("object_id", flat=True)
+            if object_id.isdecimal()
+        ]
         memberships = (
             InstitutionMembership.objects.filter(active=True)
-            .filter(
-                Q(institution=institution)
-                | Q(user__ambulance_assignments__ambulance__institution__enabled=True)
-            )
+            .filter(Q(institution=institution) | Q(user_id__in=created_account_ids))
             .distinct()
             .select_related("user")
             .prefetch_related(
@@ -478,7 +480,7 @@ class ManagedAccountAssignmentView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def post(self, request, user_id):
-        administrative_institution(request.user)
+        institution = administrative_institution(request.user)
         ambulance_id = request.data.get("ambulance_id") if isinstance(request.data, dict) else None
         membership = (
             InstitutionMembership.objects.filter(user_id=user_id, active=True)
@@ -490,10 +492,14 @@ class ManagedAccountAssignmentView(APIView):
             active=True,
             ambulance__institution__enabled=True,
         ).exists()
+        created_by_actor = accounts_created_by(request.user).filter(
+            object_id=str(user_id)
+        ).exists()
         if (
             membership is None
             or not membership.user.groups.filter(name="ambulance").exists()
             or not has_visible_assignment
+            or (membership.institution_id != institution.pk and not created_by_actor)
         ):
             raise NotFound("La cuenta de ambulancia no está disponible en tu institución.")
         ambulance = Ambulance.objects.filter(
