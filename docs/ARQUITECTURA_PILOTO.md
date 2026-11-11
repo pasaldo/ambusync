@@ -1,10 +1,10 @@
 # Arquitectura y contratos mínimos del piloto
 
-Fecha base: 29/10/2026. Actualización: 11/11/2026 (evaluación aislada, no publicada). Tarea: AS-006/AS-011. Decisiones: D-009/D-015.
+Fecha base: 29/10/2026. Actualización: 11/11/2026 (integración WebSocket local en `main`; sin despliegue). Tarea: AS-006/AS-011. Decisiones: D-009/D-015.
 
 **Diseño aprobado por el responsable del proyecto. Implementación parcial:** el primer slice backend local se registra en [ETAPA_1.md](ETAPA_1.md); el resto de la arquitectura no está implementado. No introduce uso clínico real ni sustituye validación profesional. Proveedores, versiones y pendientes operativos se especifican antes de habilitar las funciones correspondientes.
 
-La rama local `feature/websocket-integration` implementa un primer alcance experimental de Channels/WebSocket descrito en la sección 7. No está integrada ni publicada. El smoke/regresión con Valkey pasó localmente y el responsable reportó una prueba manual PC-celular satisfactoria; CI remoto y repetición desde checkout limpio siguen pendientes.
+La integración de Channels/WebSocket descrita en la sección 7 se implementó en la rama `feature/websocket-integration` y se integró en `main` el 11/11/2026 por solicitud expresa del responsable. No hay despliegue. El smoke/regresión con Valkey pasó localmente y el responsable reportó una prueba manual PC-celular satisfactoria; CI remoto y repetición desde checkout limpio siguen pendientes.
 
 ## 1. Arquitectura general
 

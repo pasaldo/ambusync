@@ -1,6 +1,6 @@
 # Guía de desarrollo y contribución
 
-Esta guía describe el estado actual del repositorio, cómo preparar frontend/backend y cómo revisar cambios. La SPA es un prototipo con **datos sintéticos**; no está autorizado para atención clínica real. La rama `feature/websocket-integration` añade Channels/WebSocket con Daphne y Valkey para evaluación local; esta integración no está en `main`, publicada ni desplegada. El responsable reportó una prueba manual satisfactoria PC-celular. Consulta [ETAPA_1.md](ETAPA_1.md) para dependencias, preparación de Valkey, arranque de servicios y prueba LAN.
+Esta guía describe el estado actual del repositorio, cómo preparar frontend/backend y cómo revisar cambios. La SPA es un prototipo con **datos sintéticos**; no está autorizado para atención clínica real. La integración Channels/WebSocket con Daphne y Valkey (rama `feature/websocket-integration`) se integró en `main` el 11/11/2026; no está desplegada. El responsable reportó una prueba manual satisfactoria PC-celular. Consulta [ETAPA_1.md](ETAPA_1.md) para dependencias, preparación de Valkey, arranque de servicios y prueba LAN.
 
 ## Preparar el entorno
 
@@ -37,11 +37,11 @@ Desde `frontend/`, inicia Vite solo en la interfaz local:
 npm run dev -- --host 127.0.0.1
 ```
 
-Abre `http://127.0.0.1:5173`. El modo predeterminado escucha en loopback. En la rama WebSocket, para pruebas desde otro dispositivo usa el procedimiento restringido de [ETAPA_1.md](ETAPA_1.md#prueba-local-entre-dispositivos): enlaza Vite a la IP privada del PC y conserva Daphne, PostgreSQL y Valkey en loopback. Nunca expongas el servidor de desarrollo a Internet.
+Abre `http://127.0.0.1:5173`. El modo predeterminado escucha en loopback. Para pruebas desde otro dispositivo usa el procedimiento restringido de [ETAPA_1.md](ETAPA_1.md#prueba-local-entre-dispositivos): enlaza Vite a la IP privada del PC y conserva Daphne, PostgreSQL y Valkey en loopback. Nunca expongas el servidor de desarrollo a Internet.
 
 ## Ejecutar el backend con WebSocket
 
-La rama WebSocket requiere PostgreSQL local, Valkey y Daphne/ASGI; el desarrollo sin alta de cuentas no requiere Mailpit. `VALKEY_URL` es obligatorio para Django y está definido en el `.env` local ignorado por Git. Usa `uv sync --directory backend --locked --all-groups` para instalar el runtime fijado en `backend/uv.lock`: incluye Channels 4.3.2, `channels_redis` 4.3.0 y Daphne 4.2.3. Valkey es un servicio aparte, no un paquete instalado por `uv`. No arranques este flujo con `manage.py runserver`; inicia:
+El flujo WebSocket requiere PostgreSQL local, Valkey y Daphne/ASGI; el desarrollo sin alta de cuentas no requiere Mailpit. `VALKEY_URL` es obligatorio para Django y está definido en el `.env` local ignorado por Git. Usa `uv sync --directory backend --locked --all-groups` para instalar el runtime fijado en `backend/uv.lock`: incluye Channels 4.3.2, `channels_redis` 4.3.0 y Daphne 4.2.3. Valkey es un servicio aparte, no un paquete instalado por `uv`. No arranques este flujo con `manage.py runserver`; inicia:
 
 ```powershell
 uv run --directory backend daphne -b 127.0.0.1 -p 8000 config.asgi:application

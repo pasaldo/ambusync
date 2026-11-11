@@ -107,10 +107,10 @@ El **tiempo real de la demo** se resuelve en el frontend: el store (Zustand) se 
 **entre pestañas del mismo navegador** vía **BroadcastChannel** con respaldo en **localStorage**.
 Las rutas `/ambulancia` y `/urgencias` conservan esa demo independiente. La ruta `/local` conecta
 la SPA con Django + DRF para crear emergencias y consultar episodios autorizados;
-usa cookie de sesión y no persiste respuestas del backend en `localStorage`. En la rama local
-`feature/websocket-integration`, `/local` también usa WebSocket autenticado como aviso para
-refrescar desde la API entre dispositivos. Los avisos no son durables: PostgreSQL/API sigue siendo
-la fuente de verdad. Esta integración no está en `main`, no está publicada ni desplegada. Detalles,
+usa cookie de sesión y no persiste respuestas del backend en `localStorage`. Desde el 11/11/2026,
+`/local` también usa WebSocket autenticado como aviso para refrescar desde la API entre
+dispositivos. Los avisos no son durables: PostgreSQL/API sigue siendo la fuente de verdad. La
+integración está en `main`; no está desplegada y no autoriza uso clínico. Detalles,
 dependencias y pasos de ejecución local: [docs/ETAPA_1.md](docs/ETAPA_1.md) y
 [docs/GUIA_DESARROLLO.md](docs/GUIA_DESARROLLO.md).
 
@@ -120,16 +120,16 @@ La ruta `/local` integra el primer slice de Django/DRF con la SPA. Una cuenta de
 
 Los colores y rangos de signos vitales son exclusivamente una ayuda visual para datos sintéticos del piloto; no constituyen reglas clínicas ni autorización de atención real.
 
-`main` conserva la línea integrada previa a la evaluación WebSocket. La rama `feature/websocket-integration`
-se verificó localmente con dos dispositivos según la comprobación reportada por el responsable; no se
-ha ejecutado CI remoto ni se ha integrado, publicado o desplegado. La documentación y el código no
+La integración WebSocket (rama `feature/websocket-integration`, integrada en `main` el 11/11/2026 por
+solicitud expresa del responsable) se verificó localmente con dos dispositivos según la comprobación
+reportada; no se ha ejecutado CI remoto ni existe despliegue. La documentación y el código no
 autorizan uso clínico. GPS, cambio de destino, recuperación administrativa, informes, operación
 continua de copias/restauración y decisiones de hosting siguen pendientes.
 
 ## Cómo correrlo
 
-Para la rama `feature/websocket-integration`, el flujo entre dispositivos usa PostgreSQL aislado,
-Valkey (Redis protocol) local, Daphne/ASGI y Vite como proxy HTTP/WebSocket. **Mailpit** solo se
+El flujo entre dispositivos usa PostgreSQL aislado, Valkey (Redis protocol) local, Daphne/ASGI y
+Vite como proxy HTTP/WebSocket. **Mailpit** solo se
 necesita para probar altas/activaciones de cuentas. No se debe exponer PostgreSQL, Valkey ni Daphne
 a la LAN ni a una red pública; para la prueba desde celular solo Vite escucha en la IP LAN.
 
@@ -174,7 +174,7 @@ uv run --directory backend python manage.py seed_synthetic
 
 ### 4. Iniciar Valkey local (WSL)
 
-La rama WebSocket requiere Valkey y `VALKEY_URL` en el `backend/.env` local. En este equipo Valkey
+La línea WebSocket requiere Valkey y `VALKEY_URL` en el `backend/.env` local. En este equipo Valkey
 escucha solo por loopback. Mantén WSL activo durante la prueba; los pasos completos de instalación
 y comprobación están en [ETAPA_1.md](docs/ETAPA_1.md#valkey-local-en-wsl).
 
@@ -445,7 +445,7 @@ acento cian representa la señal/sincronización en vivo.
 | 1 | PhoneFrame + navegación + ingreso centralizado | ✅ |
 | 2 | Flujo del paramédico (wizard + transmisión) | ✅ |
 | 3 | Tablero de Urgencias + tiempo real simulado | ✅ |
-| 4–5 | Backend local Django + DRF + PostgreSQL; WebSocket experimental en rama aislada | Primera rebanada implementada; evaluación WebSocket verificada localmente (prueba manual PC-celular reportada satisfactoria); sin CI remoto, integración, publicación ni despliegue |
+| 4–5 | Backend local Django + DRF + PostgreSQL; WebSocket para avisos en tiempo real | Primera rebanada implementada; WebSocket integrado en `main` el 11/11/2026 (prueba manual PC-celular reportada satisfactoria); sin CI remoto ni despliegue |
 | 6 | Pulido, modo demo y documentación | ✅ |
 
 > Proyecto académico.
