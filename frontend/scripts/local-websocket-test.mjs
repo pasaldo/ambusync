@@ -67,10 +67,23 @@ try {
     emergency_id: "40f03aa7-d704-497e-96a4-1c88f35243aa",
     version: 2,
   };
-  const eventRefresh = page.waitForResponse((response) => response.url().includes("/api/v1/emergencies/") && response.request().method() === "GET");
+  // Polling on the mock counter is unambiguous: a plain waitForResponse could
+  // resolve with the connect-time list refresh while the event refresh is still
+  // in flight, making the request-count assertion race.
+  async function waitForListRefresh(before, timeoutMs = 5_000) {
+    const startedAt = Date.now();
+    while (api.emergencyListRequests <= before) {
+      if (Date.now() - startedAt > timeoutMs) {
+        throw new Error(
+          `emergency list did not refresh within ${timeoutMs} ms ` +
+            `(requests=${api.emergencyListRequests}, before=${before})`,
+        );
+      }
+      await page.waitForTimeout(50);
+    }
+  }
   await page.evaluate((event) => window.__emitSocketEvent(event), notification);
-  await eventRefresh;
-  assert.ok(api.emergencyListRequests > initialRequests);
+  await waitForListRefresh(initialRequests);
   const afterEventRequests = api.emergencyListRequests;
   await page.evaluate((event) => window.__emitSocketEvent(event), notification);
   await page.waitForTimeout(100);
@@ -82,18 +95,19 @@ try {
   });
   await page.getByRole("status").filter({ hasText: "Tiempo real degradado" }).waitFor();
   assert.ok((await page.evaluate(() => window.__intervals)).includes(15_000), "disconnected state schedules 15-second fallback");
-  const fallbackRefresh = page.waitForResponse((response) => response.url().includes("/api/v1/emergencies/") && response.request().method() === "GET");
+  await waitForListRefresh(afterEventRequests);
+  const beforeFallback = api.emergencyListRequests;
   await page.evaluate(() => window.__runInterval(15_000));
-  await fallbackRefresh;
-  assert.ok(api.emergencyListRequests > afterEventRequests);
+  await waitForListRefresh(beforeFallback);
 
   await page.waitForFunction(() => window.__activeSocket !== window.__oldSocket);
   await page.evaluate(() => window.__openSocket());
   await page.getByRole("status").filter({ hasText: "Tiempo real conectado" }).waitFor();
   assert.ok((await page.evaluate(() => window.__intervals)).includes(60_000), "connected state schedules 60-second reconciliation");
-  const reconciliation = page.waitForResponse((response) => response.url().includes("/api/v1/emergencies/") && response.request().method() === "GET");
+  await waitForListRefresh(beforeFallback);
+  const beforeReconciliation = api.emergencyListRequests;
   await page.evaluate(() => window.__runInterval(60_000));
-  await reconciliation;
+  await waitForListRefresh(beforeReconciliation);
   await context.close();
 } finally {
   await browser.close();
