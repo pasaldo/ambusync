@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from audit.models import AuditEvent
+from emergencies.events import publish_emergency_event
 from emergencies.models import Emergency, ProcessedOperation, VitalMeasurement
 from emergencies.serializers import (
     VITAL_FIELD_TO_KIND,
@@ -204,6 +205,7 @@ class EmergencyListCreateView(APIView):
                 result=AuditEvent.Result.SUCCESS,
                 correlation_id=operation_id,
             )
+            publish_emergency_event(emergency.pk, "emergency.created", emergency.version)
 
         return Response(
             emergency_representation(emergency),
@@ -316,6 +318,7 @@ class EmergencyTransitionView(APIView):
                 result=AuditEvent.Result.SUCCESS,
                 correlation_id=operation_id,
             )
+            publish_emergency_event(emergency.pk, self.action, emergency.version)
 
         return Response(emergency_representation(emergency), status=status.HTTP_200_OK)
 

@@ -20,6 +20,9 @@ import {
   type BackendUser,
   type Destination,
 } from "@/lib/backend";
+import { connectEmergencyEvents, type EmergencySocketStatus } from "@/lib/emergencySocket";
+import { preserveNewerEmergencyVersions } from "@/lib/emergencyReconciliation";
+import { createOperationId } from "@/lib/operationId";
 
 const SYMPTOMS = [
   "Disnea",
@@ -112,6 +115,7 @@ export function LocalPortal() {
   const [lastCreated, setLastCreated] = useState<BackendEmergency | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [socketStatus, setSocketStatus] = useState<EmergencySocketStatus>("disconnected");
   const lastAccountId = useRef<string | null>(null);
   const lastInteractionRefresh = useRef(0);
   const userRef = useRef<BackendUser | null>(null);
@@ -150,6 +154,17 @@ export function LocalPortal() {
     }
   }, [acceptUser, expireSession]);
 
+  const refreshEmergencyList = useCallback(async () => {
+    try {
+      const incoming = await listEmergencies();
+      setEmergencies((current) => preserveNewerEmergencyVersions(current, incoming));
+      setError("");
+    } catch (requestError) {
+      if (isUnauthenticated(requestError)) expireSession();
+      else setError(displayError(requestError));
+    }
+  }, [expireSession]);
+
   useEffect(() => {
     let active = true;
     getCurrentUser()
@@ -175,6 +190,22 @@ export function LocalPortal() {
   useEffect(() => {
     if (!loading && !user && location.pathname !== "/") navigate("/", { replace: true });
   }, [loading, user, navigate, location.pathname]);
+
+  useEffect(() => {
+    if (!user || (!user.groups.includes("ambulance") && !user.groups.includes("urgencias"))) {
+      setSocketStatus("disconnected");
+      return;
+    }
+    return connectEmergencyEvents({
+      onStatus: (status) => {
+        setSocketStatus(status);
+        if (status === "connected") {
+          void refreshEmergencyList();
+        }
+      },
+      onEvent: () => void refreshEmergencyList(),
+    });
+  }, [user?.id, user?.groups, expireSession, refreshEmergencyList]);
 
   useEffect(() => {
     if (!user) return;
@@ -211,15 +242,12 @@ export function LocalPortal() {
       listDestinations().then(setDestinations).catch((requestError) => setError(displayError(requestError)));
     }
     if (user.groups.includes("ambulance") || user.groups.includes("urgencias")) {
-      const refreshList = () => listEmergencies().then(setEmergencies).catch((requestError) => {
-        if (isUnauthenticated(requestError)) expireSession();
-        else setError(displayError(requestError));
-      });
+      const refreshList = () => void refreshEmergencyList();
       void refreshList();
-      const interval = window.setInterval(refreshList, 15_000);
+      const interval = window.setInterval(refreshList, socketStatus === "connected" ? 60_000 : 15_000);
       return () => window.clearInterval(interval);
     }
-  }, [user?.id, user?.groups, expireSession]);
+  }, [user?.id, user?.groups, refreshEmergencyList, socketStatus]);
 
   const expiresAt = user ? Math.min(user.session.idle_expires_at, user.session.absolute_expires_at) * 1000 : 0;
   const remainingMs = expiresAt - now;
@@ -294,7 +322,7 @@ export function LocalPortal() {
     );
     try {
       const created = await createEmergency({
-        operation_id: crypto.randomUUID(),
+        operation_id: createOperationId(),
         destination_id: draft.destinationId,
         transfer_started: draft.transferStarted,
         patient_identity_unknown: draft.identityUnknown,
@@ -401,6 +429,11 @@ export function LocalPortal() {
                   <h1 className="mt-1 text-xl font-bold">{user.username}</h1>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
+                  {(canAmbulance || canUrgencias) && (
+                    <span role="status" aria-live="polite" data-realtime-status={socketStatus} className={`inline-flex items-center rounded-lg border px-3 py-2 text-xs ${socketStatus === "connected" ? "border-signal/30 bg-signal/10 text-signal-soft" : "border-amber-300/30 bg-amber-300/10 text-amber-100"}`}>
+                      {socketStatus === "connected" ? "Tiempo real conectado · conciliación API cada 60 s" : socketStatus === "connecting" ? "Conectando tiempo real · consulta API cada 15 s" : socketStatus === "reconnecting" ? "Tiempo real degradado · respaldo API cada 15 s" : "Tiempo real desconectado · respaldo API cada 15 s"}
+                    </span>
+                  )}
                   {canAmbulance && user.ambulance && <span className="inline-flex items-center gap-2 rounded-lg border border-signal/30 bg-signal/10 px-3 py-2 text-sm text-signal-soft"><Ambulance className="h-4 w-4" /><span><span className="text-xs text-muted-dark">Unidad</span> <strong className="font-mono">{user.ambulance.code}</strong></span></span>}
                   <button onClick={() => void handleLogout()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><LogOut className="h-4 w-4" /> Cerrar sesión</button>
                 </div>

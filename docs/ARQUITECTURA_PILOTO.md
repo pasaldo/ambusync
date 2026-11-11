@@ -1,8 +1,10 @@
 # Arquitectura y contratos mínimos del piloto
 
-Fecha base: 29/10/2026. Actualización: 10/11/2026. Tarea: AS-006/AS-011. Decisiones: D-009/D-015.
+Fecha base: 29/10/2026. Actualización: 11/11/2026 (evaluación aislada, no publicada). Tarea: AS-006/AS-011. Decisiones: D-009/D-015.
 
 **Diseño aprobado por el responsable del proyecto. Implementación parcial:** el primer slice backend local se registra en [ETAPA_1.md](ETAPA_1.md); el resto de la arquitectura no está implementado. No introduce uso clínico real ni sustituye validación profesional. Proveedores, versiones y pendientes operativos se especifican antes de habilitar las funciones correspondientes.
+
+La rama local `feature/websocket-integration` implementa un primer alcance experimental de Channels/WebSocket descrito en la sección 7. No está integrada ni publicada. El smoke/regresión con Valkey pasó localmente y el responsable reportó una prueba manual PC-celular satisfactoria; CI remoto y repetición desde checkout limpio siguen pendientes.
 
 ## 1. Arquitectura general
 
@@ -167,6 +169,10 @@ Ejemplo de aviso, sin relato clínico:
 }
 ```
 
+En la rama de evaluación el contrato de evento limitado a cinco operaciones es: `emergency.created`, `emergency.transfer_started`, `emergency.arrived`, `emergency.cancelled` y `emergency.closed`. El sobre es `{event_id, type, emergency_id, version}`; no incluye identidad, motivo, notas, signos ni otros datos clínicos. Se publica con `transaction.on_commit` a grupos derivados en servidor del destino y de la ambulancia, usando Valkey únicamente como distribución. La API PostgreSQL/HTTP permanece como autoridad. El consumidor usa sesión Django, valida ámbito al conectar y vuelve a verificar sesión, membresía, institución y asignación antes de entregar cada evento. La notificación es no durable; la pérdida durante una desconexión se recupera consultando API, no mediante replay.
+
+En `/local`, solo usuarios de ambulancia/Urgencias conectan; un evento y cada reconexión disparan lectura autorizada de la lista HTTP. Se muestra estado degradado con polling cada 15 s y, conectado, conciliación cada 60 s. Esto no acredita lectura humana. `test:local-websocket` y los scripts Playwright existentes pasaron localmente sobre mocks; además, el responsable reportó la prueba manual navegador→Django/Valkey entre PC y celular como satisfactoria. El smoke/regresión real con Valkey también pasó localmente. No se ha ejecutado CI remoto ni una repetición desde checkout limpio; no integrar/publicar basándose solo en pruebas locales.
+
 - Autorizar suscripciones por institución, destino y unidad; no enviar el arreglo completo de pacientes a todos.
 - Identificadores para descartar duplicados; consultar representación vigente por API.
 - Reconectar con espera progresiva; suscribirse, retener avisos temporalmente y consultar estado antes de aplicar versiones posteriores, sin retroceder información.
@@ -189,7 +195,7 @@ Sin corrección ordinaria después de recepción/cierre; posteriores errores req
 - Cambio de destino con traslado ya iniciado: comportamiento aprobado en D-014: operación atómica que cancela el episodio anterior, detiene su GPS, crea reemplazo con nuevo ID/contexto autorizado y seguimiento nuevo, y conserva historial/autores anteriores; el vínculo no concede acceso cruzado entre receptores. Esquemas exactos, estado terminal y datos proyectados deben concretarse en OpenAPI/pruebas antes de habilitarlo.
 - Contratos OpenAPI y paginación de la primera rebanada están en `backend/openapi.json` y `docs/ETAPA_1.md`; errores/contratos de los flujos restantes, límites técnicos y versiones/eventos siguen pendientes.
 - Frontend: Node 24 LTS/npm 11.19.0. El backend fija Python 3.14.10/Django 5.2.18/DRF 3.18.3 en `backend/uv.lock`; no es selección para producción.
-- Channels/Valkey están fuera del runtime del primer slice: `channels_redis` publica pruebas hasta Python 3.13; el smoke test `group_add/send/receive/discard` pasó con Python 3.14.10/Channels 4.3.2/`channels_redis` 4.3.0/Valkey 9.0.3, sin ser garantía upstream completa. PostgreSQL 18.6 está instalado para el clúster local aislado. Autoalojar no elimina costos de hardware/hosting, energía, red, dominio ni operación; no contratar ni desplegar.
+- La rama de evaluación añade Channels 4.3.2, `channels_redis` 4.3.0 y Daphne 4.2.3 al runtime local; `VALKEY_URL` es obligatorio y no hay fallback de runtime. El smoke/regresión `group_add/send/receive/discard` y la lectura inactiva superior a cinco segundos se probaron contra Valkey local. En el equipo, el paquete Ubuntu instalado fue `9.0.3-0ubuntu2`, mientras `INFO server` reportó `valkey_version=9.0.4`; documentar el paquete/versión realmente disponible al reproducir. PostgreSQL 18.6 es la fuente de verdad. CI remoto y compatibilidad upstream completa de Python 3.14 siguen pendientes. Autoalojar no elimina costos de hardware/hosting, energía, red, dominio ni operación; no contratar ni desplegar.
 
 El diseño mínimo queda aprobado; estos detalles siguen pendientes y deben resolverse antes de implementar/habilitar las operaciones restantes. No empezar con permisos o persistencia provisionales que contradigan los acuerdos.
 

@@ -14,10 +14,11 @@
     "lint": "tsc --noEmit",
     "shots": "node scripts/shots.mjs",
     "check:diagrams": "node scripts/check-mermaid.mjs",
-    "test:unit": "node --test scripts/mermaid-checker.test.mjs",
+    "test:unit": "node --experimental-strip-types --test scripts/mermaid-checker.test.mjs scripts/emergency-socket.test.mjs scripts/emergency-reconciliation.test.mjs scripts/operation-id.test.mjs",
     "test:sync": "node scripts/sync-test.mjs",
     "test:accounts": "node scripts/accounts-test.mjs",
-    "test:system-admin": "node scripts/system-admin-test.mjs"
+    "test:system-admin": "node scripts/system-admin-test.mjs",
+    "test:local-websocket": "node scripts/local-websocket-test.mjs"
   },
   "dependencies": {
     "@fontsource/hanken-grotesk": "^5.0.20",

@@ -1,5 +1,6 @@
 export async function mockAuthenticatedApi(context, { groups = ["ambulance"], canCreateAccounts = true, includeUrgenciasQueue = false } = {}) {
   let authenticated = false;
+  let emergencyListRequests = 0;
   const demoAmbulances = [{ id: "demo-ambulance-id", code: "SYN-01", institution_id: "demo-operator-id", institution_name: "Hospital Operador Demo" }];
   const managedAccounts = [
     { id: "1", username: "demo_urgencias", email: "demo.urgencias@example.test", institution_name: "Hospital Central Demo", groups: ["urgencias"], active: true, ambulance: null },
@@ -201,6 +202,7 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
       return;
     }
     if (pathname === "/api/v1/emergencies/" && method === "GET") {
+      emergencyListRequests += 1;
       await route.fulfill({ json: { count: demoEmergencies.length, next: null, previous: null, results: demoEmergencies } });
       return;
     }
@@ -227,5 +229,5 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
     await route.fulfill({ status: 404, json: { code: "not_found", message: "Ruta no simulada." } });
   });
 
-  return { managedAccounts, managedInstitutions };
+  return { managedAccounts, managedInstitutions, get emergencyListRequests() { return emergencyListRequests; } };
 }

@@ -1,3 +1,5 @@
+import { createOperationId } from "./operationId";
+
 export interface BackendSession {
   started_at: number;
   idle_expires_at: number;
@@ -340,7 +342,7 @@ async function transitionEmergency(
   return request(`/api/v1/emergencies/${encodeURIComponent(emergencyId)}/${action}/`, {
     method: "POST",
     headers: { "X-CSRFToken": token },
-    body: JSON.stringify({ operation_id: crypto.randomUUID(), expected_version: emergency.version, ...extra }),
+    body: JSON.stringify({ operation_id: createOperationId(), expected_version: emergency.version, ...extra }),
     humanInteraction: true,
   });
 }

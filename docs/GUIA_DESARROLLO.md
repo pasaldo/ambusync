@@ -1,6 +1,6 @@
 # Guía de desarrollo y contribución
 
-Esta guía describe el estado actual del repositorio, cómo preparar frontend y backend local y cómo revisar cambios. La SPA es un prototipo con **datos sintéticos**; no está autorizado para atención clínica real. El backend implementa el primer slice local de etapa 1 y sus contratos/error responses están endurecidos; Channels, WebSocket y despliegue siguen pendientes. Consulta [ETAPA_1.md](ETAPA_1.md) para su entorno y alcance.
+Esta guía describe el estado actual del repositorio, cómo preparar frontend/backend y cómo revisar cambios. La SPA es un prototipo con **datos sintéticos**; no está autorizado para atención clínica real. La rama `feature/websocket-integration` añade Channels/WebSocket con Daphne y Valkey para evaluación local; esta integración no está en `main`, publicada ni desplegada. El responsable reportó una prueba manual satisfactoria PC-celular. Consulta [ETAPA_1.md](ETAPA_1.md) para dependencias, preparación de Valkey, arranque de servicios y prueba LAN.
 
 ## Preparar el entorno
 
@@ -37,7 +37,17 @@ Desde `frontend/`, inicia Vite solo en la interfaz local:
 npm run dev -- --host 127.0.0.1
 ```
 
-Abre `http://127.0.0.1:5173`. El proyecto configura Vite para escuchar interfaces de red en su ejecución habitual; no expongas el servidor de desarrollo a una red pública. La aplicación sincroniza pestañas del mismo navegador, no dispositivos distintos.
+Abre `http://127.0.0.1:5173`. El modo predeterminado escucha en loopback. En la rama WebSocket, para pruebas desde otro dispositivo usa el procedimiento restringido de [ETAPA_1.md](ETAPA_1.md#prueba-local-entre-dispositivos): enlaza Vite a la IP privada del PC y conserva Daphne, PostgreSQL y Valkey en loopback. Nunca expongas el servidor de desarrollo a Internet.
+
+## Ejecutar el backend con WebSocket
+
+La rama WebSocket requiere PostgreSQL local, Valkey y Daphne/ASGI; el desarrollo sin alta de cuentas no requiere Mailpit. `VALKEY_URL` es obligatorio para Django y está definido en el `.env` local ignorado por Git. Usa `uv sync --directory backend --locked --all-groups` para instalar el runtime fijado en `backend/uv.lock`: incluye Channels 4.3.2, `channels_redis` 4.3.0 y Daphne 4.2.3. Valkey es un servicio aparte, no un paquete instalado por `uv`. No arranques este flujo con `manage.py runserver`; inicia:
+
+```powershell
+uv run --directory backend daphne -b 127.0.0.1 -p 8000 config.asgi:application
+```
+
+Vite proxifica `/api` a `http://127.0.0.1:8000` y `/ws` a `ws://127.0.0.1:8000`. Pasos completos, incluyendo clúster PostgreSQL, WSL/Valkey, cuentas sintéticas, acceso móvil y cierre seguro, están en [ETAPA_1.md](ETAPA_1.md#entorno-local-reproducible-powershell).
 
 ## Verificaciones
 
@@ -47,13 +57,14 @@ Desde `frontend/`, ejecuta antes de solicitar revisión:
 npm audit
 npm run lint
 npm run test:unit
+npm run test:local-websocket
 npm run check:diagrams
 npm run build
 npm run test:accounts
 npm run test:system-admin
 ```
 
-`npm run lint` ejecuta TypeScript; no hay ESLint configurado. `check:diagrams` usa Chromium local. La prueba `test:sync` necesita el servidor de desarrollo y Chromium: mantén Vite corriendo en una terminal y ejecuta en otra:
+`npm run lint` ejecuta TypeScript; no hay ESLint configurado. `test:local-websocket` y las demás pruebas Playwright de SPA usan mocks sintéticos: no sustituyen la prueba manual real PC-celular ni la comprobación backend/Valkey. `check:diagrams` usa Chromium local. La prueba `test:sync` necesita el servidor de desarrollo y Chromium: mantén Vite corriendo en una terminal y ejecuta en otra:
 
 `npm run test:accounts` ejecuta el flujo Playwright de cuentas, unidad ambulancia, vistas de episodios, bandeja/archivo de Urgencias y confirmación de llegada con el mock sintético. `npm run test:system-admin` valida el acceso exclusivo al panel global, alta institucional con cuenta inicial, edición, baja lógica y reactivación.
 

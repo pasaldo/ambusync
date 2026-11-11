@@ -1,6 +1,6 @@
 # Etapa 1 — backend local mínimo
 
-Fecha de inicio: 29/10/2026. Estado actualizado: 10/11/2026. **En pausa; backend local del primer slice y administración global sintética de instituciones implementados; etapa abierta**.
+Fecha de inicio: 29/10/2026. Estado actualizado: 11/11/2026. **El proyecto sigue en pausa en la rama publicada; la evaluación WebSocket local está aislada en `feature/websocket-integration`, sin merge ni push**.
 
 ## Pausa del proyecto — 10/11/2026
 
@@ -10,6 +10,21 @@ Fecha de inicio: 29/10/2026. Estado actualizado: 10/11/2026. **En pausa; backend
 - Servicios al pausar: Vite cerrado; no hay listeners del proyecto en `5173/5174`, Django `8000`, PostgreSQL aislado `55432`, Valkey `6379` ni Mailpit `1025/8025`. El PostgreSQL preexistente en `5432` continúa activo y no se modificó; no es el clúster de AmbuSync.
 - Para retomar, consultar primero las instrucciones de [entorno local reproducible](#entorno-local-reproducible-powershell), comprobar que no existan cambios o servicios de terceros, iniciar solo los servicios necesarios y repetir verificaciones antes de publicar.
 
+### Evaluación WebSocket aislada — 11/11/2026
+
+- Por solicitud expresa se creó `feature/websocket-integration` desde `05148ef`; esto no modifica la pausa ni autoriza merge, push, despliegue o uso clínico. Los cambios y pruebas de esta sección son locales, no publicados.
+- Backend: Channels 4.3.2, `channels_redis` 4.3.0 y Daphne 4.2.3 se habilitaron para ASGI; `VALKEY_URL` es obligatorio. Se implementaron sesiones Django, autorización de audiencias por institución/unidad, revalidación antes de entregar y avisos post-commit minimalistas para creación, inicio de traslado, llegada, cancelación y cierre.
+- Valkey está instalado en Ubuntu 26.04/WSL, habilitado con systemd, aislado a loopback y accesible desde Windows. En la prueba se instaló el paquete Ubuntu `9.0.3-0ubuntu2`; `INFO server` reportó `valkey_version=9.0.4`. `backend/.env` local ignorado por Git incluye `VALKEY_URL`. Se fijó `socket_timeout=15s`, superior al timeout de lectura bloqueante de Channels (5s); una prueba real reprodujo el fallo anterior y verificó el fix contra Valkey. Suite backend local: 88 pruebas; Django check, migraciones, Ruff, `pip-audit` y OpenAPI pasaron. CI remoto no se ejecutó.
+- Frontend: `/local` refresca el estado desde la API ante eventos/reconexión, con polling de respaldo de 15 s y conciliación de 60 s conectado. `test:local-websocket`, `test:accounts`, `test:system-admin` y `test:sync` pasaron con mocks sintéticos; las pruebas de navegador automatizadas no sustituyen la prueba real PC-celular reportada satisfactoria por el responsable. CI remoto no se ejecutó.
+- La prueba PC-celular se ejecutó desde Vite en la IP LAN del PC; solo Vite se expuso a la Wi-Fi privada. Daphne y Valkey siguieron en loopback y el celular accedió a ellos únicamente por los proxies `/api` y `/ws` de Vite.
+
+### Aceptación local entre dos dispositivos — 11/11/2026
+
+- El responsable del proyecto reportó que completó satisfactoriamente la comprobación funcional entre PC y celular: autenticación, creación de episodio sintético, actualización entre dispositivos, transiciones y recuperación/conectividad. El envío desde celular quedó verificado después de corregir la generación de UUID para orígenes HTTP de LAN donde `crypto.randomUUID()` no está disponible; se usa `crypto.getRandomValues()` para construir un UUID v4.
+- La evidencia anterior es una validación manual local reportada por el responsable, no una ejecución automatizada reproducible ni un resultado de CI remoto. No se guardaron capturas ni datos clínicos. Repetir la verificación en un checkout nuevo antes de integrar o publicar.
+- Resultado operativo: PostgreSQL/HTTP sigue siendo autoridad; Valkey distribuye avisos efímeros. La pérdida/desconexión de WebSocket se recupera consultando la API; no hay cola durable ni garantía de entrega humana. Valkey permanece en loopback, nunca accesible directamente desde el teléfono.
+- No se autoriza con este resultado merge, push, despliegue, datos reales ni uso clínico. La pausa del proyecto se mantiene.
+
 ## Propósito y límites
 
 Construir el flujo vertical local del piloto usando **Hospital Operador Demo**, **Hospital Central Demo**, la unidad sintética **Demo-01** y datos de prueba. Esto no cierra la etapa 0 ni autoriza uso clínico. La aplicación no está desplegada. Se ensayó aparte el respaldo cifrado de datos sintéticos hacia Cloudflare R2; esto no convierte R2 en hosting ni autoriza datos reales.
@@ -18,9 +33,9 @@ Construir el flujo vertical local del piloto usando **Hospital Operador Demo**, 
 
 | Punto | Acuerdo/estado | Criterio de salida |
 |---|---|---|
-| 1. Runtime | Evaluación local autorizada; lock fija Python 3.14.10, Django 5.2.18, DRF 3.18.3 y psycopg 3.3.6. El grupo dev fija Channels 4.3.2/`channels_redis` 4.3.0 solo para smoke test. | `pip-audit` sin vulnerabilidades conocidas y licencias revisadas. La prueba real `group_add/send/receive/discard` pasó en Python 3.14.10 contra Valkey 9.0.3 local; su matriz publicada no declara Python 3.14. Channels/Valkey no se habilitan en la app. PostgreSQL 18.6 ya corre en el clúster aislado del piloto. |
+| 1. Runtime | Rama publicada: sin esta integración. Rama aislada: Channels 4.3.2, `channels_redis` 4.3.0 y Daphne 4.2.3 en runtime; Valkey requerido por `VALKEY_URL`. | Suite local (88 backend) y smoke/regresión real contra Valkey pasaron; `pip-audit` sin vulnerabilidades conocidas. CI remoto no se ejecutó. PostgreSQL 18.6 está en el clúster aislado del piloto. La compatibilidad upstream completa de Python 3.14 sigue pendiente de revisión. |
 | 2. Contratos | Contrato HTTP del primer slice en `backend/openapi.json`, validación y permisos en DRF; D-005 a D-014 siguen siendo la autoridad funcional. | La PR #5 está integrada en `main`. La suite llegó a 59 pruebas backend (1 omitida) en la última ejecución local registrada; incluye autenticación, emergencias, aislamiento, auditoría e idempotencia/concurrencia. Los contratos de operaciones futuras continúan pendientes. |
-| 3. Alcance | Implementados localmente sesión, permisos, auditoría, emergencias, vistas de ambulancia y Urgencias, y administración de cuentas/unidades. La administración de Urgencias tiene subpaneles para crear cuentas, consultar historial y crear unidades; permite asignar o cambiar unidad a cuentas de ambulancia. | Migraciones y pruebas usan PostgreSQL aislado. No es despliegue ni release. WebSocket, GPS, cambio de destino, recuperación de cuenta, informes y otros flujos aprobados siguen pendientes. |
+| 3. Alcance | Implementados localmente sesión, permisos, auditoría, emergencias, vistas de ambulancia y Urgencias, administración institucional y, solo en la rama aislada, WebSocket para cinco eventos de emergencia. La prueba funcional PC-celular fue reportada satisfactoria por el responsable. | No es despliegue ni release. GPS, cambio de destino, recuperación de cuenta, informes y otros flujos aprobados siguen pendientes. El socket no es durable; la API sigue siendo autoridad. CI remoto sigue pendiente. |
 | 4. Entorno | Python 3.14.10 instalado. PostgreSQL 18.6 responde en clúster separado `127.0.0.1:55432`; base/rol `ambusync_dev`, secretos aleatorios en `backend/.env` ignorado por Git. Docker no está instalado. | Versión actualizada y migraciones/pruebas comprobadas. Reproducir arranque con las rutas documentadas; no usar el servicio preexistente en `5432`. |
 | 5. Administración global | D-015: rol `system_admin` exclusivo, sin membresía institucional ni permisos clínicos; comando local para aprovisionarlo. El panel crea instituciones Operadora y Receptora (`combined`) y la primera cuenta Urgencias con administración institucional. | Lista instituciones, edita datos, conserva bajas lógicas y permite reactivar. Desactivación bloquea login y revoca sesiones; se impide si la institución está vinculada como origen/destino a episodios no terminales. La institución combinada queda como operadora de sí misma y su administración ve/crea solo sus propias unidades. |
 
@@ -30,11 +45,11 @@ La administración global está separada de `/local`: el inicio de sesión lleva
 
 ## Stack bajo evaluación local
 
-- Python 3.14.10: Django 5.2, DRF y Channels declaran compatibilidad. `channels_redis` publica pruebas hasta Python 3.13. La prueba exploratoria en 3.14.10 sí pasó, pero no equivale a compatibilidad upstream; Channels/Valkey permanecen solo en dependencias dev y no están conectados al runtime de la aplicación.
-- Django 5.2 LTS; DRF 3.18.3; Channels/Daphne y `channels_redis` quedan fuera hasta fijar versiones exactas compatibles y pasar resolución, auditoría y pruebas.
+- Python 3.14.10 y Django 5.2.18; Channels 4.3.2, `channels_redis` 4.3.0 y Daphne 4.2.3 están fijados en la rama de evaluación; revisar compatibilidad upstream de Python 3.14 antes de cualquier despliegue.
+- PostgreSQL sigue siendo fuente de verdad. La rama requiere `VALKEY_URL` para el channel layer; no dispone de fallback en memoria para runtime.
 - PostgreSQL 18.6 en el clúster aislado del proyecto para desarrollo y aceptación local. No sustituir las pruebas de integración por SQLite.
-- Se probó Valkey 9.0.3 (BSD-3-Clause; Ubuntu 26.04) localmente: `channels_redis` 4.3.0 completó `group_add`, `group_send`, `receive` y `group_discard` en Python 3.14.10. Esto prueba ese camino básico de comandos, no toda la carga ni compatibilidad oficial. Valkey sigue sin ser parte del runtime ni de `CHANNEL_LAYERS`; no usar Redis 8 en esta evaluación por su cambio de licencia.
-- Versiones fijadas: Python 3.14.10 (`.python-version`), Django 5.2.18, DRF 3.18.3, psycopg 3.3.6, `dj-database-url` 2.3.0 y `python-dotenv` 1.2.4 en `uv.lock`. El grupo dev fija Channels 4.3.2/`channels_redis` 4.3.0 para compatibilidad; no activa el runtime. `pip-audit` reportó cero vulnerabilidades conocidas. Licencias directas y transitivas se listaron; LGPL-3.0 (psycopg) y MPL-2.0 (certifi) requieren conservar avisos y revisar distribución antes de publicar.
+- El paquete Valkey `9.0.3-0ubuntu2` está instalado en Ubuntu 26.04/WSL de este equipo; el runtime informó `valkey_version=9.0.4`. El smoke test `group_add`, `group_send`, `receive` y `group_discard`, más la regresión de lectura ociosa superior a 5 s, pasó desde Channels por el endpoint Windows `127.0.0.1:6379`. Esto no prueba carga ni compatibilidad completa.
+- Versiones fijadas: Python 3.14.10 (`.python-version`), Django 5.2.18, DRF 3.18.3, psycopg 3.3.6, `dj-database-url` 2.3.0 y `python-dotenv` 1.2.4; la rama de evaluación añade Channels 4.3.2, `channels_redis` 4.3.0 y Daphne 4.2.3. `pip-audit` reportó cero vulnerabilidades conocidas. Revisar licencias transitivas antes de distribución.
 - Fuentes: [Python 3.14.10](https://www.python.org/downloads/release/python-31410/), [compatibilidad de Django 5.2](https://docs.djangoproject.com/en/5.2/releases/5.2/), [requisitos de DRF](https://www.django-rest-framework.org/), [cambios de Channels](https://github.com/django/channels/blob/main/CHANGELOG.txt), [matriz de `channels_redis`](https://pypi.org/project/channels-redis/), [migración/compatibilidad de Valkey](https://valkey.io/topics/migration/) y [versionado PostgreSQL](https://www.postgresql.org/support/versioning/).
 
 ## Contrato mínimo del primer flujo
@@ -63,7 +78,7 @@ La administración global está separada de `/local`: el inicio de sesión lleva
 - La lista usa páginas de 25 por defecto, `page_size` configurable hasta 100, orden estable por creación descendente e ID.
 - Errores JSON siguen el formato y categorías de `ARQUITECTURA_PILOTO.md`: validación, no autenticado, no autorizado/no disponible en ámbito, conflicto de estado/versión/idempotencia e indisponibilidad temporal; sin trazas ni contenido ajeno.
 - La creación y su `AuditEvent` se confirman en una misma transacción. El evento contiene actor, institución/unidad, acción, objeto, resultado, fecha y correlación; no duplica relato ni payload clínico. No se expone un endpoint de auditoría.
-- La creación se confirma en PostgreSQL antes de responder éxito. No afirmar entrega en tiempo real: Channels/WebSocket y el channel layer quedan fuera del primer flujo; más adelante se añadirá reconciliación sin cambiar la autoridad de la API.
+- La creación se confirma en PostgreSQL antes de responder éxito. Solo en la rama aislada se programa un aviso no durable después del commit para los cinco eventos documentados; el fallo del aviso no cambia el resultado HTTP. `/local` consulta de nuevo la API ante eventos, reconexión y conciliación periódica; no afirmar entrega humana ni garantía de entrega.
 - `GET /api/v1/institutions/destinations/` ofrece instituciones receptoras habilitadas a cuentas con rol de ambulancia. La ruta SPA `/local` usa sesión/CSRF para seleccionar destino y crear emergencias; no modifica el simulador ni persiste datos del backend en `localStorage`.
 - `GET /api/v1/auth/me/` incluye la unidad ambulancia activa (`id`, `code`, `institution_name`) cuando la cuenta tiene una asignación vigente; la SPA la muestra junto a la sesión local y no permite elegir una unidad arbitraria.
 - Síntomas y mediciones vitales aprobadas en D-007 se conservan en la API: por ejemplo, «Disnea», frecuencia cardíaca (lpm) y SpO₂ (%). Las mediciones son independientes y opcionales, con unidad, instante de medición y autor. La SPA no inventa valores ausentes. El catálogo UI aún es una lista de ejemplo, no un catálogo institucional dinámico.
@@ -77,12 +92,12 @@ La administración global está separada de `/local`: el inicio de sesión lleva
 4. Usuario de otra unidad/institución no crea ni consulta fuera de su ámbito; las pruebas incluyen solicitudes manipuladas.
 5. Reintento idempotente no duplica; mismo UUID con contenido distinto y versión/estado obsoletos se rechazan.
 6. Fixtures/pruebas no contienen personas, instituciones ni credenciales reales; logs no revelan secretos ni payloads clínicos.
-7. CI frontend/backend configurado. Las pruebas backend usan PostgreSQL; CI frontend incluye sincronización Playwright y flujo de cuentas. Valkey/Channels pueden estar disponibles como servicio de prueba, pero no se habilitan en el runtime. Los últimos ajustes a `test:accounts` fueron probados localmente; confirmar en GitHub Actions el resultado remoto del commit vigente antes de declarar CI remoto verde.
+7. CI frontend/backend configurado. CI provisiona PostgreSQL y Valkey; esta rama incluye `test:local-websocket` en el workflow frontend, pero no se ejecutó CI remoto. Las pruebas Playwright automatizadas usan mocks sintéticos; la prueba funcional PC-celular fue reportada por el responsable como satisfactoria.
 8. `system_admin` está separado de los roles operativos; no tiene membresía institucional. Los datos de instituciones sintéticas heredadas se completan mediante `seed_synthetic`; las migraciones no inventan información. La documentación y capturas incluyen el nuevo panel.
 
 ## Exclusiones de este primer alcance
 
-Siguen fuera de este slice: WebSocket/Valkey en runtime, GPS, cambio de destino D-014, corrección de mediciones, informes, recuperación administrativa D-013, correo externo, almacenamiento offline persistente, HTTPS público, Docker/despliegue y atención real. Retención D-010/D-011 cuenta con comando, logs y pruebas locales de límites/restauración sintética. El respaldo PostgreSQL → Restic → Cloudflare R2, `restic check` y restauración aislada fueron ensayados manualmente con datos sintéticos; la tarea de Windows se ejecutó manualmente y se consultó su configuración. Esto no equivale a un entorno de aplicación desplegado ni acredita por sí solo RPO/RTO, restauración semanal continua o gasto futuro de R2. La gestión de unidades y reasignaciones sí está implementada en el panel local, pero requiere pruebas de aceptación más amplias y no es gestión operativa de una flota real.
+Siguen fuera de este slice: GPS, cambio de destino D-014, corrección de mediciones, informes, recuperación administrativa D-013, correo externo, almacenamiento offline persistente, HTTPS público, Docker/despliegue y atención real. WebSocket permanece únicamente en la rama aislada; la prueba funcional manual PC-celular y el smoke/regresión local con Valkey pasaron, según evidencia local y reporte del responsable, pero CI remoto y repetición desde checkout limpio siguen pendientes. Retención D-010/D-011 cuenta con comando, logs y pruebas locales de límites/restauración sintética. El respaldo PostgreSQL → Restic → Cloudflare R2, `restic check` y restauración aislada fueron ensayados manualmente con datos sintéticos. Esto no equivale a un entorno de aplicación desplegado ni acredita por sí solo RPO/RTO, restauración semanal continua o gasto futuro de R2. La gestión de unidades y reasignaciones sí está implementada en el panel local, pero requiere pruebas de aceptación más amplias y no es gestión operativa de una flota real.
 
 ## Entorno local reproducible (PowerShell)
 
@@ -90,22 +105,92 @@ El clúster aislado actualizado vive fuera del repositorio en `$env:LOCALAPPDATA
 
 `DATABASE_URL`, `DJANGO_SECRET_KEY` y `POSTGRES_ADMIN_PASSWORD` son secretos locales aleatorios en `backend/.env`, con ACL local; `.env` está ignorado por Git. No copiarlo ni compartir secretos.
 
+### Valkey local en WSL
+
+La integración WebSocket necesita el servidor Valkey, además del cliente Python `channels_redis`. En esta máquina Valkey 9.0.3 está instalado en Ubuntu 26.04 (WSL) como paquete `valkey-server`; `valkey-server.service` queda habilitado por systemd y escucha solo en `127.0.0.1:6379` y `[::1]:6379`. La configuración local ignorada `backend/.env` incluye `VALKEY_URL=redis://127.0.0.1:6379/0`. Django configura `socket_timeout=15s`, mayor que los 5s de espera bloqueante del channel layer, para evitar que `redis-py` cierre las conexiones de consumidores inactivos. No exponer el puerto 6379 en la LAN.
+
+En una instalación WSL Ubuntu equivalente, instalar la versión probada y comprobar servicio/conexión:
+
+```powershell
+wsl -d Ubuntu -- sudo apt-get update
+wsl -d Ubuntu -- sudo apt-get install -y valkey-server=9.0.3-0ubuntu2 valkey-tools=9.0.3-0ubuntu2
+wsl -d Ubuntu -- sudo systemctl enable --now valkey-server
+wsl -d Ubuntu -- valkey-server --version
+wsl -d Ubuntu -- valkey-cli -h 127.0.0.1 -p 6379 ping
+Test-NetConnection 127.0.0.1 -Port 6379
+```
+
+Se espera versión 9.0.3, `PONG` y `TcpTestSucceeded: True`. En esta máquina WSL puede detener la distro al cerrar el último comando; para mantenerla activa mientras se prueba desde Windows, deja abierta una terminal PowerShell con:
+
+```powershell
+wsl -d Ubuntu -- bash -lc "sudo systemctl start valkey-server && exec sleep infinity"
+```
+
+Al terminar la prueba, `Ctrl+C` en esa terminal libera el proceso de espera. Windows accede a WSL por loopback; el celular nunca debe conectarse a Valkey. El backend usa la URL anterior desde su `.env` local.
+
 ```powershell
 $pgBin = "$env:LOCALAPPDATA\AmbuSync\postgresql-18.6-binaries\pgsql\bin"
 $dataDir = "$env:LOCALAPPDATA\AmbuSync\postgres-dev-18.6"
 & "$pgBin\pg_ctl.exe" -D $dataDir -o "-h 127.0.0.1 -p 55432" -l "$dataDir\server.log" start
 & "$pgBin\pg_isready.exe" -h 127.0.0.1 -p 55432
-uv sync --directory backend --locked --all-groups
-uv run --directory backend python manage.py migrate
-uv run --directory backend python manage.py seed_synthetic
-uv run --directory backend python manage.py test
-uv run --directory backend ruff check .
-uv run --directory backend pip-audit
-uv run --directory backend openapi-spec-validator openapi.json
-uv run --directory backend python manage.py runserver 127.0.0.1:8000
 ```
 
-En otra terminal, desde `frontend/`: `npm ci` y `npm run dev`. Abre `http://127.0.0.1:5173/` e inicia sesión con `demo_ambulancia` o `demo_urgencias`, creadas por `seed_synthetic` con contraseña elegida al provisionarlas. El login abre `/local` y muestra el módulo habilitado por la cuenta. Las rutas `/ambulancia` y `/urgencias` conservan el simulador separado y requieren sesión. Vite y Django se enlazan solo a loopback.
+Las dependencias están fijadas en `backend/uv.lock` y `frontend/package-lock.json`. En la rama WebSocket, las dependencias backend de runtime incluyen Channels 4.3.2, `channels_redis` 4.3.0 y Daphne 4.2.3; se instalan con `uv sync --locked`. `channels_redis` es el cliente Python, no reemplaza el proceso servidor Valkey. El frontend no añade una biblioteca WebSocket: utiliza la API WebSocket nativa del navegador. No editar lockfiles manualmente ni instalar paquetes globales para completar el runtime.
+
+### Arranque local para un solo PC
+
+Con Valkey activo según el apartado anterior, en `backend/.env` deben existir los valores locales de base de datos/secreto y `VALKEY_URL=redis://127.0.0.1:6379/0`. No incluyas `.env` en Git ni copies sus secretos. Instala dependencias y prepara la base/cuentas:
+
+```powershell
+uv sync --directory backend --locked --all-groups
+$pgBin = "$env:LOCALAPPDATA\AmbuSync\postgresql-18.6-binaries\pgsql\bin"
+$dataDir = "$env:LOCALAPPDATA\AmbuSync\postgres-dev-18.6"
+& "$pgBin\pg_ctl.exe" -D $dataDir -o "-h 127.0.0.1 -p 55432" -l "$dataDir\server.log" start
+& "$pgBin\pg_isready.exe" -h 127.0.0.1 -p 55432
+uv run --directory backend python manage.py migrate
+uv run --directory backend python manage.py seed_synthetic
+```
+
+Mantén Valkey/WSL en ejecución como se explica en [Valkey local en WSL](#valkey-local-en-wsl). En terminales separadas, inicia Daphne y Vite (y Mailpit solo para operaciones de alta/activación):
+
+```powershell
+uv run --directory backend daphne -b 127.0.0.1 -p 8000 config.asgi:application
+```
+
+```powershell
+Set-Location frontend
+npm ci
+npm run dev -- --host 127.0.0.1
+```
+
+Abre `http://127.0.0.1:5173/`, inicia sesión con la cuenta sintética aprovisionada y usa `/local`. `manage.py runserver` no se usa en este procedimiento; Daphne sirve la aplicación ASGI requerida por `/ws/emergencies/`. La API `/api` y el WebSocket `/ws` son proxificados por Vite hacia Daphne en loopback.
+
+### Prueba local entre dispositivos
+
+Este procedimiento es solo para una red local confiable y datos sintéticos. No publiques el frontend en Internet ni abras PostgreSQL (`55432`), Valkey (`6379`) o Daphne (`8000`) a la red. Mantén Daphne en `127.0.0.1`; solo Vite debe escuchar en la IP privada del PC. Usa una IP estable durante la prueba y limita cualquier permiso de firewall a perfil Privado/segmento local; elimina la regla temporal al terminar.
+
+1. Obtén la IPv4 privada del PC con `ipconfig`; en el ejemplo sustituye `192.168.100.8` por la dirección actual.
+2. En la terminal de Daphne, permite ese host a Django para `ALLOWED_HOSTS` y el validador de origen. No cambies `backend/.env` de forma que pierdas las otras entradas:
+
+   ```powershell
+   $lanIp = "192.168.100.8"
+   $env:DJANGO_ALLOWED_HOSTS = "127.0.0.1,localhost,$lanIp"
+   uv run --directory backend daphne -b 127.0.0.1 -p 8000 config.asgi:application
+   ```
+
+3. Inicia Vite enlazado a esa dirección concreta, no a `0.0.0.0`:
+
+   ```powershell
+   Set-Location frontend
+   $lanIp = "192.168.100.8"
+   npm run dev -- --host $lanIp
+   ```
+
+4. Si el firewall bloquea la conexión, permite temporalmente solo TCP `5173` en el perfil Privado y desde la subred local. No abras los puertos de PostgreSQL, Valkey o Daphne.
+5. Desde el PC y el celular, abre `http://<IP-LAN-DEL-PC>:5173/`, inicia sesión y valida `/local`. El celular debe estar en la misma Wi-Fi. En HTTP por IP, el origen no es un contexto seguro: `crypto.randomUUID()` puede faltar; `createOperationId()` usa `crypto.getRandomValues()` como alternativa. Las cookies de sesión se comparten dentro del mismo origen porque API/WebSocket pasan por el proxy Vite.
+6. Si la sesión WebSocket se desconecta, la interfaz conserva consultas API con polling de respaldo; refresca la lista antes de repetir una creación cuyo resultado sea incierto. No reenvíes una operación a ciegas.
+
+Al acabar, detén Vite/Daphne con `Ctrl+C`, cierra la espera WSL iniciada para mantener Valkey activo y detén únicamente el clúster local aislado de PostgreSQL. No apagues ni alteres servicios preexistentes.
 
 ### Administración institucional local
 

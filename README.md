@@ -107,9 +107,12 @@ El **tiempo real de la demo** se resuelve en el frontend: el store (Zustand) se 
 **entre pestañas del mismo navegador** vía **BroadcastChannel** con respaldo en **localStorage**.
 Las rutas `/ambulancia` y `/urgencias` conservan esa demo independiente. La ruta `/local` conecta
 la SPA con Django + DRF para crear emergencias y consultar episodios autorizados;
-usa cookie de sesión y no persiste respuestas del backend en `localStorage`. Channels/WebSocket y
-la sincronización entre dispositivos siguen pendientes; consulta
-[docs/ETAPA_1.md](docs/ETAPA_1.md).
+usa cookie de sesión y no persiste respuestas del backend en `localStorage`. En la rama local
+`feature/websocket-integration`, `/local` también usa WebSocket autenticado como aviso para
+refrescar desde la API entre dispositivos. Los avisos no son durables: PostgreSQL/API sigue siendo
+la fuente de verdad. Esta integración no está en `main`, no está publicada ni desplegada. Detalles,
+dependencias y pasos de ejecución local: [docs/ETAPA_1.md](docs/ETAPA_1.md) y
+[docs/GUIA_DESARROLLO.md](docs/GUIA_DESARROLLO.md).
 
 ## Estado del piloto local
 
@@ -117,15 +120,18 @@ La ruta `/local` integra el primer slice de Django/DRF con la SPA. Una cuenta de
 
 Los colores y rangos de signos vitales son exclusivamente una ayuda visual para datos sintéticos del piloto; no constituyen reglas clínicas ni autorización de atención real.
 
-El estado integrado actual está en `main`, commit `23ad80d` (PR #5). La documentación y el código no autorizan despliegue; permanecen pendientes WebSocket entre dispositivos, GPS, retención, copias/restauración, recuperación administrativa y una alternativa de hosting con costo recurrente $0.
+`main` conserva la línea integrada previa a la evaluación WebSocket. La rama `feature/websocket-integration`
+se verificó localmente con dos dispositivos según la comprobación reportada por el responsable; no se
+ha ejecutado CI remoto ni se ha integrado, publicado o desplegado. La documentación y el código no
+autorizan uso clínico. GPS, cambio de destino, recuperación administrativa, informes, operación
+continua de copias/restauración y decisiones de hosting siguen pendientes.
 
 ## Cómo correrlo
 
-El proyecto local tiene tres servicios/componentes principales: PostgreSQL aislado, backend
-Django/DRF y frontend Vite. **Mailpit también forma parte del entorno local actual cuando se
-prueba la administración de cuentas**, porque el backend entrega allí los enlaces de activación.
-No se inicia WebSocket/Channels en esta versión y no se debe exponer ningún
-servicio a una red pública.
+Para la rama `feature/websocket-integration`, el flujo entre dispositivos usa PostgreSQL aislado,
+Valkey (Redis protocol) local, Daphne/ASGI y Vite como proxy HTTP/WebSocket. **Mailpit** solo se
+necesita para probar altas/activaciones de cuentas. No se debe exponer PostgreSQL, Valkey ni Daphne
+a la LAN ni a una red pública; para la prueba desde celular solo Vite escucha en la IP LAN.
 
 Requiere **Python 3.14.10**, `uv`, **Node.js 24.20.0**, **npm 11.19.0** y el backend local
 configurado según [docs/ETAPA_1.md](docs/ETAPA_1.md). Node está fijado en `.nvmrc`, Python en
@@ -166,15 +172,31 @@ uv run --directory backend python manage.py migrate
 uv run --directory backend python manage.py seed_synthetic
 ```
 
-### 4. Iniciar el backend Django
+### 4. Iniciar Valkey local (WSL)
 
-En una terminal desde la raíz:
+La rama WebSocket requiere Valkey y `VALKEY_URL` en el `backend/.env` local. En este equipo Valkey
+escucha solo por loopback. Mantén WSL activo durante la prueba; los pasos completos de instalación
+y comprobación están en [ETAPA_1.md](docs/ETAPA_1.md#valkey-local-en-wsl).
 
 ```powershell
-uv run --directory backend python manage.py runserver 127.0.0.1:8000
+wsl -d Ubuntu -- bash -lc "sudo systemctl start valkey-server && exec sleep infinity"
 ```
 
-### 5. Iniciar el frontend
+Deja ese comando ejecutándose en una terminal. En otra, comprueba que Valkey devuelve `PONG`:
+
+```powershell
+wsl -d Ubuntu -- valkey-cli -h 127.0.0.1 -p 6379 ping
+```
+
+### 5. Iniciar Daphne/ASGI
+
+En otra terminal desde la raíz, usa Daphne (no `manage.py runserver`) para servir HTTP y WebSocket:
+
+```powershell
+uv run --directory backend daphne -b 127.0.0.1 -p 8000 config.asgi:application
+```
+
+### 6. Iniciar el frontend
 
 En otra terminal:
 
@@ -183,11 +205,13 @@ cd frontend
 npm run dev -- --host 127.0.0.1
 ```
 
-Abre <http://127.0.0.1:5173> e inicia sesión con una cuenta sintética. El login abre `/local`
-y muestra el módulo permitido por los grupos de la cuenta. Las rutas `/ambulancia` y `/urgencias`
-son el simulador demo separado y también requieren sesión.
+Abre <http://127.0.0.1:5173> e inicia sesión con una cuenta sintética. Para probar desde otro
+dispositivo, sigue los pasos LAN de [ETAPA_1.md](docs/ETAPA_1.md): Vite debe enlazarse a la IP LAN
+del PC, mientras Daphne y Valkey permanecen en loopback. El login abre `/local` y muestra el módulo
+permitido por los grupos de la cuenta. Las rutas `/ambulancia` y `/urgencias` son el simulador demo
+separado y también requieren sesión.
 
-### 6. Mailpit para activaciones locales
+### 7. Mailpit para activaciones locales
 
 **Mailpit es obligatorio para probar la creación, activación o reenvío de cuentas desde
 Administración.** Inícialo antes de realizar esas operaciones. El backend usa SMTP local en
@@ -202,13 +226,17 @@ $env:Path += ";C:\ruta\a\mailpit"
 mailpit.exe --smtp 127.0.0.1:1025 --listen 127.0.0.1:8025
 ```
 
-### 7. Detener PostgreSQL
+### 8. Detener servicios locales
 
 Cuando termines el trabajo local:
 
 ```powershell
 & "$pgBin\pg_ctl.exe" -D $dataDir -m fast stop
 ```
+
+Detén Daphne y Vite con `Ctrl+C` en sus terminales. Detén la espera que mantiene WSL activo con
+`Ctrl+C`; no deshabilites ni expongas Valkey. Para acceso desde celular, no uses esta instrucción
+de Vite en loopback: sigue el procedimiento seguro de [ETAPA_1.md](docs/ETAPA_1.md#prueba-local-entre-dispositivos).
 
 ### Verificaciones
 
@@ -217,6 +245,7 @@ Desde `frontend/`:
 ```bash
 npm run lint
 npm run test:unit
+npm run test:local-websocket
 npm run check:diagrams
 npm run test:sync       # requiere Vite activo
 npm run test:accounts   # flujo local con mock sintético
@@ -228,6 +257,8 @@ Desde la raíz:
 
 ```powershell
 uv run --directory backend python manage.py test
+uv run --directory backend python manage.py check
+uv run --directory backend python manage.py makemigrations --check --dry-run
 uv run --directory backend ruff check .
 uv run --directory backend pip-audit
 uv run --directory backend openapi-spec-validator openapi.json
@@ -414,7 +445,7 @@ acento cian representa la señal/sincronización en vivo.
 | 1 | PhoneFrame + navegación + ingreso centralizado | ✅ |
 | 2 | Flujo del paramédico (wizard + transmisión) | ✅ |
 | 3 | Tablero de Urgencias + tiempo real simulado | ✅ |
-| 4–5 | Backend local inicial: Django + DRF + PostgreSQL; integración y WebSockets | Primera rebanada local implementada; integración/WebSocket pendientes |
+| 4–5 | Backend local Django + DRF + PostgreSQL; WebSocket experimental en rama aislada | Primera rebanada implementada; evaluación WebSocket verificada localmente (prueba manual PC-celular reportada satisfactoria); sin CI remoto, integración, publicación ni despliegue |
 | 6 | Pulido, modo demo y documentación | ✅ |
 
 > Proyecto académico.

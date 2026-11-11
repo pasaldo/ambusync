@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -34,12 +35,14 @@ ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").sp
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "channels",
     "rest_framework",
     "accounts",
     "institutions",
@@ -75,7 +78,30 @@ TEMPLATES = [
     },
 ]
 
+ASGI_APPLICATION = "config.asgi.application"
 WSGI_APPLICATION = "config.wsgi.application"
+
+VALKEY_URL = os.environ.get("VALKEY_URL")
+if not VALKEY_URL:
+    raise ImproperlyConfigured("VALKEY_URL must be configured for the runtime channel layer.")
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [
+                {
+                    "address": VALKEY_URL,
+                    # Redis-py 8 defaults socket_timeout to 5s, equal to
+                    # channels_redis' blocking receive timeout. Leave margin
+                    # so idle WebSocket consumers don't fail on every poll.
+                    "socket_timeout": 15,
+                    "socket_connect_timeout": 5,
+                }
+            ]
+        },
+    }
+}
 
 
 # Database
