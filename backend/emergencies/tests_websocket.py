@@ -7,7 +7,7 @@ from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
 from django.conf import settings
-from django.db import transaction
+from django.db import connections, transaction
 from django.test import Client, TransactionTestCase, override_settings
 
 from accounts.models import User
@@ -23,6 +23,16 @@ class EmergencyWebSocketTests(EmergencyFixtureMixin, TransactionTestCase):
         super().setUp()
         self.layer = get_channel_layer()
         self.receiver_channel, self.ambulance_channel = asyncio.run(self.subscribe_audiences())
+
+    def tearDown(self):
+        # database_sync_to_async runs in the shared ASGI executor thread, so its
+        # connections are invisible to Django's main-thread teardown and would
+        # block DROP DATABASE at the end of the suite. Close them here.
+        asyncio.run(self.close_executor_db_connections())
+        super().tearDown()
+
+    async def close_executor_db_connections(self):
+        await database_sync_to_async(connections.close_all)()
 
     async def subscribe_audiences(self):
         receiver_channel = await self.layer.new_channel("test.receiver")
