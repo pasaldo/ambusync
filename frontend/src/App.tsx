@@ -7,6 +7,7 @@ import { ErApp } from "@/screens/er/ErApp";
 import { LocalPortal } from "@/screens/local/LocalPortal";
 import { SystemAdminPortal } from "@/screens/system/SystemAdminPortal";
 import { getCurrentUser } from "@/lib/backend";
+import { PortalMemoryProvider } from "@/screens/local/portalMemory";
 
 function AuthenticatedDemo({ children }: { children: ReactNode }) {
   const [access, setAccess] = useState<"checking" | "allowed" | "system" | "login">("checking");
@@ -31,7 +32,7 @@ function AuthenticatedDemo({ children }: { children: ReactNode }) {
 
 export default function App() {
   return (
-    <Routes>
+    <PortalMemoryProvider><Routes>
       <Route path="/" element={<LoginScreen />} />
       <Route path="/activar-cuenta" element={<ActivateAccountScreen />} />
       <Route path="/local/*" element={<LocalPortal />} />
@@ -39,6 +40,6 @@ export default function App() {
       <Route path="/ambulancia/*" element={<AuthenticatedDemo><AmbulanceApp /></AuthenticatedDemo>} />
       <Route path="/urgencias/*" element={<AuthenticatedDemo><ErApp /></AuthenticatedDemo>} />
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    </Routes></PortalMemoryProvider>
   );
 }

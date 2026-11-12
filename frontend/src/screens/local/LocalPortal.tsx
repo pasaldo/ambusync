@@ -7,22 +7,23 @@ import type { Vitals } from "@/types";
 import { AdminAccountsPanel } from "@/screens/local/AdminAccountsPanel";
 import {
   BackendApiError,
-  cancelEmergency,
-  closeEmergency,
-  createEmergency,
+  sendEmergencyOperation,
+  isUncertainWrite,
   getCurrentUser,
   listDestinations,
   listEmergencies,
   logout,
-  markEmergencyArrived,
-  startEmergencyTransfer,
+  prepareEmergencyTransition,
+  type EmergencyAction,
   type BackendEmergency,
   type BackendUser,
   type Destination,
 } from "@/lib/backend";
 import { connectEmergencyEvents, type EmergencySocketStatus } from "@/lib/emergencySocket";
 import { preserveNewerEmergencyVersions } from "@/lib/emergencyReconciliation";
-import { createOperationId } from "@/lib/operationId";
+import { prepareOperation, type PendingOperation } from "@/lib/pendingOperation";
+import { emptyDraft, VITAL_FIELDS, type EmergencyDraft } from "./emergencyDraft";
+import { usePortalMemory } from "./portalMemory";
 
 const SYMPTOMS = [
   "Disnea",
@@ -34,48 +35,6 @@ const SYMPTOMS = [
   "Hemorragia",
   "Convulsión",
 ];
-
-const VITAL_FIELDS = [
-  { key: "hr", label: "Frecuencia cardíaca", unit: "lpm", step: "1" },
-  { key: "bp_sys", label: "Presión sistólica", unit: "mmHg", step: "1" },
-  { key: "bp_dia", label: "Presión diastólica", unit: "mmHg", step: "1" },
-  { key: "spo2", label: "SpO₂", unit: "%", step: "0.01", max: "100" },
-  { key: "rr", label: "Frecuencia respiratoria", unit: "rpm", step: "1" },
-  { key: "temp_c", label: "Temperatura", unit: "°C", step: "0.1" },
-  { key: "glasgow", label: "Glasgow", unit: "puntos", step: "1", min: "3", max: "15" },
-] as const;
-
-interface EmergencyDraft {
-  destinationId: string;
-  identityUnknown: boolean;
-  alias: string;
-  ageValue: string;
-  ageUnit: "" | "years" | "months" | "days";
-  sex: "" | "F" | "M" | "X";
-  reason: string;
-  symptoms: string[];
-  notes: string;
-  triage: "" | "C1" | "C2" | "C3" | "C4" | "C5";
-  transferStarted: boolean;
-  vitals: Record<string, string>;
-}
-
-function emptyDraft(): EmergencyDraft {
-  return {
-    destinationId: "",
-    identityUnknown: true,
-    alias: "",
-    ageValue: "",
-    ageUnit: "",
-    sex: "",
-    reason: "",
-    symptoms: [],
-    notes: "",
-    triage: "",
-    transferStarted: false,
-    vitals: Object.fromEntries(VITAL_FIELDS.map(({ key }) => [key, ""])),
-  };
-}
 
 function archiveEventDate(emergency: BackendEmergency): string {
   if (emergency.status === "cancelada") return emergency.cancelled_at ?? emergency.created_at;
@@ -98,12 +57,14 @@ function isUnauthenticated(error: unknown): boolean {
 }
 
 export function LocalPortal() {
+  const memory = usePortalMemory();
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState<BackendUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [operationError, setOperationError] = useState("");
   const [role, setRole] = useState<"ambulance" | "urgencias" | "administration" | null>(null);
   const [ambulanceView, setAmbulanceView] = useState<"form" | "episodes">("form");
   const [urgenciasView, setUrgenciasView] = useState<"incoming" | "archive">("incoming");
@@ -114,56 +75,91 @@ export function LocalPortal() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [lastCreated, setLastCreated] = useState<BackendEmergency | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const writeInFlight = useRef(false);
+  const [creationUncertain, setCreationUncertain] = useState(false);
+  const transitionsInFlight = useRef(new Set<string>());
+  const [uncertainTransitions, setUncertainTransitions] = useState<Record<string, PendingOperation>>({});
+  const [transitionBusy, setTransitionBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [socketStatus, setSocketStatus] = useState<EmergencySocketStatus>("disconnected");
-  const lastAccountId = useRef<string | null>(null);
   const lastInteractionRefresh = useRef(0);
   const userRef = useRef<BackendUser | null>(null);
 
   const acceptUser = useCallback((nextUser: BackendUser) => {
-    if (lastAccountId.current && lastAccountId.current !== nextUser.id) {
-      setDraft(emptyDraft());
+    const changed = memory.bind(nextUser);
+    setDraft(memory.draft);
+    setCreationUncertain(memory.creationUncertain);
+    setUncertainTransitions(memory.uncertainTransitions);
+    if (changed) {
+      writeInFlight.current = false;
+      transitionsInFlight.current = new Set();
+      setSubmitting(false);
+      setTransitionBusy(false);
+      setEmergencies([]);
+      setDestinations([]);
       setLastCreated(null);
       setSelectedId(null);
-      setMessage("Cambió la cuenta; el borrador anterior se descartó sin enviarse.");
+      setOperationError("");
+      setMessage("Cambió la cuenta o el ámbito; el borrador anterior se descartó sin enviarse.");
     }
     userRef.current = nextUser;
     setUser(nextUser);
-    lastAccountId.current = nextUser.id;
-  }, []);
+    setRole((current) => {
+      if (!changed && current === "administration" && nextUser.groups.includes("urgencias") && nextUser.groups.includes("institution_admin")) return current;
+      if (!changed && current === "ambulance" && nextUser.groups.includes("ambulance")) return current;
+      if (!changed && current === "urgencias" && nextUser.groups.includes("urgencias")) return current;
+      return nextUser.groups.includes("ambulance") ? "ambulance" : nextUser.groups.includes("urgencias") ? "urgencias" : null;
+    });
+  }, [memory]);
 
   const expireSession = useCallback(() => {
+    memory.suspend();
+    setEmergencies([]);
+    setDestinations([]);
+    setLastCreated(null);
+    setSelectedId(null);
+    setMessage("");
+    setOperationError("");
     userRef.current = null;
     setUser(null);
     navigate("/", {
       replace: true,
       state: { notice: "La sesión expiró. Inicia sesión nuevamente; ningún borrador se enviará automáticamente." },
     });
-  }, [navigate]);
+  }, [navigate, memory]);
+
+  useEffect(() => () => memory.suspend(), [memory]);
 
   const refreshUser = useCallback(async (humanInteraction = false) => {
+    const token = memory.token;
     try {
-      acceptUser(await getCurrentUser(humanInteraction));
+      const current = await getCurrentUser(humanInteraction);
+      if (!memory.isCurrent(token)) return;
+      acceptUser(current);
       setError("");
     } catch (requestError) {
+      if (!memory.isCurrent(token)) return;
       if (isUnauthenticated(requestError)) {
         expireSession();
       } else {
         setError(displayError(requestError));
       }
     }
-  }, [acceptUser, expireSession]);
+  }, [acceptUser, expireSession, memory]);
 
   const refreshEmergencyList = useCallback(async () => {
+    const token = memory.token;
     try {
       const incoming = await listEmergencies();
+      if (!memory.isCurrent(token)) return;
       setEmergencies((current) => preserveNewerEmergencyVersions(current, incoming));
       setError("");
     } catch (requestError) {
+      if (!memory.isCurrent(token)) return;
       if (isUnauthenticated(requestError)) expireSession();
       else setError(displayError(requestError));
     }
-  }, [expireSession]);
+  }, [expireSession, memory]);
 
   useEffect(() => {
     let active = true;
@@ -239,7 +235,14 @@ export function LocalPortal() {
   useEffect(() => {
     if (!user) return;
     if (user.groups.includes("ambulance")) {
-      listDestinations().then(setDestinations).catch((requestError) => setError(displayError(requestError)));
+      const token = memory.token;
+      listDestinations().then((incoming) => {
+        if (memory.isCurrent(token)) setDestinations(incoming);
+      }).catch((requestError) => {
+        if (!memory.isCurrent(token)) return;
+        if (isUnauthenticated(requestError)) expireSession();
+        else setError(displayError(requestError));
+      });
     }
     if (user.groups.includes("ambulance") || user.groups.includes("urgencias")) {
       const refreshList = () => void refreshEmergencyList();
@@ -247,7 +250,7 @@ export function LocalPortal() {
       const interval = window.setInterval(refreshList, socketStatus === "connected" ? 60_000 : 15_000);
       return () => window.clearInterval(interval);
     }
-  }, [user?.id, user?.groups, refreshEmergencyList, socketStatus]);
+  }, [user?.id, user?.groups, refreshEmergencyList, socketStatus, memory, expireSession]);
 
   const expiresAt = user ? Math.min(user.session.idle_expires_at, user.session.absolute_expires_at) * 1000 : 0;
   const remainingMs = expiresAt - now;
@@ -290,6 +293,9 @@ export function LocalPortal() {
   }), [urgencyQueues.archived, archiveFilters]);
 
   async function handleLogout() {
+    memory.clear();
+    userRef.current = null;
+    setUser(null);
     try {
       await logout();
     } catch (logoutError) {
@@ -298,7 +304,6 @@ export function LocalPortal() {
     setDraft(emptyDraft());
     setLastCreated(null);
     setRole(null);
-    lastAccountId.current = null;
     userRef.current = null;
     setUser(null);
     navigate("/", {
@@ -308,12 +313,19 @@ export function LocalPortal() {
   }
 
   function updateDraft(patch: Partial<EmergencyDraft>) {
-    setDraft((current) => ({ ...current, ...patch }));
+    if (!userRef.current || !memory.isCurrent(memory.token) || memory.creation) return;
+    const next = { ...memory.draft, ...patch };
+    memory.draft = next;
+    setDraft(next);
   }
 
   async function submitEmergency(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!userRef.current || !memory.isCurrent(memory.token) || writeInFlight.current) return;
+    writeInFlight.current = true;
+    const token = memory.token;
     setError("");
+    setOperationError("");
     setSubmitting(true);
     const vitalValues = Object.fromEntries(
       Object.entries(draft.vitals)
@@ -321,8 +333,7 @@ export function LocalPortal() {
         .map(([key, value]) => [key, key === "spo2" || key === "temp_c" ? Number(value) : Number.parseInt(value, 10)]),
     );
     try {
-      const created = await createEmergency({
-        operation_id: createOperationId(),
+      memory.creation ??= prepareOperation("/api/v1/emergencies/", {
         destination_id: draft.destinationId,
         transfer_started: draft.transferStarted,
         patient_identity_unknown: draft.identityUnknown,
@@ -342,22 +353,37 @@ export function LocalPortal() {
           ? { vitals: { ...vitalValues, taken_at: new Date().toISOString() } }
           : {}),
       });
+      const created = await sendEmergencyOperation(memory.creation, () => memory.isCurrent(token));
+      if (!memory.isCurrent(token)) return;
+      memory.creation = null;
+      memory.creationUncertain = false;
+      setCreationUncertain(false);
       setLastCreated(created);
       setEmergencies((current) => [created, ...current.filter((item) => item.id !== created.id)]);
-      setDraft(emptyDraft());
+      memory.draft = emptyDraft();
+      setDraft(memory.draft);
       setMessage("Episodio guardado en el backend local.");
     } catch (submitError) {
+      if (!memory.isCurrent(token)) return;
+      // A rejection of this retry cannot disprove a previous unacknowledged commit.
+      const uncertain = memory.creationUncertain || isUncertainWrite(submitError) || (submitError instanceof BackendApiError && submitError.status === 401);
+      setCreationUncertain(uncertain);
+      memory.creationUncertain = uncertain;
+      if (!uncertain) memory.creation = null;
       if (submitError instanceof BackendApiError && submitError.status === 401) expireSession();
-      else setError(displayError(submitError));
+      else setOperationError(displayError(submitError));
     } finally {
-      setSubmitting(false);
+      if (memory.isCurrent(token)) {
+        writeInFlight.current = false;
+        setSubmitting(false);
+      }
     }
   }
 
   async function confirmArrival(emergencyId: string, reason: string) {
     const emergency = emergencies.find((item) => item.id === emergencyId);
     if (!emergency) return;
-    await runTransition(() => markEmergencyArrived(emergency, reason), "Llegada a Urgencias registrada.");
+    await runTransition(emergency, "arrival", "Llegada a Urgencias registrada.", { reason });
   }
 
   function confirmArrivalFromCard(emergency: BackendEmergency) {
@@ -371,31 +397,63 @@ export function LocalPortal() {
     void confirmArrival(emergency.id, reason);
   }
 
-  async function runTransition(operation: () => Promise<BackendEmergency>, successMessage: string) {
-    setError("");
+  async function executeTransition(emergencyId: string, operation: PendingOperation, successMessage: string) {
+    if (!userRef.current || !memory.isCurrent(memory.token) || transitionsInFlight.current.has(emergencyId)) return;
+    transitionsInFlight.current.add(emergencyId);
+    const token = memory.token;
+    setTransitionBusy(true);
+    setOperationError("");
     try {
-      const updated = await operation();
-      setEmergencies((current) => current.map((item) => item.id === updated.id ? updated : item));
+      const updated = await sendEmergencyOperation(operation, () => memory.isCurrent(token));
+      if (!memory.isCurrent(token)) return;
+      memory.transitions.delete(emergencyId);
+      const next = { ...memory.uncertainTransitions }; delete next[emergencyId];
+      memory.uncertainTransitions = next;
+      setUncertainTransitions(next);
+      setEmergencies((current) => current.map((item) => item.id === updated.id && item.version <= updated.version ? updated : item));
       setMessage(successMessage);
     } catch (requestError) {
+      if (!memory.isCurrent(token)) return;
+      if (memory.uncertainTransitions[emergencyId] || isUncertainWrite(requestError) || (requestError instanceof BackendApiError && requestError.status === 401)) {
+        memory.uncertainTransitions = { ...memory.uncertainTransitions, [emergencyId]: operation };
+        setUncertainTransitions(memory.uncertainTransitions);
+      } else {
+        memory.transitions.delete(emergencyId);
+        const next = { ...memory.uncertainTransitions }; delete next[emergencyId];
+        memory.uncertainTransitions = next;
+        setUncertainTransitions(next);
+        if (requestError instanceof BackendApiError && requestError.status === 409) await refreshEmergencyList();
+      }
+      if (!memory.isCurrent(token)) return;
       if (requestError instanceof BackendApiError && requestError.status === 401) expireSession();
-      else setError(displayError(requestError));
+      else setOperationError(displayError(requestError));
+    } finally {
+      if (memory.isCurrent(token)) {
+        transitionsInFlight.current.delete(emergencyId);
+        setTransitionBusy(transitionsInFlight.current.size > 0);
+      }
     }
   }
 
-  async function refreshEmergencies() {
-    try {
-      setEmergencies(await listEmergencies());
-    } catch (requestError) {
-      if (isUnauthenticated(requestError)) expireSession();
-      else setError(displayError(requestError));
+  async function runTransition(emergency: BackendEmergency, action: EmergencyAction, successMessage: string, extra: Record<string, string> = {}) {
+    if (!userRef.current || !memory.isCurrent(memory.token)) return;
+    if (memory.transitions.has(emergency.id)) {
+      setOperationError("Resuelve la operación pendiente de este episodio antes de realizar otra acción.");
+      return;
     }
+    const operation = prepareEmergencyTransition(emergency, action, extra);
+    memory.transitions.set(emergency.id, operation);
+    await executeTransition(emergency.id, operation, successMessage);
+  }
+
+  async function refreshEmergencies() {
+    await refreshEmergencyList();
   }
 
   function cancelFromAmbulance(emergency: BackendEmergency) {
     const reason = window.prompt("Indica el motivo de cancelación (datos sintéticos):");
     if (reason === null || reason.trim().length < 3) return;
-    void runTransition(() => cancelEmergency(emergency, reason.trim()), "Episodio cancelado.");
+    void runTransition(emergency, "cancel", "Episodio cancelado.", { reason: reason.trim() });
   }
 
   return (
@@ -456,6 +514,11 @@ export function LocalPortal() {
                 </div>
               )}
 
+              {Object.entries(uncertainTransitions).map(([id, operation]) => <div key={id} role="alert" className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100">
+                <p>Resultado sin confirmar para el episodio {id}. Consulta su estado o reintenta la misma operación; no se repetirá automáticamente.</p>
+                <button disabled={transitionBusy} onClick={() => void executeTransition(id, operation, "Operación confirmada en el servidor.")} className="mt-2 rounded-lg border border-amber-300/30 px-3 py-2 disabled:opacity-50">Reintentar operación</button>
+              </div>)}
+
               {!role ? (
                 <p className="mt-6 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">La cuenta inició sesión, pero no tiene un rol operativo disponible en este entorno.</p>
               ) : role === "ambulance" && canAmbulance ? (
@@ -469,7 +532,7 @@ export function LocalPortal() {
                       <div className="flex flex-wrap items-center justify-between gap-2"><strong>{item.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{emergencyStatusLabel(item.status)}</span></div>
                       <p className="mt-1 text-sm text-muted-dark">{item.reason} · {item.destination_name}</p>
                       {(item.status === "notificada" || item.status === "en_traslado") && <div className="mt-3 flex flex-wrap gap-2">
-                        {item.status === "notificada" && <button onClick={() => void runTransition(() => startEmergencyTransfer(item), "Inicio de traslado registrado.")} className="rounded-lg bg-signal px-3 py-2 text-sm font-semibold text-ink">Iniciar traslado</button>}
+                        {item.status === "notificada" && <button disabled={transitionBusy || Boolean(uncertainTransitions[item.id])} onClick={() => void runTransition(item, "transfer-start", "Inicio de traslado registrado.")} className="rounded-lg bg-signal px-3 py-2 text-sm font-semibold text-ink">Iniciar traslado</button>}
                         <button onClick={() => cancelFromAmbulance(item)} className="rounded-lg border border-rose-300/30 px-3 py-2 text-sm text-rose-100">Cancelar episodio</button>
                       </div>}
                     </div>)}</div>}
@@ -480,6 +543,8 @@ export function LocalPortal() {
                     <p className="mt-4 rounded-lg bg-white/5 p-3 text-sm text-muted-dark">No hay destinos receptores habilitados para esta cuenta.</p>
                   ) : (
                     <form onSubmit={submitEmergency} className="mt-5 space-y-5">
+                      {creationUncertain && <p role="alert" className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100">Resultado sin confirmar. El servidor podría haber guardado el episodio. Puedes consultar los episodios o reintentar el mismo envío; no se enviará automáticamente. No recargues ni cierres esta página mientras lo revisas.</p>}
+                      <fieldset disabled={submitting || creationUncertain} className="space-y-5 disabled:opacity-70">
                       <label className="block text-sm font-medium">Destino receptor <span className="text-rose-300">*</span>
                         <select required value={draft.destinationId} onChange={(event) => updateDraft({ destinationId: event.target.value })} className="mt-1.5 h-11 w-full rounded-lg border border-white/15 bg-ink px-3 text-white">
                           <option value="">Selecciona un destino</option>
@@ -541,7 +606,8 @@ export function LocalPortal() {
                         </label>
                       </div>
                       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.transferStarted} onChange={(event) => updateDraft({ transferStarted: event.target.checked })} /> Traslado iniciado</label>
-                      <button disabled={submitting} className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-bold text-ink disabled:opacity-50"><Activity className="h-4 w-4" /> {submitting ? "Guardando…" : "Guardar emergencia"}</button>
+                      </fieldset>
+                      <button disabled={submitting} className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-bold text-ink disabled:opacity-50"><Activity className="h-4 w-4" /> {submitting ? "Guardando…" : creationUncertain ? "Reintentar envío" : "Guardar emergencia"}</button>
                     </form>
                   )}
                   </>}
@@ -575,7 +641,7 @@ export function LocalPortal() {
                       {filteredArchive.length === 0 ? <p className="mt-4 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios que coincidan con estos filtros.</p> : <div className="mt-4 space-y-2">{filteredArchive.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} archived onSelect={() => setSelectedId(item.id)} />)}</div>}
                     </>
                   )}
-                  {selected && <EmergencyDetail emergency={selected} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} onCloseEmergency={() => void runTransition(() => closeEmergency(selected), "Episodio cerrado.")} />}
+                  {selected && <EmergencyDetail emergency={selected} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} onCloseEmergency={() => void runTransition(selected, "close", "Episodio cerrado.")} />}
                 </section>
               ) : role === "administration" && canAdminister ? (
                 <AdminAccountsPanel currentUserId={user.id} institutionName={user.institutions[0]?.name ?? ""} />
@@ -587,6 +653,7 @@ export function LocalPortal() {
 
           {message && <p role="status" className="mt-4 rounded-lg bg-white/5 p-3 text-sm text-muted-dark">{message}</p>}
           {error && <p role="alert" className="mt-4 rounded-lg border border-rose-300/20 bg-rose-300/10 p-3 text-sm text-rose-100">{error}</p>}
+          {operationError && <p role="alert" className="mt-4 rounded-lg border border-rose-300/20 bg-rose-300/10 p-3 text-sm text-rose-100">{operationError}</p>}
         </section>
         <p className="mx-auto mt-4 max-w-3xl text-center text-xs leading-relaxed text-muted-dark">Entorno de demostración local: no usar para atención clínica ni introducir información de personas reales. No expone servicios a la red y no persiste respuestas del backend en localStorage.</p>
       </div>

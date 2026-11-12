@@ -12,6 +12,15 @@ La preparación reproducible del frontend, el flujo de revisión y el checklist 
 **[docs/GUIA_DESARROLLO.md](docs/GUIA_DESARROLLO.md)**.
 La aplicación sigue siendo un prototipo de demostración, no un sistema clínico productivo.
 
+### Trabajo de entrega retomado — 12/11/2026
+
+El desarrollo local continúa en `feature/pilot-completion` desde `main` `4091db9`, cuya
+[ejecución CI del 11/11](https://github.com/pasaldo/ambusync/actions/runs/43010182166) aprobó
+backend, frontend y secretos. El [plan aprobado](docs/superpowers/plans/2026-11-12-pilot-completion.md)
+separa integridad/sesiones, flujos pendientes, PWA, preparación Render y aceptación final.
+La PWA y el despliegue siguen pendientes; no hay servicio clínico ni entorno publicado.
+Los avances locales y límites del bloque A se registran en [ETAPA_1](docs/ETAPA_1.md).
+
 > Transmite la información clínica del paciente desde la **ambulancia** al **servicio de
 > urgencia** en tiempo real, para que el hospital anticipe la recepción y prepare recursos
 > antes del arribo.

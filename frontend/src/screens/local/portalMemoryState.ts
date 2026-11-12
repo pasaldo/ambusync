@@ -1,0 +1,52 @@
+import type { BackendUser } from "../../lib/backend";
+import type { PendingOperation } from "../../lib/pendingOperation";
+import { emptyDraft } from "./emergencyDraft.ts";
+
+/** Volatile, owner-scoped state. Never serialized to browser storage. */
+export class PortalMemory {
+  private owner: string | null = null;
+  private revision = 0;
+  private suspended = true;
+  draft = emptyDraft();
+  creation: PendingOperation | null = null;
+  creationUncertain = false;
+  transitions = new Map<string, PendingOperation>();
+  uncertainTransitions: Record<string, PendingOperation> = {};
+
+  get token(): number { return this.revision; }
+
+  bind(user: BackendUser): boolean {
+    const scope = JSON.stringify([
+      user.id, [...user.groups].sort(), user.institutions.map((item) => item.id).sort(),
+      user.ambulance?.id ?? null,
+    ]);
+    const changed = this.owner !== scope;
+    if (changed) this.clear();
+    if (this.suspended || changed) this.revision += 1;
+    this.owner = scope;
+    this.suspended = false;
+    return changed;
+  }
+
+  isCurrent(token: number): boolean {
+    return !this.suspended && this.owner !== null && token === this.revision;
+  }
+
+  suspend(): void {
+    this.suspended = true;
+    this.revision += 1;
+    if (this.creation) this.creationUncertain = true;
+    this.uncertainTransitions = Object.fromEntries(this.transitions);
+  }
+
+  clear(): void {
+    this.owner = null;
+    this.suspended = true;
+    this.revision += 1;
+    this.draft = emptyDraft();
+    this.creation = null;
+    this.creationUncertain = false;
+    this.transitions = new Map();
+    this.uncertainTransitions = {};
+  }
+}

@@ -1,6 +1,18 @@
 # Etapa 1 — backend local mínimo
 
-Fecha de inicio: 29/10/2026. Estado actualizado: 11/11/2026. **La integración WebSocket se integró en `main` el 11/11/2026 por solicitud expresa del responsable; sigue en pausa para nuevo desarrollo, sin despliegue ni CI remoto**.
+Fecha de inicio: 29/10/2026. Estado actualizado: 12/11/2026. **Desarrollo local retomado por aprobación del responsable; sin despliegue ni uso clínico.** Las secciones de pausa/evaluación siguientes conservan su contexto histórico; para el estado vigente prevalece este apartado.
+
+## Retoma y plan de entrega — 12/11/2026
+
+- Base integrada: `main` en `4091db9`. CI remoto [43010182166](https://github.com/pasaldo/ambusync/actions/runs/43010182166), del 11/11/2026: backend (88 tests), frontend y secretos en verde. Esto reemplaza las menciones históricas de CI pendiente para esa base; no acredita código nuevo aún no publicado.
+- Aprobado el plan `docs/superpowers/plans/2026-11-12-pilot-completion.md`: bloques A–M; decisiones del proyecto prevalecen sobre el informe académico. No autoriza producción clínica, merge/push ni creación de recursos externos.
+- Aprobados PWA instalable con conexión, preparación Render, orden D-007 (implementación pendiente), evaluación de correo API HTTPS y respaldo externo Restic/R2. No se seleccionó ni usó proveedor de correo.
+- Trabajo local del bloque A en `feature/pilot-completion`: identidad de escritura conservada (UUID/cuerpo/fecha/versión), reintentos manuales y estado «Resultado sin confirmar». Un rechazo confirmado permite corregir; 409 en transiciones consulta estado vigente. El aviso no significa lectura humana.
+- El borrador y las operaciones inciertas viven solo en memoria sobre las rutas. Al expirar sesión se ocultan y solo se recuperan tras comprobar la misma cuenta, grupos, membresías y unidad. Logout o cambio de ámbito los descartan; recarga/cierre pueden perderlos. No hay cola offline durable ni reenvío automático.
+- Las nuevas pruebas `test:local-integrity` usan transporte HTTP sintético y Chromium; no sustituyen validación contra Django/PostgreSQL ni aceptación Android/iPhone. Evidencia de ejecución y revisión se registra al cerrar el bloque.
+- Verificación local del bloque A el 12/11/2026: 19/19 unitarias y 30/30 escenarios de integridad en Chromium; tipos y compilación, `test:sync`, `test:accounts`, `test:system-admin`, `test:local-websocket` y Mermaid (3/3) pasaron. Tras un reinicio del harness se conservaron los resultados completos de unitarias/integridad y se repitieron cuentas, administración global, WebSocket, Mermaid y build cuyos registros habían quedado incompletos. Servidor de prueba de esta rama: `127.0.0.1:5174`, solo loopback.
+- Revisión independiente del bloque A detectó y se corrigieron respuestas de otro episodio, bloqueo al cambiar de ámbito, destinos tardíos y errores JSON ilegibles. Regresiones adicionales verifican que esperar CSRF no permite enviar un cuerpo de otra cuenta y que un rechazo posterior no demuestra que una escritura incierta previa nunca se guardó. No se modificó backend en este bloque ni se repitió su suite; los 88 tests remotos corresponden exclusivamente a la base `4091db9`.
+- Entrega: 18/11/2026; defensa: 14–16/12. Responsable disponible unos 6 días/48 h, excepto domingo 15. El presupuesto de tiempo no demuestra que quepa todo el alcance. Sin métricas nuevas de carga/disponibilidad, GPS ni despliegue acreditadas.
 
 ## Pausa del proyecto — 10/11/2026
 

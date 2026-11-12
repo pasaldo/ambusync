@@ -1,4 +1,4 @@
-import { createOperationId } from "./operationId";
+import { prepareOperation, type PendingOperation } from "./pendingOperation";
 
 export interface BackendSession {
   started_at: number;
@@ -108,6 +108,7 @@ export class BackendApiError extends Error {
 }
 
 let csrfToken: string | null = null;
+let csrfGeneration = 0;
 
 async function request<T>(
   path: string,
@@ -126,9 +127,14 @@ async function request<T>(
   });
 
   if (response.status === 204) return undefined as T;
-  const body = await response.json().catch(() => ({} as ApiErrorBody));
+  const body = await response.json().catch(() => {
+    throw new Error("La respuesta del servidor no se pudo interpretar.");
+  });
   if (!response.ok) {
     const error = body as ApiErrorBody;
+    if (!error || typeof error.code !== "string" || typeof error.message !== "string") {
+      throw new Error("No se pudo confirmar el resultado de la solicitud.");
+    }
     throw new BackendApiError(
       error.message ?? "No se pudo completar la solicitud al backend local.",
       response.status,
@@ -141,13 +147,17 @@ async function request<T>(
 
 async function ensureCsrf(): Promise<string> {
   if (!csrfToken) {
+    const generation = csrfGeneration;
     const result = await request<{ csrf_token: string }>("/api/v1/auth/csrf/");
+    if (generation !== csrfGeneration) throw new Error("La sesión cambió durante la solicitud.");
     csrfToken = result.csrf_token;
   }
   return csrfToken;
 }
 
 export async function login(username: string, password: string): Promise<void> {
+  csrfGeneration += 1;
+  csrfToken = null;
   const token = await ensureCsrf();
   await request("/api/v1/auth/login/", {
     method: "POST",
@@ -155,6 +165,7 @@ export async function login(username: string, password: string): Promise<void> {
     body: JSON.stringify({ username, password }),
   });
   // Django rotates the CSRF secret at login; obtain its new masked token.
+  csrfGeneration += 1;
   csrfToken = null;
   await ensureCsrf();
 }
@@ -164,6 +175,7 @@ export async function getCurrentUser(humanInteraction = false): Promise<BackendU
 }
 
 export async function logout(): Promise<void> {
+  const generation = ++csrfGeneration;
   const token = await ensureCsrf();
   await request("/api/v1/auth/logout/", {
     method: "POST",
@@ -171,7 +183,7 @@ export async function logout(): Promise<void> {
     body: "{}",
     humanInteraction: true,
   });
-  csrfToken = null;
+  if (generation === csrfGeneration) csrfToken = null;
 }
 
 export async function listManagedAccounts(): Promise<ManagedAccount[]> {
@@ -322,36 +334,51 @@ export async function listEmergencies(): Promise<BackendEmergency[]> {
   return results;
 }
 
-export async function createEmergency(payload: Record<string, unknown>): Promise<BackendEmergency> {
-  const token = await ensureCsrf();
-  return request("/api/v1/emergencies/", {
-    method: "POST",
-    headers: { "X-CSRFToken": token },
-    body: JSON.stringify(payload),
-    humanInteraction: true,
-  });
+export function isUncertainWrite(error: unknown): boolean {
+  return !(error instanceof BackendApiError) || error.status >= 500 || error.status === 408;
 }
 
-async function transitionEmergency(
-  emergencyId: string,
-  action: "arrival" | "transfer-start" | "cancel" | "close",
+export async function sendEmergencyOperation(operation: PendingOperation, isCurrent: () => boolean): Promise<BackendEmergency> {
+  if (!isCurrent()) throw new Error("La operación ya no pertenece a la sesión actual.");
+  const token = await ensureCsrf();
+  // Awaiting CSRF must never let an old payload run under a replacement cookie.
+  if (!isCurrent()) throw new Error("La operación ya no pertenece a la sesión actual.");
+  const result = await request<BackendEmergency>(operation.path, {
+    method: "POST",
+    headers: { "X-CSRFToken": token },
+    body: operation.body,
+    humanInteraction: true,
+  });
+  if (!result || typeof result.id !== "string" || !result.id
+    || !Number.isInteger(result.version) || result.version < 1
+    || !["notificada", "en_traslado", "llegado", "cancelada", "cerrada"].includes(result.status)
+    || !result.patient || typeof result.patient.identity_unknown !== "boolean"
+    || typeof result.reason !== "string" || typeof result.destination_name !== "string"
+    || typeof result.ambulance_code !== "string" || typeof result.created_at !== "string"
+    || !Array.isArray(result.symptoms) || !Array.isArray(result.vital_measurements)) {
+    throw new Error("No se pudo confirmar la respuesta de la operación.");
+  }
+  const transition = operation.path.match(/^\/api\/v1\/emergencies\/([^/]+)\/(arrival|transfer-start|cancel|close)\/$/);
+  if (transition) {
+    const sent = JSON.parse(operation.body) as { expected_version: number };
+    if (result.id !== decodeURIComponent(transition[1]) || result.version <= sent.expected_version
+      || (transition[2] === "close" && result.status !== "cerrada")
+      || (transition[2] === "cancel" && result.status !== "cancelada")
+      || (transition[2] === "arrival" && !["llegado", "cerrada"].includes(result.status))) {
+      throw new Error("La respuesta no confirma la operación de este episodio.");
+    }
+  }
+  return result;
+}
+
+export type EmergencyAction = "arrival" | "transfer-start" | "cancel" | "close";
+
+export function prepareEmergencyTransition(
   emergency: BackendEmergency,
+  action: EmergencyAction,
   extra: Record<string, string> = {},
-): Promise<BackendEmergency> {
-  const token = await ensureCsrf();
-  return request(`/api/v1/emergencies/${encodeURIComponent(emergencyId)}/${action}/`, {
-    method: "POST",
-    headers: { "X-CSRFToken": token },
-    body: JSON.stringify({ operation_id: createOperationId(), expected_version: emergency.version, ...extra }),
-    humanInteraction: true,
+): PendingOperation {
+  return prepareOperation(`/api/v1/emergencies/${encodeURIComponent(emergency.id)}/${action}/`, {
+    ...extra, expected_version: emergency.version,
   });
 }
-
-export const markEmergencyArrived = (emergency: BackendEmergency, reason = "") =>
-  transitionEmergency(emergency.id, "arrival", emergency, { reason });
-export const startEmergencyTransfer = (emergency: BackendEmergency) =>
-  transitionEmergency(emergency.id, "transfer-start", emergency);
-export const cancelEmergency = (emergency: BackendEmergency, reason: string) =>
-  transitionEmergency(emergency.id, "cancel", emergency, { reason });
-export const closeEmergency = (emergency: BackendEmergency) =>
-  transitionEmergency(emergency.id, "close", emergency);

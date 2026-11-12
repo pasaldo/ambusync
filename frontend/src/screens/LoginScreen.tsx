@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Activity, LogIn } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { BackendApiError, getCurrentUser, login, logout } from "@/lib/backend";
+import { usePortalMemory } from "@/screens/local/portalMemory";
 
 function canEnterPortal(groups: string[]) {
   if (groups.includes("system_admin")) return groups.length === 1;
@@ -23,6 +24,7 @@ function errorMessage(error: unknown) {
 }
 
 export function LoginScreen() {
+  const memory = usePortalMemory();
   const navigate = useNavigate();
   const location = useLocation();
   const [checkingSession, setCheckingSession] = useState(true);
@@ -37,6 +39,7 @@ export function LoginScreen() {
     getCurrentUser()
       .then((user) => {
         if (!active) return;
+        memory.bind(user);
         if (canEnterPortal(user.groups)) navigate(destinationFor(user.groups), { replace: true });
         else setError("La cuenta no tiene un módulo operativo habilitado.");
       })
@@ -50,7 +53,7 @@ export function LoginScreen() {
     return () => {
       active = false;
     };
-  }, [navigate]);
+  }, [navigate, memory]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,7 +62,9 @@ export function LoginScreen() {
     try {
       await login(username, password);
       const user = await getCurrentUser();
+      memory.bind(user);
       if (!canEnterPortal(user.groups)) {
+        memory.clear();
         await logout();
         setError("La cuenta no tiene un módulo operativo habilitado.");
         setPassword("");

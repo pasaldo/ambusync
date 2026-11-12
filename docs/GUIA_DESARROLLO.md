@@ -58,6 +58,7 @@ npm audit
 npm run lint
 npm run test:unit
 npm run test:local-websocket
+npm run test:local-integrity
 npm run check:diagrams
 npm run build
 npm run test:accounts
@@ -67,6 +68,12 @@ npm run test:system-admin
 `npm run lint` ejecuta TypeScript; no hay ESLint configurado. `test:local-websocket` y las demás pruebas Playwright de SPA usan mocks sintéticos: no sustituyen la prueba manual real PC-celular ni la comprobación backend/Valkey. `check:diagrams` usa Chromium local. La prueba `test:sync` necesita el servidor de desarrollo y Chromium: mantén Vite corriendo en una terminal y ejecuta en otra:
 
 `npm run test:accounts` ejecuta el flujo Playwright de cuentas, unidad ambulancia, vistas de episodios, bandeja/archivo de Urgencias y confirmación de llegada con el mock sintético. `npm run test:system-admin` valida el acceso exclusivo al panel global, alta institucional con cuenta inicial, edición, baja lógica y reactivación.
+
+`npm run test:local-integrity` ejecuta regresiones de escrituras inciertas y memoria del portal:
+reintento explícito con mismo UUID/cuerpo, rechazo/conflicto, reautenticación por cuenta/ámbito,
+logout, recarga y respuesta tardía. Usa HTTP simulado y Chromium, no un backend real.
+Configura `BASE_URL` al servidor Vite de la rama que se está probando; no uses por accidente
+un servidor iniciado desde otro checkout. Las unitarias también cubren operaciones y memoria.
 
 `npm run shots` genera las nueve capturas documentales actuales del portal `/local` (inicio
 de sesión, formulario de ambulancia, previsualización de vitales, episodios de la unidad,
