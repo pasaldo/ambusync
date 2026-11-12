@@ -2,6 +2,8 @@
 
 Esta guía describe el estado actual del repositorio, cómo preparar frontend/backend y cómo revisar cambios. La SPA es un prototipo con **datos sintéticos**; no está autorizado para atención clínica real. La integración Channels/WebSocket con Daphne y Valkey (rama `feature/websocket-integration`) se integró en `main` el 11/11/2026; no está desplegada. El responsable reportó una prueba manual satisfactoria PC-celular. Consulta [ETAPA_1.md](ETAPA_1.md) para dependencias, preparación de Valkey, arranque de servicios y prueba LAN.
 
+Para la versión local `feature/pilot-completion`, el [bloque B: arranque y pruebas manuales](PRUEBAS_B.md) detalla las terminales/puertos de esta copia y cómo probar retiro, reasignación, continuidad, baja de unidades y resultados inciertos. `npm run test:units` ejecuta sus regresiones browser con transporte sintético; está incluido en CI, pero B no se ha publicado ni tiene CI remoto acreditado.
+
 ## Preparar el entorno
 
 Requisitos para el frontend: Node.js **24.20.0** (`.nvmrc`) y npm **11.19.0** (`frontend/package.json`). Comprueba las versiones:

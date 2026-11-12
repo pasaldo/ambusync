@@ -125,6 +125,7 @@
       "get": {
         "operationId": "listInstitutionAmbulances",
         "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "name": "include_disabled", "in": "query", "schema": { "type": "string", "enum": ["true", "false"], "default": "false" } }],
         "responses": { "200": { "description": "Unidades habilitadas de instituciones operadoras; solo las consulta administración de Urgencias.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedAmbulance" } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
       }
     },
@@ -133,6 +134,35 @@
         "operationId": "getInstitutionAccountManagementConfig",
         "security": [{ "sessionCookie": [] }],
         "responses": { "200": { "description": "Nombre del establecimiento y permisos delegables según su tipo.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountManagementConfig" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/v1/institutions/management/ambulances/create/": {
+      "post": {
+        "operationId": "createInstitutionAmbulance",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["institution_id", "code"], "properties": { "institution_id": { "type": "string", "format": "uuid" }, "code": { "type": "string", "minLength": 1, "maxLength": 40 } } } } } },
+        "responses": { "201": { "description": "Unidad creada y auditada en una operadora habilitada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManagedAmbulance" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/v1/institutions/management/accounts/{user_id}/assignment/": {
+      "post": {
+        "operationId": "changeInstitutionAccountAssignment",
+        "description": "Asignar/reasignar dentro de la institución del operador o retirar mediante null explícito. expected_ambulance_id contiene la unidad observada o null. Repetir el destino ya vigente es no-op; otra edición obsoleta devuelve 409. No permite dejar sin operador habilitado una unidad con episodios no terminales (notificada, en_traslado, llegado).",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/ManagedUserId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["ambulance_id", "expected_ambulance_id"], "properties": { "ambulance_id": { "type": ["string", "null"], "format": "uuid" }, "expected_ambulance_id": { "type": ["string", "null"], "format": "uuid" } } } } } },
+        "responses": { "200": { "description": "Unidad asignada o ya vigente.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AssignmentUnit" } } } }, "204": { "description": "Asignación retirada o ya retirada; cuenta conservada." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "description": "La asignación cambió; actualizar antes de decidir." } }
+      }
+    },
+    "/api/v1/institutions/management/ambulances/{ambulance_id}/deactivate/": {
+      "post": {
+        "operationId": "deactivateInstitutionAmbulance",
+        "description": "Baja lógica auditada, termina asignaciones sin borrar histórico. Requiere institución combinada propia, relación explícita con la operadora o creación auditada por el actor. El directorio legado compartido no concede baja. Idempotente si ya está desactivada.",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "ambulance_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "maxProperties": 0 } } } },
+        "responses": { "204": { "description": "Unidad desactivada o ya desactivada." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
       }
     },
     "/api/v1/system/institutions/": {
@@ -340,18 +370,20 @@
       },
       "ManagedAccount": {
         "type": "object",
-        "required": ["id", "username", "email", "institution_name", "groups", "active", "ambulance"],
+        "required": ["id", "username", "email", "institution_name", "institution_id", "groups", "active", "ambulance"],
         "properties": {
           "id": { "type": "string" },
           "username": { "type": "string" },
           "email": { "type": "string", "format": "email" },
           "institution_name": { "type": "string" },
+          "institution_id": { "type": "string", "format": "uuid" },
           "groups": { "type": "array", "items": { "type": "string" } },
           "active": { "type": "boolean" },
-          "ambulance": { "oneOf": [{ "$ref": "#/components/schemas/ManagedAmbulance" }, { "type": "null" }] }
+          "ambulance": { "oneOf": [{ "$ref": "#/components/schemas/AssignmentUnit" }, { "type": "null" }] }
         }
       },
-      "ManagedAmbulance": { "type": "object", "required": ["id", "code", "institution_id", "institution_name"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" }, "institution_id": { "type": "string", "format": "uuid" }, "institution_name": { "type": "string" } } },
+      "AssignmentUnit": { "type": "object", "required": ["id", "code"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" } } },
+      "ManagedAmbulance": { "type": "object", "required": ["id", "code", "institution_id", "institution_name", "enabled", "can_deactivate"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" }, "institution_id": { "type": "string", "format": "uuid" }, "institution_name": { "type": "string" }, "enabled": { "type": "boolean" }, "can_deactivate": { "type": "boolean" } } },
       "ManagedInstitution": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" } } },
       "SystemInstitution": {
         "type": "object",

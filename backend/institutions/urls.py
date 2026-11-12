@@ -9,6 +9,7 @@ from institutions.account_management import (
     ManagedAmbulanceCreateView,
     ManagedAmbulanceListView,
 )
+from institutions.unit_management import ManagedAmbulanceDeactivateView
 from institutions.views import DestinationListView
 
 urlpatterns = [
@@ -35,6 +36,11 @@ urlpatterns = [
         "management/ambulances/create/",
         ManagedAmbulanceCreateView.as_view(),
         name="managed-ambulance-create",
+    ),
+    path(
+        "management/ambulances/<uuid:ambulance_id>/deactivate/",
+        ManagedAmbulanceDeactivateView.as_view(),
+        name="managed-ambulance-deactivate",
     ),
     path(
         "management/accounts/<int:user_id>/assignment/",

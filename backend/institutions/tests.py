@@ -170,12 +170,16 @@ class InstitutionAccountManagementTests(TestCase):
                     "code": "SYN-01",
                     "institution_id": str(self.ambulance.institution_id),
                     "institution_name": self.operator.name,
+                    "enabled": True,
+                    "can_deactivate": False,
                 },
                 {
                     "id": str(self.other_ambulance.pk),
                     "code": "SYN-02",
                     "institution_id": str(self.other_ambulance.institution_id),
                     "institution_name": self.other_operator.name,
+                    "enabled": True,
+                    "can_deactivate": False,
                 },
             ],
         )
@@ -246,7 +250,10 @@ class InstitutionAccountManagementTests(TestCase):
         self.assertNotIn(str(foreign_user.pk), {item["id"] for item in listed})
         denied = self.client.post(
             f"/api/v1/institutions/management/accounts/{foreign_user.pk}/assignment/",
-            {"ambulance_id": str(self.ambulance.pk)},
+            {
+                "ambulance_id": str(self.ambulance.pk),
+                "expected_ambulance_id": str(self.other_ambulance.pk),
+            },
             format="json",
         )
         self.assertEqual(denied.status_code, 404)
@@ -257,7 +264,10 @@ class InstitutionAccountManagementTests(TestCase):
         self.assertIn(str(foreign_user.pk), {item["id"] for item in visible_to_creator})
         reassigned = foreign_client.post(
             f"/api/v1/institutions/management/accounts/{foreign_user.pk}/assignment/",
-            {"ambulance_id": str(self.other_ambulance.pk)},
+            {
+                "ambulance_id": str(self.other_ambulance.pk),
+                "expected_ambulance_id": str(self.other_ambulance.pk),
+            },
             format="json",
         )
         self.assertEqual(reassigned.status_code, 200)

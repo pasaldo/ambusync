@@ -25,6 +25,8 @@ export interface ManagedAmbulance {
   code: string;
   institution_id: string;
   institution_name: string;
+  enabled: boolean;
+  can_deactivate: boolean;
 }
 
 export interface ManagedInstitution {
@@ -37,9 +39,10 @@ export interface ManagedAccount {
   username: string;
   email: string;
   institution_name: string;
+  institution_id: string;
   groups: string[];
   active: boolean;
-  ambulance: ManagedAmbulance | null;
+  ambulance: Pick<ManagedAmbulance, "id" | "code"> | null;
 }
 
 export interface AccountManagementConfig {
@@ -191,7 +194,7 @@ export async function listManagedAccounts(): Promise<ManagedAccount[]> {
 }
 
 export async function listManagedAmbulances(): Promise<ManagedAmbulance[]> {
-  return request("/api/v1/institutions/management/ambulances/");
+  return request("/api/v1/institutions/management/ambulances/?include_disabled=true");
 }
 
 export interface SystemInstitution {
@@ -215,14 +218,23 @@ export interface NewSystemInstitution {
   first_email: string;
 }
 
-export async function createManagedAmbulance(code: string, institutionId: string): Promise<ManagedAmbulance> {
+async function managementMutation<T>(path: string, body: unknown, isCurrent: () => boolean): Promise<T> {
+  const generation = csrfGeneration;
   const token = await ensureCsrf();
-  return request("/api/v1/institutions/management/ambulances/create/", { method: "POST", headers: { "X-CSRFToken": token }, body: JSON.stringify({ code, institution_id: institutionId }), humanInteraction: true });
+  if (generation !== csrfGeneration || !isCurrent()) throw new Error("La sesión cambió durante la solicitud.");
+  return request(path, { method: "POST", headers: { "X-CSRFToken": token }, body: JSON.stringify(body), humanInteraction: true });
 }
 
-export async function assignManagedAccount(userId: string, ambulanceId: string): Promise<{ id: string; code: string }> {
-  const token = await ensureCsrf();
-  return request(`/api/v1/institutions/management/accounts/${encodeURIComponent(userId)}/assignment/`, { method: "POST", headers: { "X-CSRFToken": token }, body: JSON.stringify({ ambulance_id: ambulanceId }), humanInteraction: true });
+export async function createManagedAmbulance(code: string, institutionId: string, isCurrent = () => true): Promise<ManagedAmbulance> {
+  return managementMutation("/api/v1/institutions/management/ambulances/create/", { code, institution_id: institutionId }, isCurrent);
+}
+
+export async function assignManagedAccount(userId: string, ambulanceId: string | null, expectedAmbulanceId: string | null, isCurrent = () => true): Promise<{ id: string; code: string } | void> {
+  return managementMutation(`/api/v1/institutions/management/accounts/${encodeURIComponent(userId)}/assignment/`, { ambulance_id: ambulanceId, expected_ambulance_id: expectedAmbulanceId }, isCurrent);
+}
+
+export async function deactivateManagedAmbulance(id: string, isCurrent = () => true): Promise<void> {
+  return managementMutation(`/api/v1/institutions/management/ambulances/${encodeURIComponent(id)}/deactivate/`, {}, isCurrent);
 }
 
 export async function getAccountManagementConfig(): Promise<AccountManagementConfig> {
@@ -273,34 +285,16 @@ export async function createManagedAccount(payload: {
   groups: string[];
   ambulance_id?: string;
   institution_id?: string;
-}): Promise<{ id: string; username: string; activation_sent: boolean }> {
-  const token = await ensureCsrf();
-  return request("/api/v1/institutions/management/accounts/", {
-    method: "POST",
-    headers: { "X-CSRFToken": token },
-    body: JSON.stringify(payload),
-    humanInteraction: true,
-  });
+}, isCurrent = () => true): Promise<{ id: string; username: string; activation_sent: boolean }> {
+  return managementMutation("/api/v1/institutions/management/accounts/", payload, isCurrent);
 }
 
-export async function deactivateManagedAccount(userId: string): Promise<void> {
-  const token = await ensureCsrf();
-  await request(`/api/v1/institutions/management/accounts/${encodeURIComponent(userId)}/deactivate/`, {
-    method: "POST",
-    headers: { "X-CSRFToken": token },
-    body: "{}",
-    humanInteraction: true,
-  });
+export async function deactivateManagedAccount(userId: string, isCurrent = () => true): Promise<void> {
+  return managementMutation(`/api/v1/institutions/management/accounts/${encodeURIComponent(userId)}/deactivate/`, {}, isCurrent);
 }
 
-export async function resendManagedActivation(userId: string): Promise<void> {
-  const token = await ensureCsrf();
-  await request(`/api/v1/institutions/management/accounts/${encodeURIComponent(userId)}/resend-activation/`, {
-    method: "POST",
-    headers: { "X-CSRFToken": token },
-    body: "{}",
-    humanInteraction: true,
-  });
+export async function resendManagedActivation(userId: string, isCurrent = () => true): Promise<void> {
+  return managementMutation(`/api/v1/institutions/management/accounts/${encodeURIComponent(userId)}/resend-activation/`, {}, isCurrent);
 }
 
 export async function activateAccount(payload: {

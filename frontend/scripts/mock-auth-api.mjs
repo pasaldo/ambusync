@@ -1,13 +1,14 @@
 export async function mockAuthenticatedApi(context, { groups = ["ambulance"], canCreateAccounts = true, includeUrgenciasQueue = false } = {}) {
   let authenticated = false;
   let emergencyListRequests = 0;
-  const demoAmbulances = [{ id: "demo-ambulance-id", code: "SYN-01", institution_id: "demo-operator-id", institution_name: "Hospital Operador Demo" }];
+  const demoAmbulances = [{ id: "demo-ambulance-id", code: "SYN-01", institution_id: "demo-operator-id", institution_name: "Hospital Operador Demo", enabled: true, can_deactivate: true }];
   const managedAccounts = [
     { id: "1", username: "demo_urgencias", email: "demo.urgencias@example.test", institution_name: "Hospital Central Demo", groups: ["urgencias"], active: true, ambulance: null },
     { id: "2", username: "demo_ambulancia", email: "demo.ambulancia@example.test", institution_name: "Hospital Operador Demo", groups: ["ambulance"], active: true, ambulance: demoAmbulances[0] },
     { id: "3", username: "prueba_urgencias", email: "prueba.urgencias@example.test", institution_name: "Hospital Central Demo", groups: ["urgencias"], active: false, ambulance: null },
     { id: "4", username: "prueba_ambulancia", email: "prueba.ambulancia@example.test", institution_name: "Hospital Operador Demo", groups: ["ambulance"], active: false, ambulance: demoAmbulances[0] },
   ];
+  for (const account of managedAccounts) account.institution_id = account.groups.includes("ambulance") ? "demo-operator-id" : "demo-hospital-id";
   const managedInstitutions = [
     { id: "demo-institution-id", name: "Hospital Central Demo", kind: "receiver", enabled: true, rut: "76.123.456-0", address: "Dirección sintética 123, Santiago", phone: "+56 2 2000 0000", email: "central@example.test" },
     { id: "inactive-institution-id", name: "Hospital Inactivo Demo", kind: "receiver", enabled: false, rut: "77.123.456-0", address: "Dirección demo 45", phone: "", email: "inactivo@example.test" },
@@ -168,6 +169,33 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
     }
     if (pathname === "/api/v1/institutions/management/ambulances/") {
       await route.fulfill({ json: demoAmbulances });
+      return;
+    }
+    if (pathname === "/api/v1/institutions/management/ambulances/create/" && method === "POST") {
+      const input = route.request().postDataJSON();
+      const unit = { id: `demo-unit-${demoAmbulances.length + 1}`, code: input.code, institution_id: input.institution_id, institution_name: "Hospital Operador Demo", enabled: true, can_deactivate: true };
+      demoAmbulances.push(unit);
+      await route.fulfill({ status: 201, json: unit });
+      return;
+    }
+    if (/\/management\/ambulances\/[^/]+\/deactivate\/$/.test(pathname) && method === "POST") {
+      const unit = demoAmbulances.find((item) => item.id === pathname.split("/").at(-3));
+      if (unit) {
+        unit.enabled = false;
+        for (const account of managedAccounts) if (account.ambulance?.id === unit.id) account.ambulance = null;
+      }
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    if (/\/management\/accounts\/\d+\/assignment\/$/.test(pathname) && method === "POST") {
+      const account = managedAccounts.find((item) => item.id === pathname.split("/").at(-3));
+      const input = route.request().postDataJSON();
+      if (!account || input.expected_ambulance_id !== (account.ambulance?.id ?? null)) {
+        await route.fulfill({ status: 409, json: { code: "assignment_conflict", message: "La asignación cambió. Actualiza las cuentas.", fields: {} } });
+        return;
+      }
+      account.ambulance = demoAmbulances.find((item) => item.id === input.ambulance_id) ?? null;
+      await route.fulfill(account.ambulance ? { json: account.ambulance } : { status: 204 });
       return;
     }
     if (pathname === "/api/v1/institutions/management/accounts/" && method === "GET") {

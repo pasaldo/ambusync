@@ -14,7 +14,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -98,15 +98,21 @@ class ManagedAmbulanceListView(APIView):
         institution = administrative_institution(request.user)
         if institution.kind not in (Institution.Kind.RECEIVER, Institution.Kind.COMBINED):
             return Response([])
+        from institutions.unit_management import can_deactivate_unit
+
+        include_disabled = request.query_params.get("include_disabled", "false")
+        if include_disabled not in ("true", "false"):
+            raise ValidationError({"include_disabled": "Usa true o false."})
         operators = operator_institutions_for_admin(institution)
         ambulances = (
             Ambulance.objects.filter(
                 institution__in=operators,
-                enabled=True,
             )
             .select_related("institution")
             .order_by("institution__name", "code")
         )
+        if include_disabled != "true":
+            ambulances = ambulances.filter(enabled=True)
         if institution.kind == Institution.Kind.COMBINED:
             ambulances = ambulances.filter(institution=institution)
         return Response(
@@ -116,6 +122,8 @@ class ManagedAmbulanceListView(APIView):
                     "code": item.code,
                     "institution_id": str(item.institution_id),
                     "institution_name": item.institution.name,
+                    "enabled": item.enabled,
+                    "can_deactivate": can_deactivate_unit(request.user, institution, item),
                 }
                 for item in ambulances
             ]
@@ -179,6 +187,7 @@ class ManagedAccountListCreateView(APIView):
                     "username": item.user.get_username(),
                     "email": item.user.email,
                     "institution_name": item.institution.name,
+                    "institution_id": str(item.institution_id),
                     "groups": sorted(item.user.groups.values_list("name", flat=True)),
                     "active": item.user.is_active,
                     "ambulance": next(
@@ -280,12 +289,44 @@ class ManagedAccountListCreateView(APIView):
         raw_token = secrets.token_urlsafe(32)
         try:
             with transaction.atomic():
+                from institutions.unit_management import lock_management_users
+
+                actor, fresh_institution, _ = lock_management_users(request.user.pk)
+                if fresh_institution.pk != institution.pk:
+                    raise PermissionDenied("El ámbito administrativo cambió; actualiza la sesión.")
+                if ambulance:
+                    ambulance = (
+                        Ambulance.objects.select_for_update()
+                        .filter(
+                            pk=ambulance.pk,
+                            institution__in=operator_institutions_for_admin(fresh_institution),
+                            institution=target_institution,
+                            enabled=True,
+                        )
+                        .first()
+                    )
+                    if ambulance is None:
+                        raise ValidationError(
+                            {
+                                "ambulance_id": "La unidad dejó de estar habilitada; actualiza la administración."
+                            }
+                        )
                 user.set_unusable_password()
                 user.save()
                 user.groups.add(*[Group.objects.get_or_create(name=name)[0] for name in groups])
                 InstitutionMembership.objects.create(user=user, institution=target_institution)
                 if ambulance:
-                    AmbulanceAssignment.objects.create(user=user, ambulance=ambulance)
+                    from institutions.unit_management import audit_unit_action
+
+                    assignment = AmbulanceAssignment.objects.create(user=user, ambulance=ambulance)
+                    audit_unit_action(
+                        actor,
+                        ambulance,
+                        "ambulance.assignment_started",
+                        "ambulance_assignment",
+                        assignment.pk,
+                        uuid.uuid4(),
+                    )
                 AccountActivation.objects.update_or_create(
                     user=user,
                     defaults={
@@ -323,78 +364,11 @@ class ManagedAccountDeactivateView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def post(self, request, user_id):
-        institution = administrative_institution(request.user)
-        with transaction.atomic():
-            membership = (
-                InstitutionMembership.objects.select_for_update()
-                .filter(user_id=user_id, active=True)
-                .select_related("user")
-                .first()
-            )
-            created_event = accounts_created_by(request.user).filter(object_id=str(user_id)).first()
-            if membership and membership.institution_id != institution.pk and not created_event:
-                membership = None
-            if membership is None:
-                raise NotFound("La cuenta no está disponible en este establecimiento.")
-            target = membership.user
-            target_institution = membership.institution
-            if target.pk == request.user.pk:
-                raise ValidationError({"account": "No puedes desactivar tu propia cuenta."})
-            if target.groups.filter(name="institution_admin").exists():
-                admins = (
-                    InstitutionMembership.objects.filter(
-                        institution=target_institution,
-                        active=True,
-                        user__is_active=True,
-                        user__groups__name="institution_admin",
-                    )
-                    .exclude(user=target)
-                    .distinct()
-                    .count()
-                )
-                if admins < 1:
-                    raise ValidationError(
-                        {"account": "No se puede desactivar al último administrador habilitado."}
-                    )
+        from institutions.unit_management import deactivate_account
 
-            membership.active = False
-            membership.save(update_fields=["active"])
-            target.is_active = False
-            target.session_version += 1
-            target.save(update_fields=["is_active", "session_version"])
-            AccountActivation.objects.filter(user=target, consumed_at__isnull=True).update(
-                consumed_at=timezone.now()
-            )
-            assignments = AmbulanceAssignment.objects.filter(
-                user=target, active=True, ambulance__institution=target_institution
-            )
-            from emergencies.models import Emergency
-
-            for assignment in assignments.select_related("ambulance"):
-                has_active_cases = Emergency.objects.filter(ambulance=assignment.ambulance).exists()
-                if has_active_cases:
-                    other_operators = (
-                        AmbulanceAssignment.objects.filter(
-                            ambulance=assignment.ambulance,
-                            active=True,
-                            ambulance__enabled=True,
-                            user__is_active=True,
-                            user__groups__name="ambulance",
-                            user__institution_memberships__institution=target_institution,
-                            user__institution_memberships__active=True,
-                        )
-                        .exclude(user=target)
-                        .distinct()
-                        .count()
-                    )
-                    if not other_operators:
-                        raise ValidationError(
-                            {
-                                "account": "Asigna otro operador o resuelve los episodios activos antes de desactivar esta cuenta."
-                            }
-                        )
-            assignments.update(active=False, unassigned_at=timezone.now())
-            audit_account_action(request.user, target_institution, target, "account.deactivated")
+        if request.data != {}:
+            raise ValidationError({"request": "Envía un objeto vacío para confirmar la baja."})
+        deactivate_account(request.user.pk, user_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -402,26 +376,15 @@ class ManagedAccountResendActivationView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def post(self, request, user_id):
-        institution = administrative_institution(request.user)
+        from institutions.unit_management import lock_management_users, managed_membership
+
+        administrative_institution(request.user)
         raw_token = secrets.token_urlsafe(32)
         try:
             with transaction.atomic():
-                membership = (
-                    InstitutionMembership.objects.select_for_update()
-                    .filter(
-                        user_id=user_id,
-                        active=True,
-                        user__is_active=False,
-                    )
-                    .select_related("user")
-                    .first()
-                )
-                created_event = (
-                    accounts_created_by(request.user).filter(object_id=str(user_id)).first()
-                )
-                if membership and membership.institution_id != institution.pk and not created_event:
-                    membership = None
-                if membership is None:
+                actor, institution, target = lock_management_users(request.user.pk, user_id)
+                membership = managed_membership(actor, institution, target)
+                if target.is_active:
                     raise NotFound("La invitación no está disponible en este establecimiento.")
                 AccountActivation.objects.update_or_create(
                     user=membership.user,
@@ -457,28 +420,39 @@ class ManagedAmbulanceCreateView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def post(self, request):
+        from institutions.unit_management import audit_unit_action, lock_management_users
+
         institution = administrative_institution(request.user)
         if institution.kind not in (Institution.Kind.RECEIVER, Institution.Kind.COMBINED):
             raise PermissionDenied("Solo la administración de Urgencias puede crear unidades.")
-        target_institution_id = (
-            request.data.get("institution_id") if isinstance(request.data, dict) else None
-        )
-        target_institution = (
-            operator_institutions_for_admin(institution)
-            .filter(
-                pk=target_institution_id,
-            )
-            .first()
-        )
-        if target_institution is None:
+        if not isinstance(request.data, dict) or set(request.data) != {"institution_id", "code"}:
             raise ValidationError(
-                {"institution_id": "Selecciona una institución operadora habilitada."}
+                {"request": "Indica institución y código, sin campos adicionales."}
             )
-        code = request.data.get("code") if isinstance(request.data, dict) else None
+        target_institution_id = serializers.UUIDField().run_validation(
+            request.data["institution_id"]
+        )
+        code = request.data["code"]
         if not isinstance(code, str) or not code.strip() or len(code.strip()) > 40:
             raise ValidationError({"code": "Indica un código de unidad válido."})
         try:
-            ambulance = Ambulance.objects.create(institution=target_institution, code=code.strip())
+            with transaction.atomic():
+                actor, institution, _ = lock_management_users(request.user.pk)
+                target_institution = (
+                    operator_institutions_for_admin(institution)
+                    .filter(pk=target_institution_id)
+                    .first()
+                )
+                if target_institution is None:
+                    raise ValidationError(
+                        {"institution_id": "Selecciona una institución operadora habilitada."}
+                    )
+                ambulance = Ambulance.objects.create(
+                    institution=target_institution, code=code.strip()
+                )
+                audit_unit_action(
+                    actor, ambulance, "ambulance.created", "ambulance", ambulance.pk, uuid.uuid4()
+                )
         except IntegrityError as error:
             raise ValidationError(
                 {"code": "Ya existe una unidad con ese código en tu institución."}
@@ -489,6 +463,8 @@ class ManagedAmbulanceCreateView(APIView):
                 "code": ambulance.code,
                 "institution_id": str(target_institution.pk),
                 "institution_name": target_institution.name,
+                "enabled": ambulance.enabled,
+                "can_deactivate": True,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -498,40 +474,21 @@ class ManagedAccountAssignmentView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def post(self, request, user_id):
-        institution = administrative_institution(request.user)
-        ambulance_id = request.data.get("ambulance_id") if isinstance(request.data, dict) else None
-        membership = (
-            InstitutionMembership.objects.filter(user_id=user_id, active=True)
-            .select_related("user", "institution")
-            .first()
+        from institutions.unit_management import AssignmentSerializer, change_assignment
+
+        administrative_institution(request.user)
+        serializer = AssignmentSerializer(data=request.data)
+        if not isinstance(request.data, dict) or set(request.data) - set(serializer.fields):
+            raise ValidationError({"request": "La solicitud contiene campos no admitidos."})
+        serializer.is_valid(raise_exception=True)
+        ambulance = change_assignment(
+            request.user.pk,
+            user_id,
+            serializer.validated_data["ambulance_id"],
+            serializer.validated_data["expected_ambulance_id"],
         )
-        has_visible_assignment = AmbulanceAssignment.objects.filter(
-            user_id=user_id,
-            active=True,
-            ambulance__institution__enabled=True,
-        ).exists()
-        created_by_actor = accounts_created_by(request.user).filter(object_id=str(user_id)).exists()
-        if (
-            membership is None
-            or not membership.user.groups.filter(name="ambulance").exists()
-            or not has_visible_assignment
-            or (membership.institution_id != institution.pk and not created_by_actor)
-        ):
-            raise NotFound("La cuenta de ambulancia no está disponible en tu institución.")
-        ambulance = Ambulance.objects.filter(
-            pk=ambulance_id,
-            institution__in=operator_institutions_for_admin(institution),
-            enabled=True,
-        ).first()
         if ambulance is None:
-            raise ValidationError(
-                {"ambulance_id": "La unidad no pertenece a tu institución o no está habilitada."}
-            )
-        with transaction.atomic():
-            AmbulanceAssignment.objects.filter(user=membership.user, active=True).update(
-                active=False, unassigned_at=timezone.now()
-            )
-            AmbulanceAssignment.objects.create(user=membership.user, ambulance=ambulance)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         return Response({"id": str(ambulance.pk), "code": ambulance.code})
 
 
@@ -560,14 +517,13 @@ class AccountActivationView(APIView):
 
         try:
             with transaction.atomic():
-                activation = (
-                    AccountActivation.objects.select_for_update()
-                    .select_related("user")
-                    .get(
-                        user_id=uid,
-                    )
+                # Same user-first order as resend and administrative revocation.
+                user = User.objects.select_for_update().filter(pk=uid).first()
+                if user is None:
+                    raise AccountActivation.DoesNotExist
+                activation = AccountActivation.objects.select_for_update(of=("self",)).get(
+                    user_id=uid,
                 )
-                user = activation.user
                 valid = (
                     not user.is_active
                     and activation.consumed_at is None

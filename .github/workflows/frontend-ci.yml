@@ -137,6 +137,7 @@ jobs:
 
           BASE_URL=http://127.0.0.1:5173 npm run test:sync
           BASE_URL=http://127.0.0.1:5173 npm run test:accounts
+          BASE_URL=http://127.0.0.1:5173 npm run test:units
           BASE_URL=http://127.0.0.1:5173 npm run test:system-admin
           BASE_URL=http://127.0.0.1:5173 npm run test:local-websocket
           BASE_URL=http://127.0.0.1:5173 npm run test:local-integrity

@@ -23,7 +23,7 @@ from emergencies.serializers import (
     EmergencyOperationSerializer,
     emergency_representation,
 )
-from institutions.models import AmbulanceAssignment, Institution, InstitutionMembership
+from institutions.models import Ambulance, AmbulanceAssignment, Institution, InstitutionMembership
 
 
 class OperationConflict(APIException):
@@ -35,7 +35,16 @@ class OperationConflict(APIException):
 def active_assignment_for(user, lock=False):
     assignments = AmbulanceAssignment.objects.select_related("ambulance__institution")
     if lock:
-        assignments = assignments.select_for_update()
+        # The caller holds this user's row. Lock the unit before the assignment,
+        # matching administrative departures and logical unit deactivation.
+        unit_id = (
+            assignments.filter(user=user, active=True)
+            .values_list("ambulance_id", flat=True)
+            .first()
+        )
+        if unit_id is not None:
+            Ambulance.objects.select_for_update().filter(pk=unit_id).first()
+        assignments = assignments.select_for_update(of=("self",))
     return assignments.filter(
         user=user,
         active=True,
@@ -120,7 +129,7 @@ class EmergencyListCreateView(APIView):
                 raise PermissionDenied("Se requiere permiso de ambulancia.")
             assignment = active_assignment_for(actor, lock=True)
             membership = (
-                InstitutionMembership.objects.select_for_update()
+                InstitutionMembership.objects.select_for_update(of=("self",))
                 .filter(
                     user=actor,
                     institution_id=assignment.ambulance.institution_id if assignment else None,
@@ -267,7 +276,7 @@ class EmergencyTransitionView(APIView):
             if actor is None or not actor.groups.filter(name=self.actor_group).exists():
                 raise PermissionDenied("La acción no está permitida para este perfil.")
             emergency = (
-                Emergency.objects.select_for_update()
+                Emergency.objects.select_for_update(of=("self",))
                 .select_related("operating_institution", "destination", "ambulance")
                 .filter(pk=emergency_id)
                 .first()
@@ -326,14 +335,14 @@ class EmergencyTransitionView(APIView):
         if self.actor_group == "ambulance":
             assignment = active_assignment_for(actor, lock=True)
             membership = (
-                InstitutionMembership.objects.select_for_update()
+                InstitutionMembership.objects.select_for_update(of=("self",))
                 .filter(
                     user=actor,
                     institution_id=emergency.operating_institution_id,
                     active=True,
                     institution__enabled=True,
                 )
-                .exists()
+                .first()
             )
             if (
                 assignment is None
@@ -343,14 +352,14 @@ class EmergencyTransitionView(APIView):
                 raise NotFound("El episodio no está disponible.")
             return
         membership = (
-            InstitutionMembership.objects.select_for_update()
+            InstitutionMembership.objects.select_for_update(of=("self",))
             .filter(
                 user=actor,
                 institution_id=emergency.destination_id,
                 active=True,
                 institution__enabled=True,
             )
-            .exists()
+            .first()
         )
         if not membership:
             raise NotFound("El episodio no está disponible.")

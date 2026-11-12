@@ -644,7 +644,7 @@ export function LocalPortal() {
                   {selected && <EmergencyDetail emergency={selected} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} onCloseEmergency={() => void runTransition(selected, "close", "Episodio cerrado.")} />}
                 </section>
               ) : role === "administration" && canAdminister ? (
-                <AdminAccountsPanel currentUserId={user.id} institutionName={user.institutions[0]?.name ?? ""} />
+                <AdminAccountsPanel key={JSON.stringify([user.id, user.institutions.map((item) => item.id).sort(), [...user.groups].sort(), user.ambulance?.id ?? null])} currentUserId={user.id} institutionName={user.institutions[0]?.name ?? ""} />
               ) : null}
 
               {lastCreated && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Guardado: {lastCreated.id}</p>}
