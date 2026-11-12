@@ -2,14 +2,15 @@ import json
 import uuid
 from datetime import UTC, timedelta
 from io import StringIO
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from accounts.models import User
-from audit.models import AuditEvent, RetentionExecution, TechnicalLog
+from audit.models import AuditEvent, PilotClosure, RetentionExecution, TechnicalLog
 from emergencies.models import Emergency, ProcessedOperation, VitalMeasurement
 from institutions.models import Ambulance, Institution
 
@@ -17,6 +18,12 @@ from institutions.models import Ambulance, Institution
 class RetentionCommandTests(TestCase):
     def setUp(self):
         self.as_of = timezone.datetime(2026, 11, 5, 12, tzinfo=UTC)
+        call_command(
+            "record_pilot_closure",
+            closed_at=(self.as_of - timedelta(days=91)).isoformat(),
+            executor="synthetic-test",
+            stdout=StringIO(),
+        )
         operator = Institution.objects.create(name="Operadora retención", kind="operator")
         receiver = Institution.objects.create(name="Receptora retención", kind="receiver")
         ambulance = Ambulance.objects.create(institution=operator, code="RET-01")
@@ -67,7 +74,7 @@ class RetentionCommandTests(TestCase):
         self.assertEqual(report["counts"]["emergencies"], 1)
         execution = RetentionExecution.objects.get()
         self.assertEqual(execution.mode, RetentionExecution.Mode.DRY_RUN)
-        self.assertEqual(execution.command_version, "d010-d011-v1")
+        self.assertEqual(execution.command_version, "d010-d011-v2")
         self.assertEqual(execution.result, "planned")
         self.assertTrue(TechnicalLog.objects.filter(event="retention.simulated").exists())
         self.assertTrue(Emergency.objects.filter(pk=self.emergency.pk).exists())
@@ -89,6 +96,7 @@ class RetentionCommandTests(TestCase):
     def test_application_boundary_is_strictly_after_90_days(self):
         as_of = timezone.datetime(2026, 11, 5, 12, tzinfo=UTC)
         for label, age in (("before", 89), ("boundary", 90), ("after", 91)):
+            PilotClosure.objects.update(closed_at=as_of - timedelta(days=age))
             emergency = self._make_closed_emergency(as_of - timedelta(days=age), label)
             output = StringIO()
             call_command("apply_retention", "--as-of", as_of.isoformat(), stdout=output)
@@ -102,6 +110,7 @@ class RetentionCommandTests(TestCase):
     def test_audit_boundary_is_strictly_after_12_months(self):
         as_of = timezone.datetime(2026, 11, 5, 12, tzinfo=UTC)
         for label, age in (("before", 364), ("boundary", 365), ("after", 366)):
+            PilotClosure.objects.update(closed_at=as_of - timedelta(days=age))
             emergency = self._make_closed_emergency(as_of - timedelta(days=91), label)
             AuditEvent.objects.create(
                 actor=emergency.created_by,
@@ -117,7 +126,7 @@ class RetentionCommandTests(TestCase):
             call_command("apply_retention", "--as-of", as_of.isoformat(), stdout=output)
             report = json.loads(output.getvalue())
             audit = AuditEvent.objects.filter(action=f"retention.{label}").first()
-            self.assertNotIn(str(audit.pk), report["audit_ids"])
+            self.assertEqual(label == "after", str(audit.pk) in report["audit_ids"])
 
     def test_technical_logs_are_retained_for_30_days_and_purged_after(self):
         as_of = timezone.datetime(2026, 11, 5, 12, tzinfo=UTC)
@@ -136,7 +145,8 @@ class RetentionCommandTests(TestCase):
         with self.assertRaisesMessage(Exception, "--as-of debe ser una fecha ISO 8601 válida"):
             call_command("apply_retention", "--as-of", "not-a-date", stdout=StringIO())
 
-    def test_restore_synthetic_reintroduces_expired_record_for_repurge(self):
+    @override_settings(SYNTHETIC_RESTORE_ENABLED=True)
+    def test_restore_synthetic_repurges_expired_record_before_returning(self):
         package = {
             "emergencies": [
                 {
@@ -157,14 +167,17 @@ class RetentionCommandTests(TestCase):
         with NamedTemporaryFile(mode="w", suffix=".json", encoding="utf-8", delete=False) as file:
             json.dump(package, file)
             path = file.name
+        self.addCleanup(Path(path).unlink, missing_ok=True)
         ProcessedOperation.objects.filter(emergency_id=self.emergency.pk).delete()
         VitalMeasurement.objects.filter(emergency_id=self.emergency.pk).delete()
         Emergency.objects.filter(pk=self.emergency.pk).delete()
-        call_command("restore_synthetic", path, stdout=StringIO())
-        self.assertTrue(Emergency.objects.filter(pk=self.emergency.pk).exists())
+        call_command(
+            "restore_synthetic", path, apply=True, as_of=self.as_of.isoformat(), stdout=StringIO()
+        )
+        self.assertFalse(Emergency.objects.filter(pk=self.emergency.pk).exists())
         output = StringIO()
         call_command("apply_retention", "--as-of", "2026-11-05T12:00:00Z", stdout=output)
-        self.assertIn(str(self.emergency.pk), json.loads(output.getvalue())["emergency_ids"])
+        self.assertNotIn(str(self.emergency.pk), json.loads(output.getvalue())["emergency_ids"])
 
     def _make_closed_emergency(self, closed_at, label):
         return Emergency.objects.create(

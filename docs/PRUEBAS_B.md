@@ -1,5 +1,7 @@
 # Bloque B — arranque y aceptación manual
 
+**Estado: implementado y verificado automáticamente en `33909a7`; revisión/aceptación manual del responsable PENDIENTE.** Avanzar con C no cierra esa revisión. Completar los casos de la sección 3 y registrar resultados antes de integrar/desplegar la entrega.
+
 Versión local en `feature/pilot-completion`, sobre bloque A `9754edf`. Solo datos sintéticos. No desplegado, no autorizado para atención clínica. Estas instrucciones no implican que se haya realizado aceptación manual real PC–móvil de B.
 
 ## 1. Iniciar esta copia, no la carpeta de main
@@ -142,3 +144,17 @@ npm run build
 ```
 
 `test:units` usa transporte sintético: retiro rechazado/aceptado, reasignación tras retiro, filtros, baja, respuesta perdida y logout durante CSRF. Backend prueba PostgreSQL real con hilos/conexiones separados para carreras; los tests crean/eliminan **su base de pruebas**, no purgan la base de desarrollo. No ejecutar suites backend simultáneamente sobre la misma base de pruebas. Ninguno sustituye aceptación real entre dispositivos.
+
+## 5. Registro de revisión manual — PENDIENTE
+
+Mantener pendiente hasta que el responsable ejecute los casos de la sección 3. Registrar fecha, versión/commit probado, resultado y fallos; no incluir contraseñas ni datos reales.
+
+- [ ] Alta/operadora correcta y código duplicado.
+- [ ] Reasignación, retiro confirmado/cancelado y asignación tras retiro.
+- [ ] Último operador protegido; invitación pendiente no es reemplazo; segundo operador activo sí.
+- [ ] Llegado sigue bloqueando; cerrada/cancelada no bloquean por sí solas.
+- [ ] Baja lógica sin pérdida de historial ni selectores con unidades inactivas/ajenas.
+- [ ] Edición obsoleta, respuesta perdida y cierre de sesión sin envío antiguo.
+- [ ] Auditoría con actor/unidad y recuperación de ámbito HTTP.
+
+Si pruebas sobre C, aplica primero su nueva migración siguiendo [PRUEBAS_C.md](PRUEBAS_C.md). Las pruebas de B siguen siendo válidas; no registrar un cierre ficticio ni ejecutar purgas sobre sus datos.

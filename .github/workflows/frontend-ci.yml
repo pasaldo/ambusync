@@ -10,6 +10,16 @@ permissions:
   contents: read
 
 jobs:
+  backup-restore-wrapper:
+    name: Isolated restore wrapper checks
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Test restore guards with local doubles (no network or database)
+        shell: powershell
+        run: ./ops/backups/tests/restore-postgres.tests.ps1
+
   backend:
     name: Backend checks
     runs-on: ubuntu-latest

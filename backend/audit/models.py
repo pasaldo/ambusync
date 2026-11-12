@@ -76,11 +76,24 @@ class RetentionExecution(models.Model):
     mode = models.CharField(max_length=16, choices=Mode.choices)
     command_version = models.CharField(max_length=32)
     as_of = models.DateTimeField()
+    pilot_closed_at = models.DateTimeField(null=True, blank=True)
     executed_at = models.DateTimeField(auto_now_add=True)
     executor = models.CharField(max_length=255)
     result = models.CharField(max_length=16)
     counts = models.JSONField(default=dict)
     errors = models.JSONField(default=list)
+
+
+class PilotClosure(models.Model):
+    """One formal closure for this synthetic pilot, recorded outside the HTTP UI."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    closed_at = models.DateTimeField()
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    executor = models.CharField(max_length=255)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=Q(pk=1), name="single_pilot_closure")]
 
 
 class TechnicalLog(models.Model):

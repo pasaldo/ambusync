@@ -189,3 +189,6 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "false").lower() == "true"
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "AmbuSync local <no-reply@localhost>")
 FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://127.0.0.1:5173")
+
+# Only temporary local restore drills, never the active development database.
+SYNTHETIC_RESTORE_ENABLED = os.environ.get("SYNTHETIC_RESTORE_ENABLED", "false").lower() == "true"

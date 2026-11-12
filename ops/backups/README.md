@@ -48,11 +48,39 @@ El procedimiento automatizado requiere una base de restauración separada:
 ```powershell
 ./ops/backups/restore-postgres.ps1 `
   -Snapshot <SNAPSHOT_ID> `
-  -RestoreDatabaseUrl "postgresql://usuario:clave@127.0.0.1:55433/ambusync_restore"
+  -RestoreDatabaseUrl $env:AMB_SYNC_ISOLATED_RESTORE_URL `
+  -ConfirmIsolated `
+  -ConfirmPilotOpen
 ```
 
-El script restaura el dump, ejecuta `pg_restore`, reaplica D-010/D-011 y elimina el directorio
-temporal. No debe apuntar a la base activa de desarrollo.
+La variable local debe contener una URL PostgreSQL de loopback, base separada `ambusync_restore`
+o `ambusync_restore_*`; no imprimirla ni guardarla en Git. `-ConfirmIsolated` confirma que es
+desechable y sin servicios conectados. La ejecución real requiere autorización específica.
+`-ConfirmPilotOpen` solo es válido si el responsable confirma que el piloto sigue abierto.
+Si ya cerró, reemplazarlo por `-PilotClosedAt <fecha-real-ISO-con-zona> -ClosureExecutor <responsable>`;
+la fecha debe proceder del registro real independiente de la copia. Sin una de esas decisiones
+el wrapper rechaza antes de restaurar; un cierre de la copia contradictorio también se rechaza.
+
+El script compara primero la configuración activa efectiva de Django (incluido `.env`, sin
+imprimir credenciales), valida el destino antes de Restic y restaura con `pg_restore` transaccional,
+migra el esquema y reaplica/verifica D-010/D-011 **con DATABASE_URL del destino restaurado**.
+Después recupera las variables originales del proceso y elimina solo su directorio temporal
+único. No permite `-SkipRetention` ni ignora errores de Restic aunque aparezca un archivo.
+No usar la base activa de desarrollo ni un destino remoto. No habilita servicios.
+
+La retención v2 se calcula desde el cierre formal global (`record_pilot_closure`), no desde
+cada episodio: aplicación 90 días, auditoría 12 meses calendario, logs técnicos 30 días móviles.
+Si el snapshot es anterior al cierre/C, el wrapper usa la fecha real suministrada por el
+responsable para registrarla/contrastarla en el destino aislado antes de reaplicar retención.
+Migrar no inventa esa fecha. Ver [PRUEBAS_C.md](../../docs/PRUEBAS_C.md).
+
+Prueba del wrapper sin red ni restauración real:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File ops/backups/tests/restore-postgres.tests.ps1
+```
+
+Usa dobles locales; un `PASS` no demuestra RPO/RTO ni restauración real desde R2.
 
 ## Custodia de claves
 

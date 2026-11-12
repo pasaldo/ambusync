@@ -4,6 +4,8 @@ Esta guía describe el estado actual del repositorio, cómo preparar frontend/ba
 
 Para la versión local `feature/pilot-completion`, el [bloque B: arranque y pruebas manuales](PRUEBAS_B.md) detalla las terminales/puertos de esta copia y cómo probar retiro, reasignación, continuidad, baja de unidades y resultados inciertos. `npm run test:units` ejecuta sus regresiones browser con transporte sintético; está incluido en CI, pero B no se ha publicado ni tiene CI remoto acreditado.
 
+**B sigue con revisión manual pendiente.** El [bloque C](PRUEBAS_C.md) agrega migración `audit/0007` y corrige retención desde cierre formal global. Aplicar la migración antes de usar sus comandos. No registrar cierre ficticio ni ejecutar `--apply` sobre desarrollo para probarlo: usar las suites con base desechable. Las pruebas del wrapper PowerShell usan dobles locales; no son restauración real ni acceso R2.
+
 ## Preparar el entorno
 
 Requisitos para el frontend: Node.js **24.20.0** (`.nvmrc`) y npm **11.19.0** (`frontend/package.json`). Comprueba las versiones:
