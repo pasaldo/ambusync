@@ -186,6 +186,9 @@ class Command(BaseCommand):
         return ProcessedOperation.objects.filter(id__in=ids).delete()[0]
 
     def _delete_measurements(self, ids):
+        # Only the explicit retention transaction may unlink chains being purged;
+        # ordinary API corrections never alter or remove the original row.
+        VitalMeasurement.objects.filter(id__in=ids).update(rectifies=None)
         return VitalMeasurement.objects.filter(id__in=ids).delete()[0]
 
     def _delete_emergencies(self, ids):

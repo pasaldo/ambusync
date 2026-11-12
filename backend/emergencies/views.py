@@ -179,6 +179,8 @@ class EmergencyListCreateView(APIView):
                 else Emergency.Status.NOTIFIED,
                 transfer_declared_at=timezone.now() if transfer_started else None,
                 transfer_declared_by=actor if transfer_started else None,
+                triage_recorded_at=timezone.now() if values.get("triage") else None,
+                triage_recorded_by=actor if values.get("triage") else None,
                 **values,
             )
             taken_at = vitals.pop("taken_at", None)
@@ -192,6 +194,7 @@ class EmergencyListCreateView(APIView):
                             unit=VitalMeasurement.UNIT_BY_KIND[kind],
                             measured_at=taken_at,
                             recorded_by=actor,
+                            operation_id=operation_id,
                         )
                         for field, kind in VITAL_FIELD_TO_KIND.items()
                         if (value := vitals.get(field)) is not None
@@ -215,6 +218,10 @@ class EmergencyListCreateView(APIView):
                 correlation_id=operation_id,
             )
             publish_emergency_event(emergency.pk, "emergency.created", emergency.version)
+            if emergency.triage:
+                from emergencies.updates import triage_audit
+
+                triage_audit(emergency, actor, operation_id)
 
         return Response(
             emergency_representation(emergency),

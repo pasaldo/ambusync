@@ -24,6 +24,8 @@ import { preserveNewerEmergencyVersions } from "@/lib/emergencyReconciliation";
 import { prepareOperation, type PendingOperation } from "@/lib/pendingOperation";
 import { emptyDraft, VITAL_FIELDS, type EmergencyDraft } from "./emergencyDraft";
 import { usePortalMemory } from "./portalMemory";
+import { EpisodeUpdates, MeasurementHistory } from "./EpisodeUpdates";
+import { currentMeasurements, reconcileClinicalDraft } from "./clinicalUpdates";
 
 const SYMPTOMS = [
   "Disnea",
@@ -406,6 +408,9 @@ export function LocalPortal() {
     try {
       const updated = await sendEmergencyOperation(operation, () => memory.isCurrent(token));
       if (!memory.isCurrent(token)) return;
+      const clinicalAction = operation.path.match(/\/(update|measurements(?:\/rectify)?)\/$/);
+      const clinicalDraft = memory.episodeDrafts.get(emergencyId);
+      if (clinicalAction && clinicalDraft) memory.episodeDrafts.set(emergencyId, reconcileClinicalDraft(clinicalDraft, updated, clinicalAction[1], JSON.parse(operation.body).expected_version));
       memory.transitions.delete(emergencyId);
       const next = { ...memory.uncertainTransitions }; delete next[emergencyId];
       memory.uncertainTransitions = next;
@@ -435,13 +440,13 @@ export function LocalPortal() {
     }
   }
 
-  async function runTransition(emergency: BackendEmergency, action: EmergencyAction, successMessage: string, extra: Record<string, string> = {}) {
+  async function runTransition(emergency: BackendEmergency, action: EmergencyAction, successMessage: string, extra: Record<string, unknown> = {}, expectedVersion = emergency.version) {
     if (!userRef.current || !memory.isCurrent(memory.token)) return;
     if (memory.transitions.has(emergency.id)) {
       setOperationError("Resuelve la operación pendiente de este episodio antes de realizar otra acción.");
       return;
     }
-    const operation = prepareEmergencyTransition(emergency, action, extra);
+    const operation = prepareEmergencyTransition({ ...emergency, version: expectedVersion }, action, extra);
     memory.transitions.set(emergency.id, operation);
     await executeTransition(emergency.id, operation, successMessage);
   }
@@ -535,6 +540,7 @@ export function LocalPortal() {
                         {item.status === "notificada" && <button disabled={transitionBusy || Boolean(uncertainTransitions[item.id])} onClick={() => void runTransition(item, "transfer-start", "Inicio de traslado registrado.")} className="rounded-lg bg-signal px-3 py-2 text-sm font-semibold text-ink">Iniciar traslado</button>}
                         <button onClick={() => cancelFromAmbulance(item)} className="rounded-lg border border-rose-300/30 px-3 py-2 text-sm text-rose-100">Cancelar episodio</button>
                       </div>}
+                      <EpisodeUpdates emergency={item} busy={transitionBusy} pending={Boolean(uncertainTransitions[item.id])} symptoms={SYMPTOMS} onSave={(action, values, version) => runTransition(item, action, action === "update" ? "Antecedentes actualizados." : action === "measurements" ? "Medición agregada." : "Rectificación registrada; original conservado.", values, version)} />
                     </div>)}</div>}
                   </> : <>
                   <h2 className="text-lg font-bold">Nueva emergencia</h2>
@@ -712,22 +718,12 @@ function backendVitalsToDisplay(emergency: BackendEmergency): Vitals {
     temperature: "tempC",
     glasgow: "glasgow",
   };
-  for (const measurement of emergency.vital_measurements) {
+  for (const measurement of currentMeasurements(emergency.vital_measurements)) {
     const key = kindToKey[measurement.kind];
     if (key) values[key] = measurement.value;
   }
   return values;
 }
-
-const VITAL_LABELS: Record<string, string> = {
-  heart_rate: "Frecuencia cardíaca",
-  systolic_pressure: "Presión sistólica",
-  diastolic_pressure: "Presión diastólica",
-  spo2: "Saturación de oxígeno",
-  respiratory_rate: "Frecuencia respiratoria",
-  temperature: "Temperatura corporal",
-  glasgow: "Escala de Glasgow",
-};
 
 function UrgenciasEmergencyCard({ emergency, archived = false, onSelect, onMarkArrived }: { emergency: BackendEmergency; archived?: boolean; onSelect: () => void; onMarkArrived?: () => void }) {
   const triageLevel = emergency.triage ? Number(emergency.triage.slice(1)) as 1 | 2 | 3 | 4 | 5 : null;
@@ -762,7 +758,7 @@ function EmergencyDetail({ emergency, onClose, onMarkArrived, onCloseEmergency }
       <p className="mt-3 rounded-lg bg-white/5 p-3">{emergency.reason}</p>
       <p className="mt-2 text-sm text-muted-dark">Edad: {emergency.patient.age_value === null ? "No informada" : `${emergency.patient.age_value} ${ageUnit}`} · Sexo: {emergency.patient.recorded_sex ?? "No informado"}</p>
       <p className="mt-2 text-sm text-muted-dark">Síntomas: {emergency.symptoms.length ? emergency.symptoms.join(", ") : "No informados"}</p>
-       <div className="mt-4"><h4 className="text-sm font-semibold">Mediciones vitales</h4>{emergency.vital_measurements.length ? <ul className="mt-2 space-y-1 text-sm text-muted-dark">{emergency.vital_measurements.map((measurement, index) => <li key={`${measurement.kind}-${index}`}>{VITAL_LABELS[measurement.kind] ?? "Medición vital"}: <strong className="text-white">{measurement.value}{measurement.kind === "spo2" ? "%" : ` ${measurement.unit}`}</strong> · {new Date(measurement.measured_at).toLocaleString()}</li>)}</ul> : <p className="mt-1 text-sm text-muted-dark">No se registraron mediciones.</p>}</div>
+       <MeasurementHistory measurements={emergency.vital_measurements} />
       {emergency.notes && <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white/5 p-3 text-sm">{emergency.notes}</p>}
       {emergency.arrived_at && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Llegada registrada: {new Date(emergency.arrived_at).toLocaleString()}{emergency.arrival_reason ? ` · Motivo: ${emergency.arrival_reason}` : ""}</p>}
       {(emergency.status === "notificada" || emergency.status === "en_traslado") && <button onClick={confirmArrival} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-semibold text-ink"><Activity className="h-4 w-4" />Marcar como llegado a Urgencias</button>}

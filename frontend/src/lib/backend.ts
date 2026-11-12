@@ -53,11 +53,18 @@ export interface AccountManagementConfig {
 }
 
 export interface VitalMeasurement {
+  id?: string;
   kind: string;
   value: number;
   unit: string;
   measured_at: string;
   recorded_at: string;
+  recorded_by_id?: string;
+  operation_id?: string | null;
+  rectifies_id?: string | null;
+  rectified_by_id?: string | null;
+  is_current?: boolean;
+  rectification_reason?: string;
 }
 
 export interface BackendEmergency {
@@ -77,6 +84,8 @@ export interface BackendEmergency {
   symptoms: string[];
   notes: string;
   triage: "C1" | "C2" | "C3" | "C4" | "C5" | null;
+  triage_recorded_at?: string | null;
+  triage_recorded_by_id?: string | null;
   vital_measurements: VitalMeasurement[];
   created_at: string;
   transfer_declared_at: string | null;
@@ -352,7 +361,7 @@ export async function sendEmergencyOperation(operation: PendingOperation, isCurr
     || !Array.isArray(result.symptoms) || !Array.isArray(result.vital_measurements)) {
     throw new Error("No se pudo confirmar la respuesta de la operación.");
   }
-  const transition = operation.path.match(/^\/api\/v1\/emergencies\/([^/]+)\/(arrival|transfer-start|cancel|close)\/$/);
+  const transition = operation.path.match(/^\/api\/v1\/emergencies\/([^/]+)\/(arrival|transfer-start|cancel|close|update|measurements(?:\/rectify)?)\/$/);
   if (transition) {
     const sent = JSON.parse(operation.body) as { expected_version: number };
     if (result.id !== decodeURIComponent(transition[1]) || result.version <= sent.expected_version
@@ -365,12 +374,12 @@ export async function sendEmergencyOperation(operation: PendingOperation, isCurr
   return result;
 }
 
-export type EmergencyAction = "arrival" | "transfer-start" | "cancel" | "close";
+export type EmergencyAction = "arrival" | "transfer-start" | "cancel" | "close" | "update" | "measurements" | "measurements/rectify";
 
 export function prepareEmergencyTransition(
   emergency: BackendEmergency,
   action: EmergencyAction,
-  extra: Record<string, string> = {},
+  extra: Record<string, unknown> = {},
 ): PendingOperation {
   return prepareOperation(`/api/v1/emergencies/${encodeURIComponent(emergency.id)}/${action}/`, {
     ...extra, expected_version: emergency.version,

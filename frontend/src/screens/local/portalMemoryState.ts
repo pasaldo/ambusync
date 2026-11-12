@@ -1,6 +1,7 @@
 import type { BackendUser } from "../../lib/backend";
 import type { PendingOperation } from "../../lib/pendingOperation";
 import { emptyDraft } from "./emergencyDraft.ts";
+import type { ClinicalDraft } from "./clinicalUpdates.ts";
 
 /** Volatile, owner-scoped state. Never serialized to browser storage. */
 export class PortalMemory {
@@ -12,6 +13,7 @@ export class PortalMemory {
   creationUncertain = false;
   transitions = new Map<string, PendingOperation>();
   uncertainTransitions: Record<string, PendingOperation> = {};
+  episodeDrafts = new Map<string, ClinicalDraft>();
 
   get token(): number { return this.revision; }
 
@@ -48,5 +50,6 @@ export class PortalMemory {
     this.creationUncertain = false;
     this.transitions = new Map();
     this.uncertainTransitions = {};
+    this.episodeDrafts = new Map();
   }
 }

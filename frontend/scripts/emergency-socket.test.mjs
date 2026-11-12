@@ -97,6 +97,19 @@ test("delivers only valid, unseen event envelopes", () => {
   assert.deepEqual(urls, ["ws://localhost:5173/ws/emergencies/"]);
 });
 
+test("accepts clinical update notification types without clinical payload", () => {
+  const socket = new FakeSocket();
+  const events = [];
+  const disconnect = connectEmergencyEvents({ onEvent: (event) => events.push(event), onStatus: () => {}, createSocket: () => socket, timers: fakeTimers() });
+  socket.open();
+  for (const [index, type] of ["emergency.updated", "emergency.measurements_added", "emergency.measurement_rectified"].entries()) {
+    socket.send({ ...validEvent, event_id: `4b26f962-9102-4ab9-b2de-88bb6b5794d${index + 1}`, type, notes: "not transmitted to callback" });
+  }
+  assert.equal(events.length, 3);
+  assert.equal(events.some((event) => "notes" in event), false);
+  disconnect();
+});
+
 test("reconnects with capped exponential backoff and reports connection states", () => {
   const sockets = [];
   const statuses = [];

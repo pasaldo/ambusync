@@ -54,6 +54,14 @@ class Emergency(models.Model):
     symptoms = models.JSONField(default=list, blank=True)
     notes = models.CharField(max_length=2000, blank=True)
     triage = models.CharField(max_length=2, choices=Triage.choices, blank=True)
+    triage_recorded_at = models.DateTimeField(null=True, blank=True)
+    triage_recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="triage_records",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     transfer_declared_at = models.DateTimeField(null=True, blank=True)
     transfer_declared_by = models.ForeignKey(
@@ -156,6 +164,11 @@ class VitalMeasurement(models.Model):
         on_delete=models.PROTECT,
         related_name="recorded_vital_measurements",
     )
+    operation_id = models.UUIDField(null=True, blank=True)
+    rectifies = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="rectification"
+    )
+    rectification_reason = models.CharField(max_length=2000, blank=True)
 
     class Meta:
         ordering = ("measured_at", "kind", "id")

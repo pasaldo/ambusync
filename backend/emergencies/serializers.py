@@ -1,3 +1,9 @@
+import unicodedata
+from datetime import datetime
+from decimal import Decimal
+
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework import serializers
 
 from emergencies.models import Emergency, VitalMeasurement
@@ -14,6 +20,17 @@ VITAL_FIELD_TO_KIND = {
 }
 
 
+class MeasurementTimestampField(serializers.DateTimeField):
+    def to_internal_value(self, value):
+        try:
+            parsed = value if isinstance(value, datetime) else parse_datetime(str(value))
+        except ValueError:
+            parsed = None
+        if parsed is None or timezone.is_naive(parsed):
+            raise serializers.ValidationError("Indica fecha/hora ISO con zona horaria explícita.")
+        return super().to_internal_value(value)
+
+
 class VitalsCreateSerializer(serializers.Serializer):
     hr = serializers.IntegerField(min_value=0, required=False, allow_null=True)
     bp_sys = serializers.IntegerField(min_value=0, required=False, allow_null=True)
@@ -26,7 +43,7 @@ class VitalsCreateSerializer(serializers.Serializer):
         max_digits=6, decimal_places=1, required=False, allow_null=True
     )
     glasgow = serializers.IntegerField(min_value=3, max_value=15, required=False, allow_null=True)
-    taken_at = serializers.DateTimeField(required=False)
+    taken_at = MeasurementTimestampField(required=False)
 
     def to_internal_value(self, data):
         if not isinstance(data, dict):
@@ -49,6 +66,12 @@ class VitalsCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"taken_at": "No envíes una fecha si no hay mediciones."}
             )
+        for name in VITAL_FIELD_TO_KIND:
+            value = attrs.get(name)
+            if value is not None and abs(Decimal(str(value))) >= Decimal(1000000):
+                raise serializers.ValidationError(
+                    {name: "El valor excede la capacidad del campo (6 dígitos enteros)."}
+                )
         return attrs
 
 
@@ -148,6 +171,67 @@ class EmergencyCancellationSerializer(EmergencyOperationSerializer):
     reason = serializers.CharField(min_length=3, max_length=2000, trim_whitespace=True)
 
 
+def validate_text(value):
+    if any(
+        unicodedata.category(character) == "Cc" and character not in "\n\r\t" for character in value
+    ):
+        raise serializers.ValidationError("El texto contiene caracteres de control no admitidos.")
+    return value
+
+
+def validate_label(value):
+    validate_text(value)
+    if any(character in value for character in "\n\r\t"):
+        raise serializers.ValidationError("El síntoma debe estar en una sola línea, sin controles.")
+    return value
+
+
+class EmergencyUpdateSerializer(EmergencyOperationSerializer):
+    reason = serializers.CharField(
+        min_length=3, max_length=2000, required=False, validators=[validate_text]
+    )
+    notes = serializers.CharField(
+        max_length=2000, allow_blank=True, required=False, validators=[validate_text]
+    )
+    symptoms = serializers.ListField(
+        child=serializers.CharField(max_length=120, validators=[validate_label]),
+        max_length=20,
+        required=False,
+    )
+    triage = serializers.ChoiceField(
+        choices=Emergency.Triage.choices, allow_blank=True, allow_null=True, required=False
+    )
+
+    def validate(self, attrs):
+        if not set(attrs) & {"reason", "notes", "symptoms", "triage"}:
+            raise serializers.ValidationError(
+                "Indica al menos un antecedente o triaje para actualizar."
+            )
+        symptoms = [item.casefold() for item in attrs.get("symptoms", [])]
+        if len(set(symptoms)) != len(symptoms):
+            raise serializers.ValidationError({"symptoms": "No repitas síntomas en el episodio."})
+        return attrs
+
+
+class EmergencyMeasurementsSerializer(EmergencyOperationSerializer):
+    vitals = VitalsCreateSerializer()
+
+    def validate_vitals(self, value):
+        if not any(value.get(name) is not None for name in VITAL_FIELD_TO_KIND):
+            raise serializers.ValidationError(
+                "Indica al menos una medición; no se sustituyen ausencias por cero."
+            )
+        return value
+
+
+class EmergencyRectificationSerializer(EmergencyOperationSerializer):
+    measurement_id = serializers.IntegerField(min_value=1)
+    value = serializers.DecimalField(max_digits=8, decimal_places=2)
+    unit = serializers.ChoiceField(choices=VitalMeasurement.Unit.choices)
+    measured_at = MeasurementTimestampField()
+    reason = serializers.CharField(min_length=3, max_length=2000, validators=[validate_text])
+
+
 def emergency_representation(emergency):
     return {
         "id": str(emergency.pk),
@@ -169,16 +253,30 @@ def emergency_representation(emergency):
         "notes": emergency.notes,
         "vital_measurements": [
             {
+                "id": str(item.pk),
                 "kind": item.kind,
                 "value": float(item.value),
                 "unit": item.unit,
                 "measured_at": item.measured_at.isoformat(),
                 "recorded_at": item.recorded_at.isoformat(),
                 "recorded_by_id": str(item.recorded_by_id),
+                "operation_id": str(item.operation_id) if item.operation_id else None,
+                "rectifies_id": str(item.rectifies_id) if item.rectifies_id else None,
+                "rectified_by_id": str(item.rectification.pk)
+                if hasattr(item, "rectification")
+                else None,
+                "is_current": not hasattr(item, "rectification"),
+                "rectification_reason": item.rectification_reason,
             }
-            for item in emergency.vital_measurements.all()
+            for item in emergency.vital_measurements.select_related("rectification").all()
         ],
         "triage": emergency.triage or None,
+        "triage_recorded_at": emergency.triage_recorded_at.isoformat()
+        if emergency.triage_recorded_at
+        else None,
+        "triage_recorded_by_id": str(emergency.triage_recorded_by_id)
+        if emergency.triage_recorded_by_id
+        else None,
         "created_at": emergency.created_at.isoformat(),
         "transfer_declared_at": (
             emergency.transfer_declared_at.isoformat() if emergency.transfer_declared_at else None

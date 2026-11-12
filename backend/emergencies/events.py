@@ -18,6 +18,9 @@ EMERGENCY_EVENT_TYPES = frozenset(
         "emergency.arrived",
         "emergency.cancelled",
         "emergency.closed",
+        "emergency.updated",
+        "emergency.measurements_added",
+        "emergency.measurement_rectified",
     }
 )
 

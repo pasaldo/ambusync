@@ -6,6 +6,8 @@ Para la versión local `feature/pilot-completion`, el [bloque B: arranque y prue
 
 **B sigue con revisión manual pendiente.** El [bloque C](PRUEBAS_C.md) agrega migración `audit/0007` y corrige retención desde cierre formal global. Aplicar la migración antes de usar sus comandos. No registrar cierre ficticio ni ejecutar `--apply` sobre desarrollo para probarlo: usar las suites con base desechable. Las pruebas del wrapper PowerShell usan dobles locales; no son restauración real ni acceso R2.
 
+El [bloque D](PRUEBAS_D.md) agrega migración `emergencies/0005`, formularios de antecedentes/triaje y mediciones seriadas/rectificación antes de recepción. `npm run test:episode-updates` verifica el flujo con transporte sintético; no reemplaza revisión manual. La guía incluye arranque y checklist del responsable, todavía pendiente. La autoría del triaje solo cambia si cambia la clasificación; el historial conserva las mediciones rectificadas.
+
 ## Preparar el entorno
 
 Requisitos para el frontend: Node.js **24.20.0** (`.nvmrc`) y npm **11.19.0** (`frontend/package.json`). Comprueba las versiones:

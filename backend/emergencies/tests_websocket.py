@@ -75,6 +75,42 @@ class EmergencyWebSocketTests(EmergencyFixtureMixin, TransactionTestCase):
 
         asyncio.run(exercise())
 
+    def test_episode_update_events_reach_socket_as_minimal_envelopes(self):
+        communicator = self.communicator_for(self.receiver_user)
+
+        async def exercise():
+            connected, _ = await communicator.connect()
+            self.assertTrue(connected)
+            try:
+                group = institution_group_name(self.receiver.pk)
+                for event_type in (
+                    "emergency.updated",
+                    "emergency.measurements_added",
+                    "emergency.measurement_rectified",
+                ):
+                    await self.layer.group_send(
+                        group,
+                        {
+                            "type": "emergency.event",
+                            "audience_group": group,
+                            "event_type": event_type,
+                            "event_id": str(uuid.uuid4()),
+                            "emergency_id": str(uuid.uuid4()),
+                            "version": 2,
+                        },
+                    )
+                    self.assertFalse(
+                        await communicator.receive_nothing(timeout=0.2),
+                        "el consumidor no debe descartar avisos de D",
+                    )
+                    event = await communicator.receive_json_from()
+                    self.assertEqual(event["type"], event_type)
+                    self.assertEqual(set(event), {"event_id", "type", "emergency_id", "version"})
+            finally:
+                await communicator.disconnect()
+
+        asyncio.run(exercise())
+
     def assert_two_audience_events(self, event_type, emergency_id, version):
         receiver_event = self.receive(self.receiver_channel)
         ambulance_event = self.receive(self.ambulance_channel)

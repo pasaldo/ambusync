@@ -298,6 +298,36 @@
         }
       }
     },
+    "/api/v1/emergencies/{emergency_id}/update/": {
+      "post": {
+        "operationId": "updateEmergencyBackground",
+        "description": "Solo integrante habilitado de la unidad, antes de recepción. Omisión conserva datos; triage null/vacío retira clasificación. Autor/fecha servidor y auditoría. No modifica identidad del paciente ni destino. Replay exacto no incrementa versión aunque haya llegado después, siempre dentro de ámbito.",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmergencyUpdate" } } } },
+        "responses": { "200": { "$ref": "#/components/responses/TransitionSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/v1/emergencies/{emergency_id}/measurements/": {
+      "post": {
+        "operationId": "appendEmergencyMeasurements",
+        "description": "Agrega una serie antes de recepción sin sobrescribir muestras. Al menos un valor no nulo y taken_at con zona explícita. Un lote aumenta versión una vez. Cada fila conserva autor, hora medida, hora servidor y UUID operación. No inventa valores ausentes.",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmergencyMeasurements" } } } },
+        "responses": { "200": { "$ref": "#/components/responses/TransitionSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/v1/emergencies/{emergency_id}/measurements/rectify/": {
+      "post": {
+        "operationId": "rectifyEmergencyMeasurement",
+        "description": "Crea reemplazo vinculado con motivo obligatorio, mismo tipo/unidad canónica, antes de recepción. Original intacta y consultable. Solo hoja sin reemplazo de ese episodio; cadenas A→B→C permitidas, segunda rectificación de A devuelve409. Reintento exacto conserva una única sustitución.",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmergencyRectification" } } } },
+        "responses": { "200": { "$ref": "#/components/responses/TransitionSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
     "/api/v1/emergencies/{emergency_id}/transfer-start/": {
       "post": {
         "operationId": "startEmergencyTransfer",
@@ -494,6 +524,20 @@
         }
       },
       "EmergencyOperation": { "type": "object", "required": ["operation_id", "expected_version"], "additionalProperties": false, "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 } } },
+      "EmergencyUpdate": { "type": "object", "required": ["operation_id", "expected_version"], "additionalProperties": false, "anyOf": [{ "required": ["reason"] }, { "required": ["symptoms"] }, { "required": ["notes"] }, { "required": ["triage"] }], "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "reason": { "type": "string", "minLength": 3, "maxLength": 2000 }, "notes": { "type": "string", "maxLength": 2000 }, "symptoms": { "type": "array", "maxItems": 20, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 120 } }, "triage": { "type": ["string", "null"], "enum": ["C1", "C2", "C3", "C4", "C5", "", null] } } },
+      "EmergencyMeasurements": { "type": "object", "required": ["operation_id", "expected_version", "vitals"], "additionalProperties": false, "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "vitals": { "allOf": [{ "$ref": "#/components/schemas/EmergencyCreate/properties/vitals" }, { "required": ["taken_at"], "minProperties": 2 }], "description": "Al menos una medición no nula. Fecha con zona explícita; enteros y límites D-007. Capacidad de almacenamiento: hasta seis dígitos enteros; no es un rango clínico." } } },
+      "EmergencyRectification": {
+        "type": "object", "required": ["operation_id", "expected_version", "measurement_id", "value", "unit", "measured_at", "reason"], "additionalProperties": false,
+        "properties": {
+          "operation_id": { "type": "string", "format": "uuid" },
+          "expected_version": { "type": "integer", "minimum": 1 },
+          "measurement_id": { "type": ["integer", "string"], "minimum": 1, "pattern": "^[1-9][0-9]*$", "description": "ID positivo de la fila; admite la cadena decimal devuelta por el historial." },
+          "value": { "type": "number", "description": "Reglas D-007 según tipo original; finito, hasta dos decimales, temperatura uno; almacenamiento limitado, sin rangos clínicos adicionales." },
+          "unit": { "type": "string", "enum": ["lpm", "mmHg", "%", "rpm", "°C", "puntos"] },
+          "measured_at": { "type": "string", "format": "date-time" },
+          "reason": { "type": "string", "minLength": 3, "maxLength": 2000 }
+        }
+      },
       "EmergencyCancellation": { "type": "object", "required": ["operation_id", "expected_version", "reason"], "additionalProperties": false, "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "reason": { "type": "string", "minLength": 3, "maxLength": 2000 } } },
       "Emergency": {
         "type": "object",
@@ -509,9 +553,11 @@
           "patient": { "type": "object", "required": ["identity_unknown", "alias", "age_value", "age_unit", "recorded_sex"], "properties": { "identity_unknown": { "type": "boolean" }, "alias": { "type": ["string", "null"] }, "age_value": { "type": ["integer", "null"] }, "age_unit": { "type": ["string", "null"] }, "recorded_sex": { "type": ["string", "null"] } } },
           "reason": { "type": "string" },
           "symptoms": { "type": "array", "items": { "type": "string" } },
-          "vital_measurements": { "type": "array", "items": { "type": "object", "required": ["kind", "value", "unit", "measured_at", "recorded_at", "recorded_by_id"], "properties": { "kind": { "type": "string", "enum": ["heart_rate", "systolic_pressure", "diastolic_pressure", "spo2", "respiratory_rate", "temperature", "glasgow"] }, "value": { "type": "number" }, "unit": { "type": "string" }, "measured_at": { "type": "string", "format": "date-time" }, "recorded_at": { "type": "string", "format": "date-time" }, "recorded_by_id": { "type": "string" } } } },
+          "vital_measurements": { "type": "array", "items": { "type": "object", "required": ["id", "kind", "value", "unit", "measured_at", "recorded_at", "recorded_by_id", "operation_id", "rectifies_id", "rectified_by_id", "is_current", "rectification_reason"], "properties": { "id": { "type": "string" }, "kind": { "type": "string", "enum": ["heart_rate", "systolic_pressure", "diastolic_pressure", "spo2", "respiratory_rate", "temperature", "glasgow"] }, "value": { "type": "number" }, "unit": { "type": "string" }, "measured_at": { "type": "string", "format": "date-time" }, "recorded_at": { "type": "string", "format": "date-time" }, "recorded_by_id": { "type": "string" }, "operation_id": { "type": ["string", "null"], "format": "uuid" }, "rectifies_id": { "type": ["string", "null"] }, "rectified_by_id": { "type": ["string", "null"] }, "is_current": { "type": "boolean", "description": "No tiene reemplazo en su cadena; no implica que sea la última muestra temporal." }, "rectification_reason": { "type": "string" } } } },
           "notes": { "type": "string" },
           "triage": { "type": ["string", "null"] },
+          "triage_recorded_at": { "type": ["string", "null"], "format": "date-time", "description": "Fecha servidor; null para legado sin inventar metadatos." },
+          "triage_recorded_by_id": { "type": ["string", "null"] },
           "created_at": { "type": "string", "format": "date-time" },
           "transfer_declared_at": { "type": ["string", "null"], "format": "date-time" },
           "transfer_declared_by_id": { "type": ["string", "null"] },
