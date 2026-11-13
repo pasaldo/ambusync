@@ -1,6 +1,6 @@
 # Bloque F — cambio de destino atómico
 
-**Implementación local verificada; aceptación manual pendiente.** Propuesta de proyección aprobada por el responsable después de aceptar E. Solo datos sintéticos; no uso clínico. Sin publicación/despliegue ni inicio de G/J. GPS aún no implementado.
+**F aprobado manualmente con observación según reporte del responsable, posterior a `c701c58`.** Todas las pruebas reportadas aprobadas; observaciónF1: distinguir visualmente cambio de destino de cancelación ordinaria. Se corrigió el rótulo de ambulancia, tarjeta/archivo y detalle de Urgencias a **Cancelado por cambio de destino** cuando existe reemplazo confirmado. Conserva estado técnico cancelada; no revela destino ajeno ni deduce cambio por texto del motivo. **Corrección verificada automáticamente; revalidación manual del rótulo pendiente.** Sin nuevos detalles de commit ejecutado/plataformas/dispositivos. G autorizado, en diseño de alcance; todavía sin implementaciónG. Solo sintéticos, sin uso clínico/publicación/despliegue; GPSJ pendiente.
 
 ## 1. Arranque de esta copia
 
@@ -116,7 +116,11 @@ npm run check:diagrams
 
 `test:local-websocket` es silencioso si aprueba: verificar `$LASTEXITCODE` (0), no esperar un resumen. Usa transporte sintético. Wrapper restauración con dobles: desde raíz `./ops/backups/tests/restore-postgres.tests.ps1`, sin red ni restauración real.
 
-## 5. Aceptación manual pendiente
+## 5. Registro de aceptación y verificación
+
+Regresión final de correcciónF1: unitarias32/32, browserF12/12, E6/6, integridad30/30, correcciones3/3, actualizacionesD/unidades/cuentas/system-admin/WS/sync/tipos/build/Mermaid3/3 PASS. La primera regresión detectó cambio no deseado del distintivo ordinario «Cancelada»; se restauró ese texto y se repitieron todas las suites anteriores con éxito. Backend no se modificó ni se repitió:199/199 corresponde al cierreF previo, no a nueva ejecución en esta corrección.
+
+**Actualización posterior del responsable:** F aprobado con observaciónF1; reemplaza el estado pendiente histórico de esta sección. CorrecciónF1: prueba browser observada RED por rótulo ausente y luego GREEN; unitarias32/32 y suiteF12/12, incluidos archivo/detalle receptor anterior y cancelación ordinaria sin falso rótulo. No cambió backend/modelo/migración/datos. Para revalidar manualmente: cambiar destino, comprobar **Cancelado por cambio de destino** en original de ambulancia y tarjeta/archivo/detalle de Urgencias anterior; cancelar otro episodio normalmente y comprobar el texto previo (**Cancelada** en distintivo, **Cancelado:** en detalle), sin atribuirle cambio. El receptor anterior no debe ver nombre ni datos del nuevo hospital.
 
 Frontend final: **31/31 unitarias,10/10 escenarios F,6/6 E,30/30 integridad,3/3 correcciones**, actualizacionesD/unidades/cuentas/administración global/WS/sincronización/tipos/build/Mermaid3/3 PASS sobre Vite5174. Vista390px sintética revisada sin desborde horizontal, sin regenerar capturas versionadas de README. No CI remoto ni nueva aceptación real entre dispositivos. Revisión independiente: dos importantes corregidos con regresiones RED→GREEN; sin nuevos menoresF pendientes. Menores previos de coberturaE/harness de temporizadores continúan documentados, sin afirmar fallo funcional.
 
@@ -129,6 +133,10 @@ Verificación backend local del13/11: **199/199** PostgreSQL sin `--keepdb`, inc
 - Transiciones de episodios existentes bloquean únicamente la unidad objetivo (`OF self`), evitando bloquear incidentalmente su institución por ordenación SQL antes del nuevo destino. La creación conserva su bloqueo anterior; destinoF usa NO KEY UPDATE y revalida habilitación. Carreras y ámbito se verifican sin eliminar continuidad B.
 - Revisión independiente detectó dos importantes: deadlock con instituciones combinadas cruzadas y aceptación de paciente distinto en respuesta F. Se reprodujeron antes de corregir y se agregaron regresiones. No certifica aceptación real entre dispositivos, uso clínico, GPS, despliegue ni restore/RPO/RTO. La guía/contrato se contrastan en el cierre local; manualF queda pendiente.
 - G deberá revisar la validación de identidad de paciente si habilita correcciones de ese contexto antes de replay; F actual no permite cambiarlo. Antecedentes editables del reemplazo no se comparan con original al resolver replay, porque D puede haberlos actualizado legítimamente.
+
+- [ ] Revalidación del rótulo posterior a aprobaciónF: cambio de destino explícito en ambulancia, tarjeta/archivo/detalle de Urgencias anterior; cancelación ordinaria sigue distinta.
+
+Checklist histórico de la aceptaciónF, aprobada según reporte del responsable; se conserva como plantilla para registrar detalles de ejecución:
 
 - [ ] Migración0007 y arranque local.
 - [ ] F1 cambio explícito conjunto y conservación de datos/estado.

@@ -21,7 +21,11 @@ async function harness() {
   await context.route("**/api/v1/auth/login/", (route) => { state.expired = false; return route.fulfill({ json: { ok: true } }); });
   await context.route("**/api/v1/institutions/destinations/", (route) => route.fulfill({ json: [{ id: "hospital-a", name: "Hospital A sintético" }, { id: "hospital-b", name: "Hospital B sintético" }] }));
   await context.route("**/api/v1/emergencies/**", async (route) => {
-    if (route.request().method() === "GET") return route.fulfill({ json: { count: state.replacement ? 2 : 1, next: null, previous: null, results: state.replacement ? [state.replacement, original] : [original] } });
+    if (route.request().method() === "GET") {
+      const all = state.replacement ? [state.replacement, original] : [original];
+      const results = user.groups.includes("ambulance") ? all : all.filter((item) => user.institutions.some((institution) => institution.id === item.destination_id));
+      return route.fulfill({ json: { count: results.length, next: null, previous: null, results } });
+    }
     assert.ok(route.request().url().endsWith(`/${oldId}/change-destination/`));
     const body = route.request().postDataJSON(); state.posts.push(body);
     if (state.expireNext) { state.expireNext = false; state.expired = true; return route.fulfill({ status: 401, json: { code: "session_expired", message: "Sesión expirada." } }); }
@@ -82,6 +86,38 @@ test("explicit form changes both episodes, clears receiver milestones and labels
     await h.page.getByRole("button", { name: "Actualizar antecedentes y mediciones", exact: true }).click();
     await h.page.getByText(/Antecedente heredado; no es una nueva captura/).waitFor();
     assert.equal(h.state.replacement.vital_measurements[0].recorded_at, h.original.vital_measurements[0].recorded_at);
+  } finally { await h.context.close(); }
+});
+
+test("destination cancellation is explicit for ambulance and old receiver archive and detail", async () => {
+  const h = await harness();
+  try {
+    await h.open(); await h.submit();
+    await h.page.getByRole("status").filter({ hasText: "Destino cambiado" }).waitFor();
+    await h.page.getByText("Cancelado por cambio de destino", { exact: true }).waitFor();
+    h.user.groups = ["urgencias"];
+    h.user.institutions = [{ id: "hospital-a", name: "Hospital A sintético" }];
+    h.user.ambulance = null;
+    await h.page.reload();
+    await h.page.getByRole("button", { name: "Archivo de Urgencias", exact: true }).click();
+    const card = h.page.getByRole("button", { name: /Caso sintético F/ });
+    await card.getByText(/Cancelado por cambio de destino/).waitFor();
+    await card.click();
+    const dialog = h.page.getByRole("dialog", { name: "Detalle de episodio" });
+    await dialog.getByText("Cancelado por cambio de destino: Derivación sintética autorizada", { exact: true }).waitFor();
+    assert.equal(await h.page.getByText("Hospital B sintético", { exact: true }).count(), 0, "label must not reveal the new destination");
+    assert.equal(h.state.posts.length, 1, "presentation never writes another operation");
+  } finally { await h.context.close(); }
+});
+
+test("ordinary cancelled episode is not presented as a destination change", async () => {
+  const h = await harness();
+  try {
+    h.original.status = "cancelada"; h.original.replaced_by_id = null;
+    await h.page.getByRole("button", { name: "Actualizar", exact: true }).click();
+    await h.page.getByText("Cancelada", { exact: true }).waitFor();
+    assert.equal(await h.page.getByText(/Cancelado por cambio de destino/).count(), 0);
+    assert.equal(h.state.posts.length, 0);
   } finally { await h.context.close(); }
 });
 

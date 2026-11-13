@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { partitionTriageQueue, rectificationDescription } from "../src/screens/local/queuePresentation.ts";
+import { partitionTriageQueue, rectificationDescription, cancellationLabel } from "../src/screens/local/queuePresentation.ts";
+
+test("cancellation label distinguishes confirmed destination replacement from ordinary cancellation", () => {
+  assert.equal(cancellationLabel({ status: "cancelada", replaced_by_id: "synthetic-replacement" }), "Cancelado por cambio de destino");
+  for (const replaced_by_id of [null, undefined, ""]) assert.equal(cancellationLabel({ status: "cancelada", replaced_by_id }), "Cancelado");
+  assert.equal(cancellationLabel({ status: "en_traslado", replaced_by_id: "synthetic-replacement" }), "Cancelado");
+});
 
 test("D007 orders classified by triage then oldest instant, not transport state", () => {
   const rows = [

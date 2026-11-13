@@ -713,6 +713,8 @@ El responsable reportó ejecución y marcó aprobados los checklists B/C/D: B y 
 
 ### Confirmación posterior e inicio de E — 13/11/2026
 
+**Actualización posterior a `c701c58`: F aprobado con observaciónF1 según reporte del responsable; G autorizado.** Se reportaron todas las pruebas aprobadas; se solicitó que cancelación por cambio de destino se identifique explícitamente. Corrección de presentación implementada y verificada unitarias32/32 y browserF12/12; conserva cancelada técnico y aislamiento, sin backend/migraciones. Revalidación manual del nuevo rótulo pendiente en PRUEBAS_F. G en diseño de alcance/permiso de consulta de pacientes existentes, sin implementación aún; no autorización de publicación/despliegue.
+
 **Cierre técnico local F, posterior a su autorización:** implementación/verificación local completadas (backend199/199; frontend31 unitarias+10F+6E+30 integridad y regresiones/tipos/build/Mermaid PASS). Dos importantes de revisión independiente corregidos mediante RED→GREEN; **F manual pendiente** en PRUEBAS_F. Sustituye el estado «en verificación» siguiente, no cierra etapa ni autoriza G/J, publicación/despliegue o uso clínico.
 
 **Actualización posterior a `aeed92b`: E aprobado manualmente según reporte del responsable (13/11).** E4, bloqueo de nuevos hitos después de llegada, es esperado; el responsable aprobó el resto de las pruebas. Sustituye el pendiente E del párrafo siguiente, sin nuevos detalles de plataformas/commit ejecutado. `test:local-websocket` repetido con BASE_URL5174: exit0; silencio de éxito del script, transporte sintético. Registro [PRUEBAS_E.md](PRUEBAS_E.md). F no iniciado; sin autorización de publicación/despliegue.

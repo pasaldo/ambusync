@@ -1,4 +1,11 @@
-import type { VitalMeasurement } from "../../lib/backend";
+import type { BackendEmergency, VitalMeasurement } from "../../lib/backend";
+
+/** A reason mentioning a destination is not proof that a replacement exists. */
+export function cancellationLabel(emergency: Pick<BackendEmergency, "status" | "replaced_by_id">): string {
+  return emergency.status === "cancelada" && emergency.replaced_by_id
+    ? "Cancelado por cambio de destino"
+    : "Cancelado";
+}
 
 interface TriageQueueItem {
   id: string;

@@ -27,7 +27,7 @@ import { emptyDraft, VITAL_FIELDS, type EmergencyDraft } from "./emergencyDraft"
 import { usePortalMemory } from "./portalMemory";
 import { EpisodeUpdates, MeasurementHistory } from "./EpisodeUpdates";
 import { currentMeasurements, reconcileClinicalDraft } from "./clinicalUpdates";
-import { partitionTriageQueue } from "./queuePresentation";
+import { cancellationLabel, partitionTriageQueue } from "./queuePresentation";
 import { EmergencyMilestones } from "./EmergencyMilestones";
 import { DestinationChange, ReplacementLink } from "./DestinationChange";
 
@@ -539,7 +539,7 @@ export function LocalPortal() {
                       <button onClick={() => void refreshEmergencies()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><RefreshCw className="h-4 w-4" /> Actualizar</button>
                     </div>
                     {emergencies.length === 0 ? <p className="mt-4 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios para esta unidad.</p> : <div className="mt-3 space-y-2">{emergencies.map((item) => <div key={item.id} className="rounded-xl border border-white/10 bg-ink/60 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2"><strong>{item.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{emergencyStatusLabel(item.status)}</span></div>
+                      <div className="flex flex-wrap items-center justify-between gap-2"><strong>{item.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{item.status === "cancelada" && item.replaced_by_id ? cancellationLabel(item) : emergencyStatusLabel(item.status)}</span></div>
                       <p className="mt-1 text-sm text-muted-dark">{item.reason} · {item.destination_name}</p>
                       <EmergencyMilestones emergency={item} />
                       <ReplacementLink emergency={item} />
@@ -741,7 +741,7 @@ function UrgenciasEmergencyCard({ emergency, archived = false, onSelect, onMarkA
   const triage = triageLevel ? TRIAGE[triageLevel] : null;
   return <div className="relative w-full overflow-hidden rounded-xl border border-white/10 bg-ink/60 p-4 pl-5 text-left transition hover:border-signal/40 hover:bg-white/5">
     <span className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: triage?.color ?? "#64748B" }} aria-hidden="true" />
-    <button type="button" onClick={onSelect} className="block w-full rounded-xl text-left"><span className="flex flex-wrap items-center justify-between gap-2"><strong>{emergency.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs" style={triage ? { color: triage.color } : undefined}>{emergency.triage ?? "Sin clasificar"} · {urgenciasStatusLabel(emergency.status)}</span></span>
+    <button type="button" onClick={onSelect} className="block w-full rounded-xl text-left"><span className="flex flex-wrap items-center justify-between gap-2"><strong>{emergency.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs" style={triage ? { color: triage.color } : undefined}>{emergency.triage ?? "Sin clasificar"} · {emergency.status === "cancelada" && emergency.replaced_by_id ? cancellationLabel(emergency) : urgenciasStatusLabel(emergency.status)}</span></span>
     <span className="mt-1 block text-sm text-muted-dark">{emergency.reason}</span>
     <span className="mt-3 block text-[10px] font-semibold uppercase tracking-widest text-muted-dark">Signos vitales</span>
     <VitalsStrip vitals={backendVitalsToDisplay(emergency)} tone="dark" dense className="mt-4" />
@@ -777,7 +777,7 @@ function EmergencyDetail({ emergency, busy, pending, onRead, onPrepare, onRetry,
       {emergency.arrived_at && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Llegada registrada: {new Date(emergency.arrived_at).toLocaleString()}{emergency.arrival_reason ? ` · Motivo: ${emergency.arrival_reason}` : ""}</p>}
       {(emergency.status === "notificada" || emergency.status === "en_traslado") && <button disabled={busy || pending} onClick={confirmArrival} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-semibold text-ink disabled:opacity-50"><Activity className="h-4 w-4" />Marcar como llegado a Urgencias</button>}
       {emergency.status === "llegado" && <button disabled={busy || pending} onClick={onCloseEmergency} className="mt-3 flex h-11 w-full items-center justify-center rounded-lg border border-signal/40 px-4 font-semibold text-signal-soft disabled:opacity-50">Cerrar episodio</button>}
-      {emergency.status === "cancelada" && <p className="mt-4 rounded-lg bg-rose-300/10 p-3 text-sm text-rose-100">Cancelado: {emergency.cancellation_reason}</p>}
+      {emergency.status === "cancelada" && <p className="mt-4 rounded-lg bg-rose-300/10 p-3 text-sm text-rose-100">{cancellationLabel(emergency)}: {emergency.cancellation_reason}</p>}
       {emergency.status === "cerrada" && <p className="mt-4 rounded-lg bg-white/5 p-3 text-sm text-muted-dark">Episodio cerrado el {emergency.closed_at ? new Date(emergency.closed_at).toLocaleString() : ""}.</p>}
       <p className="mt-4 text-xs text-muted-dark">Destino: {emergency.destination_name} · Unidad: {emergency.ambulance_code} · Creado: {new Date(emergency.created_at).toLocaleString()}</p>
     </div>
