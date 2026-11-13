@@ -27,6 +27,7 @@ import { usePortalMemory } from "./portalMemory";
 import { EpisodeUpdates, MeasurementHistory } from "./EpisodeUpdates";
 import { currentMeasurements, reconcileClinicalDraft } from "./clinicalUpdates";
 import { partitionTriageQueue } from "./queuePresentation";
+import { EmergencyMilestones } from "./EmergencyMilestones";
 
 const SYMPTOMS = [
   "Disnea",
@@ -532,6 +533,7 @@ export function LocalPortal() {
                     {emergencies.length === 0 ? <p className="mt-4 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios para esta unidad.</p> : <div className="mt-3 space-y-2">{emergencies.map((item) => <div key={item.id} className="rounded-xl border border-white/10 bg-ink/60 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2"><strong>{item.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{emergencyStatusLabel(item.status)}</span></div>
                       <p className="mt-1 text-sm text-muted-dark">{item.reason} · {item.destination_name}</p>
+                      <EmergencyMilestones emergency={item} />
                       {(item.status === "notificada" || item.status === "en_traslado") && <div className="mt-3 flex flex-wrap gap-2">
                         {item.status === "notificada" && <button disabled={transitionBusy || Boolean(uncertainTransitions[item.id])} onClick={() => void runTransition(item, "transfer-start", "Inicio de traslado registrado.")} className="rounded-lg bg-signal px-3 py-2 text-sm font-semibold text-ink">Iniciar traslado</button>}
                         <button onClick={() => cancelFromAmbulance(item)} className="rounded-lg border border-rose-300/30 px-3 py-2 text-sm text-rose-100">Cancelar episodio</button>
@@ -646,13 +648,13 @@ export function LocalPortal() {
                       {filteredArchive.length === 0 ? <p className="mt-4 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios que coincidan con estos filtros.</p> : <div className="mt-4 space-y-2">{filteredArchive.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} archived onSelect={() => setSelectedId(item.id)} />)}</div>}
                     </>
                   )}
-                  {selected && <EmergencyDetail emergency={selected} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} onCloseEmergency={() => void runTransition(selected, "close", "Episodio cerrado.")} />}
+                  {selected && <EmergencyDetail emergency={selected} busy={transitionBusy} pending={Boolean(uncertainTransitions[selected.id])} onRead={() => void runTransition(selected, "read", "Lectura confirmada; primer autor y fecha conservados.")} onPrepare={() => void runTransition(selected, "prepare", "Preparación registrada; no acredita inicio de atención.")} onRetry={() => { const attempt = uncertainTransitions[selected.id]; if (attempt) void executeTransition(selected.id, attempt, "Operación confirmada en el servidor."); }} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} onCloseEmergency={() => void runTransition(selected, "close", "Episodio cerrado.")} />}
                 </section>
               ) : role === "administration" && canAdminister ? (
                 <AdminAccountsPanel key={JSON.stringify([user.id, user.institutions.map((item) => item.id).sort(), [...user.groups].sort(), user.ambulance?.id ?? null])} currentUserId={user.id} institutionName={user.institutions[0]?.name ?? ""} />
               ) : null}
 
-              {lastCreated && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Guardado: {lastCreated.id}</p>}
+              {lastCreated && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Guardado: {lastCreated.id}. Persistencia en servidor, no lectura humana; consulta los hitos del episodio.</p>}
             </>
           )}
 
@@ -733,13 +735,14 @@ function UrgenciasEmergencyCard({ emergency, archived = false, onSelect, onMarkA
     <span className="mt-1 block text-sm text-muted-dark">{emergency.reason}</span>
     <span className="mt-3 block text-[10px] font-semibold uppercase tracking-widest text-muted-dark">Signos vitales</span>
     <VitalsStrip vitals={backendVitalsToDisplay(emergency)} tone="dark" dense className="mt-4" />
-    <span className="mt-2 block text-xs text-muted-dark">{emergency.destination_name} · {emergency.ambulance_code} · {new Date(archived ? archiveEventDate(emergency) : emergency.created_at).toLocaleString()}</span>
+     <span className="mt-2 block text-xs text-muted-dark">{emergency.destination_name} · {emergency.ambulance_code} · {new Date(archived ? archiveEventDate(emergency) : emergency.created_at).toLocaleString()}</span>
+     <span className="mt-1 block text-xs text-muted-dark">{emergency.read_at && emergency.read_by_id ? "Lectura confirmada" : "Lectura pendiente"} · {emergency.prepared_at && emergency.prepared_by_id ? "Preparación registrada" : "Preparación no registrada"}</span>
     </button>
     {onMarkArrived && (emergency.status === "notificada" || emergency.status === "en_traslado") && <button type="button" onClick={(event) => { event.stopPropagation(); onMarkArrived(); }} className="absolute right-4 top-[3.75rem] inline-flex h-8 items-center gap-2 rounded-lg bg-signal px-3 text-xs font-semibold text-ink hover:brightness-110"><Activity className="h-3.5 w-3.5" />Marcar como llegado</button>}
   </div>;
 }
 
-function EmergencyDetail({ emergency, onClose, onMarkArrived, onCloseEmergency }: { emergency: BackendEmergency; onClose: () => void; onMarkArrived: (reason: string) => void; onCloseEmergency: () => void }) {
+function EmergencyDetail({ emergency, busy, pending, onRead, onPrepare, onRetry, onClose, onMarkArrived, onCloseEmergency }: { emergency: BackendEmergency; busy: boolean; pending: boolean; onRead: () => void; onPrepare: () => void; onRetry: () => void; onClose: () => void; onMarkArrived: (reason: string) => void; onCloseEmergency: () => void }) {
   const ageUnit = emergency.patient.age_unit === "years" ? "años" : emergency.patient.age_unit === "months" ? "meses" : emergency.patient.age_unit === "days" ? "días" : "";
   function confirmArrival() {
     let reason = "";
@@ -757,11 +760,12 @@ function EmergencyDetail({ emergency, onClose, onMarkArrived, onCloseEmergency }
       <p className="mt-3 rounded-lg bg-white/5 p-3">{emergency.reason}</p>
       <p className="mt-2 text-sm text-muted-dark">Edad: {emergency.patient.age_value === null ? "No informada" : `${emergency.patient.age_value} ${ageUnit}`} · Sexo: {emergency.patient.recorded_sex ?? "No informado"}</p>
       <p className="mt-2 text-sm text-muted-dark">Síntomas: {emergency.symptoms.length ? emergency.symptoms.join(", ") : "No informados"}</p>
+      <EmergencyMilestones emergency={emergency} busy={busy} pending={pending} onRead={onRead} onPrepare={onPrepare} onRetry={onRetry} />
        <MeasurementHistory measurements={emergency.vital_measurements} />
       {emergency.notes && <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white/5 p-3 text-sm">{emergency.notes}</p>}
       {emergency.arrived_at && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Llegada registrada: {new Date(emergency.arrived_at).toLocaleString()}{emergency.arrival_reason ? ` · Motivo: ${emergency.arrival_reason}` : ""}</p>}
-      {(emergency.status === "notificada" || emergency.status === "en_traslado") && <button onClick={confirmArrival} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-semibold text-ink"><Activity className="h-4 w-4" />Marcar como llegado a Urgencias</button>}
-      {emergency.status === "llegado" && <button onClick={onCloseEmergency} className="mt-3 flex h-11 w-full items-center justify-center rounded-lg border border-signal/40 px-4 font-semibold text-signal-soft">Cerrar episodio</button>}
+      {(emergency.status === "notificada" || emergency.status === "en_traslado") && <button disabled={busy || pending} onClick={confirmArrival} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-semibold text-ink disabled:opacity-50"><Activity className="h-4 w-4" />Marcar como llegado a Urgencias</button>}
+      {emergency.status === "llegado" && <button disabled={busy || pending} onClick={onCloseEmergency} className="mt-3 flex h-11 w-full items-center justify-center rounded-lg border border-signal/40 px-4 font-semibold text-signal-soft disabled:opacity-50">Cerrar episodio</button>}
       {emergency.status === "cancelada" && <p className="mt-4 rounded-lg bg-rose-300/10 p-3 text-sm text-rose-100">Cancelado: {emergency.cancellation_reason}</p>}
       {emergency.status === "cerrada" && <p className="mt-4 rounded-lg bg-white/5 p-3 text-sm text-muted-dark">Episodio cerrado el {emergency.closed_at ? new Date(emergency.closed_at).toLocaleString() : ""}.</p>}
       <p className="mt-4 text-xs text-muted-dark">Destino: {emergency.destination_name} · Unidad: {emergency.ambulance_code} · Creado: {new Date(emergency.created_at).toLocaleString()}</p>

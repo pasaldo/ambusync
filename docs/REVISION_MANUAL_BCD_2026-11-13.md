@@ -1,5 +1,7 @@
 # Revisión manual B/C/D — 13/11/2026
 
+**Actualización posterior a `80040c7`:** el responsable confirmó «las pruebas BCD están aprobadas, comienza con el paso E». B/C/D y revalidación de las cuatro correcciones aprobados según su reporte; reemplaza los pendientes históricos siguientes. Sin nuevos logs, dispositivos ni plataformas detallados. C conserva alcance local, sin nueva evidencia de restore real/RPO/RTO. Sin autorización de publicación/despliegue ni inicio de F.
+
 Fuente: marcas del responsable en PRUEBAS_B/C/D y reporte en la conversación del 13/11/2026. HEAD local al contrastar: `2e49cfc`; el reporte no especifica el commit exacto ejecutado, plataformas ni dispositivos. No sustituirlo por una aceptación clínica, CI remoto o autorización de publicación.
 
 | Bloque | Estado de revisión comunicado | Observaciones abiertas al recibir el reporte |

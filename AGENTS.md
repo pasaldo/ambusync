@@ -2,6 +2,8 @@
 
 ## Estado y límites
 
+- **Confirmación posterior del 13/11/2026, tras `80040c7`: B/C/D y revalidación de las cuatro correcciones aprobados por el responsable; E autorizado.** Reemplaza los pendientes históricos siguientes. C mantiene alcance local sin nuevo restore real/RPO/RTO. E implementado/verificado localmente: backend180/180, frontend28 unitarias+6 E+30 integridad y regresiones PASS. Agrega lectura explícita/preparación, migración `emergencies/0006` (solo base de pruebas durante implementación), sin autolectura por detalle/WS ni hitos fabricados por llegada. E aceptación manual pendiente; guía `docs/PRUEBAS_E.md`, suite `npm run test:milestones`. F no iniciado; sin publicación/despliegue.
+
 - **Revisión del responsable del 13/11/2026:** B y D aprobados manualmente **con observaciones**; C aprobado en alcance local, sin nueva evidencia de restore real/RPO/RTO. Esto reemplaza las menciones de revisión manual pendiente del 12/11 en estas instrucciones/documentos históricos. Las cuatro observaciones se corrigieron posteriormente y verificaron automáticamente; su **revalidación manual sigue pendiente**, no confundir con la aprobación original. Ver `docs/REVISION_MANUAL_BCD_2026-11-13.md` y `docs/PRUEBAS_CORRECCIONES_BCD.md`. No inferir publicación/despliegue; E no iniciado.
 - `npm run test:review-corrections` prueba con transporte sintético el aviso sin unidad/guardia de creación, ID y valor de reemplazo, orden D-007 sobre páginas completas y reagrupación tras conciliación. `queuePresentation.ts` separa Sin clasificar de C1–C5 y usa antigüedad/ID; no es decisión clínica ni cambia la selección/archivo visual legado de llegados antiguos. Texto de Urgencias refleja WS/HTTP60s o respaldo15s. No hay nuevas migraciones por estas correcciones.
 

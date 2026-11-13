@@ -14,6 +14,14 @@ Por solicitud del responsable se corrigieron las cuatro observaciones anteriores
 
 Verificación posterior: unitarias frontend27/27, nueva suite de correcciones3/3, integridad30/30 y todas las regresiones/tipos/build/Mermaid3/3; backend161/161 sin keepdb y PSrestore dobles PASS. Sin cambios backend/modelo/migraciones/datos de desarrollo. Revisión independiente sin hallazgos críticos/importantes; menor diferido sobre robustez del test de temporizadores cancelados, sin fallo funcional detectado ni medición de cadencia operativa acreditada. **Revalidación manual de correcciones pendiente**, distinta de la aprobación original. Arranque/casos: [PRUEBAS_CORRECCIONES_BCD.md](PRUEBAS_CORRECCIONES_BCD.md). E no se inició; sin push/merge/despliegue.
 
+## Confirmación posterior y bloque E — 13/11/2026
+
+El responsable confirmó B/C/D aprobados tras entregar `80040c7` y autorizó E. Queda aprobada la revalidación manual de las cuatro correcciones; sustituye el pendiente del apartado anterior, sin nuevos logs/dispositivos detallados. C sigue en alcance local, sin nueva evidencia de restore real/RPO/RTO.
+
+E incorpora lectura explícita y preparación del destino, con primer autor/hora servidor conservados, versión e idempotencia. GET/detalle/WS/polling nunca confirman lectura. Preparación requiere lectura; nuevas acciones solo notificada/en_traslado. Llegada no exige ni inventa hitos. No-op con UUID nuevo/versión vigente reserva operación sin repetir versión/auditoría/aviso; replay confirmado conserva ámbito incluso tras llegada. La ambulancia consulta sin registrar por ese rol. Nuevos campos nullable y migración `emergencies/0006`, aplicada solo en base de pruebas durante esta implementación, sin inventar historia legada. **E en verificación local; aceptación manual pendiente**. Arranque/casos en [PRUEBAS_E.md](PRUEBAS_E.md). F no iniciado; sin publicación ni despliegue.
+
+Verificación final E: backend180/180 sin keepdb; Django/migraciones/Ruff/formato/OpenAPI PASS. Frontend28 unitarias,6 escenarios E,30 integridad,3 correcciones y todas las regresiones anteriores/tipos/build/Mermaid3/3 PASS. Restore PowerShell con dobles PASS sin restauración real. Vista390px revisada sin desborde. Revisión independiente sin defectos funcionales/de seguridad demostrables; dos menores de cobertura diferidos en PRUEBAS_E. **Implementación local verificada; E manual pendiente**, no CI remoto ni despliegue.
+
 ## Retoma y plan de entrega — 12/11/2026 (registro histórico)
 
 - Base integrada: `main` en `4091db9`. CI remoto [43010182166](https://github.com/pasaldo/ambusync/actions/runs/43010182166), del 11/11/2026: backend (88 tests), frontend y secretos en verde. Esto reemplaza las menciones históricas de CI pendiente para esa base; no acredita código nuevo aún no publicado.

@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 from institutions.models import Ambulance, Institution
 
@@ -63,6 +64,22 @@ class Emergency(models.Model):
         related_name="triage_records",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    read_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="first_emergency_reads",
+    )
+    prepared_at = models.DateTimeField(null=True, blank=True)
+    prepared_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="first_emergency_preparations",
+    )
     transfer_declared_at = models.DateTimeField(null=True, blank=True)
     transfer_declared_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -101,6 +118,22 @@ class Emergency(models.Model):
 
     class Meta:
         ordering = ("-created_at", "id")
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(read_at__isnull=True, read_by__isnull=True)
+                | Q(read_at__isnull=False, read_by__isnull=False),
+                name="emergency_read_actor_time_pair",
+            ),
+            models.CheckConstraint(
+                condition=Q(prepared_at__isnull=True, prepared_by__isnull=True)
+                | Q(prepared_at__isnull=False, prepared_by__isnull=False),
+                name="emergency_preparation_actor_time_pair",
+            ),
+            models.CheckConstraint(
+                condition=Q(prepared_at__isnull=True) | Q(read_at__isnull=False),
+                name="emergency_preparation_requires_read",
+            ),
+        ]
 
 
 class ProcessedOperation(models.Model):

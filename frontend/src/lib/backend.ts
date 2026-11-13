@@ -1,4 +1,5 @@
 import { prepareOperation, type PendingOperation } from "./pendingOperation";
+import { hasMilestoneProof } from "./milestoneProof";
 
 export interface BackendSession {
   started_at: number;
@@ -88,6 +89,10 @@ export interface BackendEmergency {
   triage_recorded_by_id?: string | null;
   vital_measurements: VitalMeasurement[];
   created_at: string;
+  read_at?: string | null;
+  read_by_id?: string | null;
+  prepared_at?: string | null;
+  prepared_by_id?: string | null;
   transfer_declared_at: string | null;
   transfer_declared_by_id: string | null;
   arrived_at: string | null;
@@ -361,10 +366,13 @@ export async function sendEmergencyOperation(operation: PendingOperation, isCurr
     || !Array.isArray(result.symptoms) || !Array.isArray(result.vital_measurements)) {
     throw new Error("No se pudo confirmar la respuesta de la operación.");
   }
-  const transition = operation.path.match(/^\/api\/v1\/emergencies\/([^/]+)\/(arrival|transfer-start|cancel|close|update|measurements(?:\/rectify)?)\/$/);
+  const transition = operation.path.match(/^\/api\/v1\/emergencies\/([^/]+)\/(arrival|transfer-start|cancel|close|update|measurements(?:\/rectify)?|read|prepare)\/$/);
   if (transition) {
     const sent = JSON.parse(operation.body) as { expected_version: number };
-    if (result.id !== decodeURIComponent(transition[1]) || result.version <= sent.expected_version
+    const milestone = transition[2] === "read" || transition[2] === "prepare";
+    if (result.id !== decodeURIComponent(transition[1]) || (milestone ? result.version < sent.expected_version : result.version <= sent.expected_version)
+      || (milestone && !hasMilestoneProof(result.read_at, result.read_by_id))
+      || (transition[2] === "prepare" && !hasMilestoneProof(result.prepared_at, result.prepared_by_id))
       || (transition[2] === "close" && result.status !== "cerrada")
       || (transition[2] === "cancel" && result.status !== "cancelada")
       || (transition[2] === "arrival" && !["llegado", "cerrada"].includes(result.status))) {
@@ -374,7 +382,7 @@ export async function sendEmergencyOperation(operation: PendingOperation, isCurr
   return result;
 }
 
-export type EmergencyAction = "arrival" | "transfer-start" | "cancel" | "close" | "update" | "measurements" | "measurements/rectify";
+export type EmergencyAction = "arrival" | "transfer-start" | "cancel" | "close" | "update" | "measurements" | "measurements/rectify" | "read" | "prepare";
 
 export function prepareEmergencyTransition(
   emergency: BackendEmergency,

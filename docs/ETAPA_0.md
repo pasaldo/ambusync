@@ -711,7 +711,11 @@ Implementadas actualizaciones de antecedentes/triaje y mediciones seriadas/recti
 
 El responsable reportó ejecución y marcó aprobados los checklists B/C/D: B y D quedan **aprobados con observaciones**, C **aprobado en alcance local**. Reemplaza los estados manuales pendientes del 12/11, sin cerrar la etapa ni declarar resueltos el aviso de cuenta sin unidad, la claridad del texto de rectificación, el orden D-007 o la mención obsoleta «sin WebSocket». La evidencia recibida de C es un `PASS` con dobles, no una nueva restauración real. Contraste y límites: [REVISION_MANUAL_BCD_2026-11-13.md](REVISION_MANUAL_BCD_2026-11-13.md). Sin autorización de publicación/despliegue ni uso clínico.
 
-### Correcciones posteriores autorizadas — 13/11/2026
+### Confirmación posterior e inicio de E — 13/11/2026
+
+Tras entregar `80040c7`, el responsable confirmó B/C/D aprobados y autorizó E; revalidación de las cuatro correcciones aprobada según su reporte, sin nuevos logs/dispositivos detallados. Sustituye el pendiente del apartado histórico siguiente. C conserva alcance local, sin nueva evidencia de restore real/RPO/RTO. E implementa lectura explícita y preparación del destino con primer autor/fecha, versión e idempotencia, sin autolectura por detalle/WS ni hitos inventados por llegada. Verificación local en curso; **aceptación manual E pendiente**, guía [PRUEBAS_E.md](PRUEBAS_E.md). F no iniciado; sin cierre de etapa, publicación ni despliegue.
+
+### Correcciones posteriores autorizadas — 13/11/2026 (registro histórico)
 
 Las cuatro observaciones se implementaron y verificaron automáticamente: aviso de cuenta sin unidad, valor/ID de rectificación diferenciados, D-007 en la bandeja sobre lista completa (C1–C5/antigüedad con sección Sin clasificar) y texto coherente con WS/HTTP. Se conserva el archivo visual previo; no hay clasificación/decisión clínica automática ni cambio backend. Frontend27 unitarias+3 escenarios nuevos+30 integridad y suites anteriores PASS; backend161/161 sin keepdb y PSrestore dobles PASS. Revisión independiente sin críticos/importantes; menor de robustez de temporizadores de test diferido. **Revalidación manual pendiente** en [PRUEBAS_CORRECCIONES_BCD.md](PRUEBAS_CORRECCIONES_BCD.md), sin invalidar la aprobación original. E no iniciado, sin cierre de etapa ni despliegue.
 

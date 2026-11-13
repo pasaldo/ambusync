@@ -211,7 +211,7 @@ for (const scenario of [
       if (scenario.role === "urgencias") await page.getByRole("button", { name: /Episodio sintético/ }).click();
       page.on("dialog", (dialog) => dialog.accept("Motivo sintético de cancelación"));
       await page.getByRole("button", { name: scenario.button, exact: true }).click();
-      const retry = page.getByRole("button", { name: "Reintentar operación" });
+      const retry = page.getByRole("button", { name: "Reintentar operación", exact: true });
       await retry.waitFor();
       // Close the details first, then ask the authoritative list for the new version.
       if (scenario.role === "urgencias") await page.getByRole("button", { name: "Cerrar", exact: true }).click();
@@ -354,7 +354,7 @@ test("a conflict refreshes authoritative state and does not silently repeat the 
     await page.getByText("La versión cambió; revisa el episodio.", { exact: true }).waitFor();
     await page.getByText("Cancelada", { exact: true }).waitFor();
     assert.equal(writes, 1);
-    assert.equal(await page.getByRole("button", { name: "Reintentar operación" }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Reintentar operación", exact: true }).count(), 0);
   } finally { await context.close(); }
 });
 
@@ -397,7 +397,7 @@ test("a response for another episode cannot confirm a pending transition", async
     await page.getByRole("button", { name: "Iniciar traslado" }).click();
     await (await response).finished();
     await flushUi(page);
-    assert.equal(await page.getByRole("button", { name: "Reintentar operación" }).count(), 1);
+    assert.equal(await page.getByRole("button", { name: "Reintentar operación", exact: true }).count(), 1);
     assert.equal(await page.getByText("Inicio de traslado registrado.", { exact: true }).count(), 0);
   } finally { await context.close(); }
 });

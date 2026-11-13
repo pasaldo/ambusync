@@ -1,6 +1,6 @@
 # Cuatro correcciones de revisión B/C/D — 13/11/2026
 
-Solicitud del responsable: resolver estas observaciones **antes de iniciar E**. Se conserva su aprobación manual de B/D con observaciones y C local. Las correcciones están verificadas automáticamente; **su revalidación manual queda pendiente**. Solo datos sintéticos; no despliegue ni uso clínico.
+Solicitud del responsable: resolver estas observaciones **antes de iniciar E**. Tras entregar `80040c7`, el responsable confirmó B/C/D aprobados y autorizó E: **revalidación manual aprobada según su reporte**, sin nuevos logs/dispositivos detallados. C mantiene alcance local, sin nuevo restore real/RPO/RTO. Solo datos sintéticos; no despliegue ni uso clínico.
 
 ## Arranque
 

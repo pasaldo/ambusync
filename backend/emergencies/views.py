@@ -314,9 +314,10 @@ class EmergencyTransitionView(APIView):
                     "La versión del episodio cambió; actualiza y vuelve a revisar."
                 )
 
-            self.apply_transition(emergency, actor, values)
-            emergency.version += 1
-            emergency.save(update_fields=self.update_fields)
+            applied = self.apply_transition(emergency, actor, values) is not False
+            if applied:
+                emergency.version += 1
+                emergency.save(update_fields=self.update_fields)
             ProcessedOperation.objects.create(
                 actor=actor,
                 operation_id=operation_id,
@@ -324,19 +325,24 @@ class EmergencyTransitionView(APIView):
                 emergency=emergency,
                 action=self.action,
             )
-            AuditEvent.objects.create(
-                actor=actor,
-                institution=self.audit_institution(emergency),
-                ambulance=emergency.ambulance,
-                action=self.action,
-                object_type="emergency",
-                object_id=str(emergency.pk),
-                result=AuditEvent.Result.SUCCESS,
-                correlation_id=operation_id,
-            )
-            publish_emergency_event(emergency.pk, self.action, emergency.version)
+            if applied:
+                AuditEvent.objects.create(
+                    actor=actor,
+                    institution=self.audit_institution(emergency),
+                    ambulance=emergency.ambulance,
+                    action=self.action,
+                    object_type="emergency",
+                    object_id=str(emergency.pk),
+                    result=AuditEvent.Result.SUCCESS,
+                    correlation_id=operation_id,
+                )
+                publish_emergency_event(emergency.pk, self.action, emergency.version)
 
-        return Response(emergency_representation(emergency), status=status.HTTP_200_OK)
+        return Response(
+            emergency_representation(emergency),
+            status=status.HTTP_200_OK,
+            headers={"Milestone-Already-Recorded": "true"} if not applied else {},
+        )
 
     def authorize_scope(self, actor, emergency):
         if self.actor_group == "ambulance":

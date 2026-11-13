@@ -278,6 +278,10 @@ def emergency_representation(emergency):
         if emergency.triage_recorded_by_id
         else None,
         "created_at": emergency.created_at.isoformat(),
+        "read_at": emergency.read_at.isoformat() if emergency.read_at else None,
+        "read_by_id": str(emergency.read_by_id) if emergency.read_by_id else None,
+        "prepared_at": emergency.prepared_at.isoformat() if emergency.prepared_at else None,
+        "prepared_by_id": str(emergency.prepared_by_id) if emergency.prepared_by_id else None,
         "transfer_declared_at": (
             emergency.transfer_declared_at.isoformat() if emergency.transfer_declared_at else None
         ),

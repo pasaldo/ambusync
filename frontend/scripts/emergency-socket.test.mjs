@@ -102,10 +102,10 @@ test("accepts clinical update notification types without clinical payload", () =
   const events = [];
   const disconnect = connectEmergencyEvents({ onEvent: (event) => events.push(event), onStatus: () => {}, createSocket: () => socket, timers: fakeTimers() });
   socket.open();
-  for (const [index, type] of ["emergency.updated", "emergency.measurements_added", "emergency.measurement_rectified"].entries()) {
+  for (const [index, type] of ["emergency.updated", "emergency.measurements_added", "emergency.measurement_rectified", "emergency.read_confirmed", "emergency.preparation_recorded"].entries()) {
     socket.send({ ...validEvent, event_id: `4b26f962-9102-4ab9-b2de-88bb6b5794d${index + 1}`, type, notes: "not transmitted to callback" });
   }
-  assert.equal(events.length, 3);
+  assert.equal(events.length, 5);
   assert.equal(events.some((event) => "notes" in event), false);
   disconnect();
 });

@@ -87,6 +87,8 @@ class EmergencyWebSocketTests(EmergencyFixtureMixin, TransactionTestCase):
                     "emergency.updated",
                     "emergency.measurements_added",
                     "emergency.measurement_rectified",
+                    "emergency.read_confirmed",
+                    "emergency.preparation_recorded",
                 ):
                     await self.layer.group_send(
                         group,
@@ -110,6 +112,30 @@ class EmergencyWebSocketTests(EmergencyFixtureMixin, TransactionTestCase):
                 await communicator.disconnect()
 
         asyncio.run(exercise())
+
+    def test_explicit_milestones_publish_to_both_audiences_only_on_first_registration(self):
+        self.authenticate_with_csrf(self.operator)
+        created = self.client.post("/api/v1/emergencies/", self.payload(), format="json")
+        self.assertEqual(created.status_code, 201)
+        emergency = Emergency.objects.get(pk=created.data["id"])
+        self.assert_two_audience_events("emergency.created", emergency.pk, 1)
+        self.authenticate_with_csrf(self.receiver_user)
+        self.assertEqual(self.client.get(f"/api/v1/emergencies/{emergency.pk}/").status_code, 200)
+        self.assertEqual(
+            self.post_transition(self.receiver_user, emergency, "read").status_code, 200
+        )
+        self.assert_two_audience_events("emergency.read_confirmed", emergency.pk, 2)
+        emergency.refresh_from_db()
+        self.assertEqual(
+            self.post_transition(self.receiver_user, emergency, "prepare").status_code, 200
+        )
+        self.assert_two_audience_events("emergency.preparation_recorded", emergency.pk, 3)
+        emergency.refresh_from_db()
+        self.assertEqual(
+            self.post_transition(self.receiver_user, emergency, "prepare").status_code, 200
+        )
+        with self.assertRaises(asyncio.TimeoutError):
+            self.receive(self.receiver_channel)
 
     def assert_two_audience_events(self, event_type, emergency_id, version):
         receiver_event = self.receive(self.receiver_channel)

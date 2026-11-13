@@ -1,5 +1,7 @@
 # Bloque D — arranque y revisión manual de actualizaciones
 
+**Actualización posterior a las correcciones `80040c7`: B/C/D y correcciones aprobados según confirmación del responsable al autorizar E.** Reemplaza el pendiente histórico siguiente. C mantiene alcance local, sin nueva evidencia de restore real/RPO/RTO.
+
 **Estado al 13/11/2026: revisión manual del responsable APROBADA CON OBSERVACIONES.** Las observaciones de ID/valor, orden D-007 y texto WebSocket fueron corregidas posteriormente y verificadas automáticamente; su revalidación manual está pendiente en [PRUEBAS_CORRECCIONES_BCD.md](PRUEBAS_CORRECCIONES_BCD.md). B también fue aprobado con observaciones; C no tiene nuevo ensayo operativo de restauración real acreditado. Registro: [REVISION_MANUAL_BCD_2026-11-13.md](REVISION_MANUAL_BCD_2026-11-13.md). Solo datos sintéticos, sin atención clínica.
 
 ## 1. Iniciar esta copia

@@ -328,6 +328,26 @@
         "responses": { "200": { "$ref": "#/components/responses/TransitionSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
       }
     },
+    "/api/v1/emergencies/{emergency_id}/read/": {
+      "post": {
+        "operationId": "confirmEmergencyReading",
+        "description": "Acción explícita de Urgencias habilitado del destino; GET, detalle, WS y polling nunca confirman lectura. Solo notificada/en_traslado. Conserva primer autor y hora servidor; aumenta versión y publica aviso mínimo emergency.read_confirmed solo al primer registro. UUID nuevo exige versión vigente: hito ya registrado es no-op que reserva UUID sin aumentar versión/auditoría/avisos. Replay exacto confirmado permitido aun tras llegada dentro del ámbito actual. No certifica lectura de revisiones posteriores.",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmergencyOperation" } } } },
+        "responses": { "200": { "$ref": "#/components/responses/MilestoneSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/v1/emergencies/{emergency_id}/prepare/": {
+      "post": {
+        "operationId": "recordEmergencyPreparation",
+        "description": "Urgencias habilitado del destino, solo notificada/en_traslado y lectura previa obligatoria; falta de lectura devuelve409. Conserva primer preparador y hora servidor. No cambia estado ni acredita box disponible/inicio de atención. Mismas reglas de versión/no-op/replay que read; primer registro publica emergency.preparation_recorded. Llegada no requiere ni fabrica estos hitos; nuevas acciones posteriores rechazadas.",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmergencyOperation" } } } },
+        "responses": { "200": { "$ref": "#/components/responses/MilestoneSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
     "/api/v1/emergencies/{emergency_id}/transfer-start/": {
       "post": {
         "operationId": "startEmergencyTransfer",
@@ -370,7 +390,8 @@
       "Unauthorized": { "description": "Credenciales inválidas o cuenta no disponible.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "Forbidden": { "description": "CSRF inválido o acción no autorizada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "NotFound": { "description": "Recurso no disponible dentro del ámbito.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
-      "Conflict": { "description": "Estado o UUID de operación incompatible con la acción solicitada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Conflict": { "description": "Estado, versión, prerrequisito o UUID de operación incompatible con la acción solicitada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "MilestoneSuccess": { "description": "Hito confirmado. No-op con UUID nuevo/versión vigente conserva primera autoría y versión, reserva UUID sin repetir auditoría/aviso. Replay exacto devuelve episodio actual dentro del ámbito vigente.", "headers": { "Milestone-Already-Recorded": { "description": "Solo no-op con UUID nuevo.", "schema": { "type": "string", "const": "true" } }, "Idempotent-Replay": { "description": "Reintento exacto de UUID previamente confirmado.", "schema": { "type": "string", "const": "true" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Emergency" } } } },
       "ServiceUnavailable": { "description": "Dependencia temporalmente no disponible; la operación fue revertida.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "TransitionSuccess": { "description": "Transición confirmada o repetición idempotente; no duplica fecha ni auditoría.", "headers": { "Idempotent-Replay": { "schema": { "type": "string", "const": "true" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Emergency" } } } },
       "TooManyRequests": { "description": "Umbral por cuenta u origen excedido; reintentar después de Retry-After.", "headers": { "Retry-After": { "schema": { "type": "integer", "minimum": 1 } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
@@ -540,6 +561,7 @@
       },
       "EmergencyCancellation": { "type": "object", "required": ["operation_id", "expected_version", "reason"], "additionalProperties": false, "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "reason": { "type": "string", "minLength": 3, "maxLength": 2000 } } },
       "Emergency": {
+        "allOf": [{ "required": ["read_at", "read_by_id", "prepared_at", "prepared_by_id"] }],
         "type": "object",
         "required": ["id", "operating_institution_id", "destination_id", "destination_name", "ambulance_id", "ambulance_code", "status", "patient", "reason", "symptoms", "notes", "vital_measurements", "triage", "created_at", "transfer_declared_at", "transfer_declared_by_id", "arrived_at", "arrived_by_id", "arrival_reason", "cancelled_at", "cancelled_by_id", "cancellation_reason", "closed_at", "closed_by_id", "version"],
         "properties": {
@@ -559,6 +581,10 @@
           "triage_recorded_at": { "type": ["string", "null"], "format": "date-time", "description": "Fecha servidor; null para legado sin inventar metadatos." },
           "triage_recorded_by_id": { "type": ["string", "null"] },
           "created_at": { "type": "string", "format": "date-time" },
+          "read_at": { "type": ["string", "null"], "format": "date-time", "description": "Primera lectura explícita; hora servidor, null en legado sin evidencia." },
+          "read_by_id": { "type": ["string", "null"], "description": "ID del primer lector; par con read_at." },
+          "prepared_at": { "type": ["string", "null"], "format": "date-time", "description": "Primera preparación explícita; requiere lectura." },
+          "prepared_by_id": { "type": ["string", "null"], "description": "ID del primer preparador; par con prepared_at." },
           "transfer_declared_at": { "type": ["string", "null"], "format": "date-time" },
           "transfer_declared_by_id": { "type": ["string", "null"] },
           "arrived_at": { "type": ["string", "null"], "format": "date-time" },
