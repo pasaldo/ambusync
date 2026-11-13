@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import type { BackendEmergency, EmergencyAction, VitalMeasurement } from "@/lib/backend";
 import { usePortalMemory } from "./portalMemory";
 import { clinicalDraft, localMeasurementTime, MEASUREMENT_OPTIONS, type ClinicalDraft } from "./clinicalUpdates";
+import { rectificationDescription } from "./queuePresentation";
 
 const inputClass = "mt-1 block min-h-10 w-full rounded-lg border border-white/15 bg-ink px-3 py-2 text-white";
 const buttonClass = "rounded-lg border border-signal/40 px-3 py-2 text-sm text-signal-soft disabled:opacity-50";
@@ -11,15 +12,18 @@ export function MeasurementHistory({ measurements, onRectify }: { measurements: 
     <h4 className="font-semibold">Historial de mediciones</h4>
     <p className="text-xs text-muted-dark">Se conservan las muestras originales. Vigente indica el último eslabón de una rectificación, no necesariamente la muestra más reciente.</p>
     {!measurements.length && <p className="text-sm text-muted-dark">No se registraron mediciones.</p>}
-    <ul className="space-y-3">{measurements.map((item, index) => <li key={item.id ?? index} className="border-b border-white/10 pb-3 text-sm">
+    <ul className="space-y-3">{measurements.map((item, index) => {
+      const rectification = rectificationDescription(item, measurements);
+      return <li key={item.id ?? index} className="border-b border-white/10 pb-3 text-sm">
       <p>{MEASUREMENT_OPTIONS.find((option) => option.kind === item.kind)?.label ?? item.kind}: <strong className={item.is_current === false || item.rectified_by_id ? "line-through text-muted-dark" : "text-white"}>{item.value} {item.unit}</strong></p>
       <p className="text-xs text-muted-dark">Medida: {new Date(item.measured_at).toLocaleString()} · Registrada: {new Date(item.recorded_at).toLocaleString()} · Autor: {item.recorded_by_id ?? "Sin registro legado"}</p>
       {Date.parse(item.measured_at) > Date.parse(item.recorded_at) + 60_000 && <p className="text-xs text-amber-100">Revisar reloj: la hora de medición es posterior a la recepción en servidor. No se ajustó automáticamente.</p>}
-      {item.rectified_by_id ? <p className="text-amber-100">Rectificada → {item.rectified_by_id}</p> : <p className="text-xs text-muted-dark">Vigente en su cadena</p>}
-      {item.rectifies_id && <p className="text-xs text-muted-dark">Rectifica medición {item.rectifies_id}</p>}
+      {rectification ? <p className="text-amber-100">{rectification}</p> : <p className="text-xs text-muted-dark">Vigente en su cadena</p>}
+      {item.rectifies_id && <p className="text-xs text-muted-dark">Rectifica medición #{item.rectifies_id}</p>}
       {item.rectification_reason && <p className="mt-1 whitespace-pre-wrap">{item.rectification_reason}</p>}
       {onRectify && item.id && item.is_current !== false && !item.rectified_by_id && <button type="button" onClick={() => onRectify(item)} className={`${buttonClass} mt-2`} aria-label={`Rectificar medición ${item.id}`}>Rectificar</button>}
-    </li>)}</ul>
+    </li>;
+    })}</ul>
   </div>;
 }
 

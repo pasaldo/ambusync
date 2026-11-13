@@ -1,6 +1,6 @@
 # Bloque D — arranque y revisión manual de actualizaciones
 
-**Revisión manual del responsable: PENDIENTE.** B también mantiene su checklist pendiente en [PRUEBAS_B.md](PRUEBAS_B.md); C no tiene nuevo ensayo operativo de restauración real acreditado. Solo datos sintéticos, sin atención clínica.
+**Estado al 13/11/2026: revisión manual del responsable APROBADA CON OBSERVACIONES.** Las observaciones de ID/valor, orden D-007 y texto WebSocket fueron corregidas posteriormente y verificadas automáticamente; su revalidación manual está pendiente en [PRUEBAS_CORRECCIONES_BCD.md](PRUEBAS_CORRECCIONES_BCD.md). B también fue aprobado con observaciones; C no tiene nuevo ensayo operativo de restauración real acreditado. Registro: [REVISION_MANUAL_BCD_2026-11-13.md](REVISION_MANUAL_BCD_2026-11-13.md). Solo datos sintéticos, sin atención clínica.
 
 ## 1. Iniciar esta copia
 
@@ -47,7 +47,7 @@ Node24.20.0/npm11.19.0. Abrir **http://127.0.0.1:5174/local**. No usar las rutas
 - Registrar C2 con operador A; después operador B guarda **solo notas**, sin cambiar C2. Deben conservarse autor/fecha de clasificación de A. Un triaje legado sin metadatos tampoco debe atribuirse a B por guardar notas. Solo un cambio real de categoría (incluida su retirada) actualiza esos metadatos y su evento de auditoría.
 - Intentar enviar motivo de menos de tres caracteres: no debe guardarse. Los demás datos del formulario se conservan para corregir.
 
-**Límite de D:** la identidad/contexto del paciente y el catálogo institucional se completan en G. Esta pantalla usa las opciones de síntomas existentes; no crea catálogo. El orden D-007 de la bandeja continúa pendiente, no se declara implementado por editar triaje.
+**Límite de D:** la identidad/contexto del paciente y el catálogo institucional se completan en G. Esta pantalla usa las opciones de síntomas existentes; no crea catálogo. El orden D-007 se incorporó en las correcciones posteriores: C1→C5/antigüedad y Sin clasificar separado; su guía de revalidación está enlazada arriba.
 
 ### D2. Mediciones seriadas
 
@@ -60,7 +60,7 @@ Node24.20.0/npm11.19.0. Abrir **http://127.0.0.1:5174/local**. No usar las rutas
 ### D3. Rectificación trazable
 
 - En historial, pulsar **Rectificar** en la fila70. Nuevo valor75; motivo «Error sintético de digitación». Confirmar **Registrar rectificación**.
-- Esperado: fila70 permanece tachada y marcada **Rectificada → ID**, nueva fila75 enlazada al original, con motivo y nuevo autor/hora de registro. No hay botón para volver a corregir directamente la fila70.
+- Esperado: fila70 permanece tachada y marcada **Rectificada: reemplazo de75lpm (medición #ID)** (con espacios en la interfaz), nueva fila75 enlazada al original, con motivo y nuevo autor/hora de registro. El ID no es el valor vital. No hay botón para volver a corregir directamente la fila70.
 - Rectificar ahora75 a76: debe formar cadena70→75→76, manteniendo las tres filas.
 - **Vigente en su cadena no significa última muestra:** si la muestra independiente90 tiene hora posterior, el resumen puede seguir mostrando90. Nunca debe elegir el original70 rectificado. Si rectificas la muestra más reciente90, su reemplazo es el candidato del resumen según la hora medida.
 - Probar temperatura36.5 y una rectificación36.6: un decimal debe admitirse. No aceptar motivo vacío ni unidades de otro tipo mediante API manipulada.
@@ -122,16 +122,18 @@ npm run build
 
 El nuevo test browser usa transporte sintético; no sustituye aceptación real PC–móvil/backend. Incluye edición/series/rectificación, preservación del original y formulario vecino, respuesta perdida/retry exacto, versión anterior, misma reautenticación, rechazo de respuesta ajena y ancho390px sin desborde.
 
-## 5. Checklist del responsable — pendiente
+## 5. Checklist del responsable — aprobado con observaciones, 13/11/2026
 
-- [ ] Migraciones aplicadas en esta copia; servicios correctos, sin cerrar/purgar piloto.
-- [ ] D1 antecedentes/triaje y validación.
-- [ ] D2 series y conservación de borrador vecino.
-- [ ] D3 rectificación/cadena/original/resumen correcto.
-- [ ] D4 receptor solo consulta; llegada detiene edición.
-- [ ] D5 ámbitos y autores.
-- [ ] D6 versiones y concurrencia.
-- [ ] D7 incertidumbre/reautenticación/descarte por ámbito.
-- [ ] Revisión manual de B aún pendiente completada por separado.
+- [x] Migraciones aplicadas en esta copia; servicios correctos, sin cerrar/purgar piloto.
+- [x] D1 antecedentes/triaje y validación.
+- [x] D2 series y conservación de borrador vecino.
+- [x] D3 rectificación/cadena/original/resumen correcto, con observación de claridad visual registrada.
+- [x] D4 receptor solo consulta; llegada detiene edición.
+- [x] D5 ámbitos y autores.
+- [x] D6 versiones y concurrencia.
+- [x] D7 incertidumbre/reautenticación/descarte por ámbito.
+- [x] Revisión manual de B completada por separado, con observaciones registradas.
+
+Reporte original:65→75 visible en Urgencias y nueva fila en ambulancia, pero `Rectificada → 45` confundía ID y valor; el triaje no reordenaba y había texto «sin WebSocket». Las tres observaciones se corrigieron posteriormente, con pruebas de valor/ID, orden entre páginas y reagrupación por avisosWS/consultaHTTP. No dar por realizada su revalidación manual: completar la guía de correcciones.
 
 Anotar fecha, commit, usuarios/unidades **sintéticos**, resultado esperado/observado y fallos. No añadir contraseñas, datos personales ni relatos clínicos reales a evidencias.

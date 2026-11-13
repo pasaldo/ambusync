@@ -1,6 +1,6 @@
 # Bloque C — retención y restauración aislada
 
-**B sigue con revisión manual pendiente**, versión `33909a7`: completar [PRUEBAS_B.md](PRUEBAS_B.md), sección 3. Avanzar a C no equivale a aceptar B.
+**Estado al 13/11/2026: revisión del alcance local de C aprobada según reporte del responsable.** B también fue revisado y aprobado con observaciones; ver [PRUEBAS_B.md](PRUEBAS_B.md). No se acredita una restauración externa real a partir del test con dobles. Registro: [REVISION_MANUAL_BCD_2026-11-13.md](REVISION_MANUAL_BCD_2026-11-13.md).
 
 Este bloque corrige la política de retención; no cierra formalmente el piloto, no programa tareas y no autoriza una purga/restauración real. Solo datos sintéticos. No se probaron servicios externos ni RPO/RTO de C.
 
@@ -97,11 +97,13 @@ La restauración completa sigue usando dump PostgreSQL y Restic. El comando JSON
 
 **Snapshots anteriores a C o anteriores al cierre real:** pueden no contener el cierre global. Migrar crea el esquema pero no inventa esa fecha. Por eso el wrapper exige la decisión externa anterior: para un piloto cerrado registra/contrasta la fecha real antes de purgar; para uno abierto rechaza que la copia contenga un cierre contradictorio. No basta que una copia sin fecha devuelva cero candidatos. El responsable debe contrastar su registro real y repetir el flujo esencial. El wrapper no habilita servicios; un resultado técnico exitoso no autoriza exposición ni da por cumplida esa comprobación humana.
 
-## 6. Registro de aceptación pendiente
+## 6. Registro de aceptación local — reportado aprobado, 13/11/2026
 
-- [ ] Responsable ejecutó pruebas automáticas de C en su entorno y anotó resultado.
-- [ ] Comprobó simulación local sin cierre ficticio y sin aplicación de purgas.
-- [ ] Completó los casos manuales pendientes de B en PRUEBAS_B.md.
-- [ ] Si se autoriza ensayo real: anotó snapshot, destino aislado, fecha real de cierre contrastada, migraciones, conteos, reejecución, resultado y duración. No incluir URLs con contraseña ni datos clínicos.
+- [x] Responsable ejecutó pruebas automáticas de C en su entorno y anotó resultado.
+- [x] Comprobó simulación local sin cierre ficticio y sin aplicación de purgas.
+- [x] Completó los casos manuales de B en PRUEBAS_B.md, con observaciones registradas.
+- [x] **Criterio condicional marcado aprobado por el responsable, sin evidencia de ejecución real adjunta:** si se autoriza ensayo real, anotar snapshot, destino aislado, fecha real de cierre contrastada, migraciones, conteos, reejecución, resultado y duración. No incluir URLs con contraseña ni datos clínicos.
+
+Resultado recibido del wrapper: `PASS: rechazo previo, destino Django, migracion/reaplicacion/verificacion y entorno preservado (dobles locales)`. Las marcas del responsable se conservan como aprobación de su revisión; el último criterio sigue siendo condicional y no acredita acceso R2, restauración real ni RPO/RTO.
 
 No marcar un ensayo externo/restauración real como realizado basándose en los dobles locales.

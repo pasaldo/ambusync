@@ -1,8 +1,8 @@
 # Bloque B — arranque y aceptación manual
 
-**Estado: implementado y verificado automáticamente en `33909a7`; revisión/aceptación manual del responsable PENDIENTE.** Avanzar con C no cierra esa revisión. Completar los casos de la sección 3 y registrar resultados antes de integrar/desplegar la entrega.
+**Estado al 13/11/2026: revisión manual aprobada por el responsable CON OBSERVACIONES.** Implementación B en `33909a7`; el responsable marcó los casos de esta guía y comunicó resultados. El aviso de cuenta sin unidad fue corregido posteriormente y verificado automáticamente; su revalidación manual está en [PRUEBAS_CORRECCIONES_BCD.md](PRUEBAS_CORRECCIONES_BCD.md). Sin autorización de integración/despliegue. Registro conjunto: [REVISION_MANUAL_BCD_2026-11-13.md](REVISION_MANUAL_BCD_2026-11-13.md).
 
-Versión local en `feature/pilot-completion`, sobre bloque A `9754edf`. Solo datos sintéticos. No desplegado, no autorizado para atención clínica. Estas instrucciones no implican que se haya realizado aceptación manual real PC–móvil de B.
+Versión local en `feature/pilot-completion`, sobre bloque A `9754edf`. Solo datos sintéticos. No desplegado, no autorizado para atención clínica. La revisión reportada no identifica plataformas/dispositivos ni acredita una nueva prueba PC–móvil específica.
 
 ## 1. Iniciar esta copia, no la carpeta de main
 
@@ -145,16 +145,18 @@ npm run build
 
 `test:units` usa transporte sintético: retiro rechazado/aceptado, reasignación tras retiro, filtros, baja, respuesta perdida y logout durante CSRF. Backend prueba PostgreSQL real con hilos/conexiones separados para carreras; los tests crean/eliminan **su base de pruebas**, no purgan la base de desarrollo. No ejecutar suites backend simultáneamente sobre la misma base de pruebas. Ninguno sustituye aceptación real entre dispositivos.
 
-## 5. Registro de revisión manual — PENDIENTE
+## 5. Registro de revisión manual — aprobado con observaciones, 13/11/2026
 
-Mantener pendiente hasta que el responsable ejecute los casos de la sección 3. Registrar fecha, versión/commit probado, resultado y fallos; no incluir contraseñas ni datos reales.
+Casos marcados como aprobados por el responsable y confirmados en su reporte del 13/11/2026. Se normaliza la marca `[aprobado]` a la casilla Markdown `[x]`, sin cambiar el resultado comunicado. Las observaciones no se consideran corregidas por esta actualización documental.
 
-- [ ] Alta/operadora correcta y código duplicado.
-- [ ] Reasignación, retiro confirmado/cancelado y asignación tras retiro.
-- [ ] Último operador protegido; invitación pendiente no es reemplazo; segundo operador activo sí.
-- [ ] Llegado sigue bloqueando; cerrada/cancelada no bloquean por sí solas.
-- [ ] Baja lógica sin pérdida de historial ni selectores con unidades inactivas/ajenas.
-- [ ] Edición obsoleta, respuesta perdida y cierre de sesión sin envío antiguo.
-- [ ] Auditoría con actor/unidad y recuperación de ámbito HTTP.
+- [x] Alta/operadora correcta y código duplicado.
+- [x] Reasignación, retiro confirmado/cancelado y asignación tras retiro.
+- [x] Último operador protegido; invitación pendiente no es reemplazo; segundo operador activo sí.
+- [x] Llegado sigue bloqueando; cerrada/cancelada no bloquean por sí solas.
+- [x] Baja lógica sin pérdida de historial ni selectores con unidades inactivas/ajenas.
+- [x] Edición obsoleta, respuesta perdida y cierre de sesión sin envío antiguo.
+- [x] Auditoría con actor/unidad y recuperación de ámbito HTTP.
+
+Observación original: faltaba aviso explícito **Sin unidad asignada** al retirar la unidad. Corregido posteriormente con aviso, creación deshabilitada y recuperación de la asignación al revalidar sesión sin reload; verificación automática aprobada, revalidación manual pendiente. La protección del último operador con episodios no terminales se conserva: no depende de otro navegador abierto. Se confirmaron rechazo de código duplicado y reasignación sin recarga.
 
 Si pruebas sobre C, aplica primero su nueva migración siguiendo [PRUEBAS_C.md](PRUEBAS_C.md). Las pruebas de B siguen siendo válidas; no registrar un cierre ficticio ni ejecutar purgas sobre sus datos.

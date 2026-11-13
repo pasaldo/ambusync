@@ -82,8 +82,8 @@ try {
   if (await incomingCards.count() !== 20) throw new Error("La cola de Urgencias no conserva el límite de 20 episodios");
   const firstIncoming = await incomingCards.first().innerText();
   const lastIncoming = await incomingCards.last().innerText();
-  if (!firstIncoming.includes("Llegando · En traslado") || !lastIncoming.includes("Pendiente de traslado")) {
-    throw new Error("Los episodios entrantes no respetan el orden de prioridad");
+  if (!firstIncoming.includes("Llegado sintético 04") || !lastIncoming.includes("Caso en traslado")) {
+    throw new Error("D-007: episodios de la misma categoría deben mostrar el más antiguo primero");
   }
   const firstCard = incomingCards.first();
   if (await firstCard.getByText("FC", { exact: true }).count() !== 1

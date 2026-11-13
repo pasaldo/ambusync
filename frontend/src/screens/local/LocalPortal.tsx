@@ -26,6 +26,7 @@ import { emptyDraft, VITAL_FIELDS, type EmergencyDraft } from "./emergencyDraft"
 import { usePortalMemory } from "./portalMemory";
 import { EpisodeUpdates, MeasurementHistory } from "./EpisodeUpdates";
 import { currentMeasurements, reconcileClinicalDraft } from "./clinicalUpdates";
+import { partitionTriageQueue } from "./queuePresentation";
 
 const SYMPTOMS = [
   "Disnea",
@@ -264,13 +265,6 @@ export function LocalPortal() {
   const canAdminister = user?.groups.includes("institution_admin") === true && user?.groups.includes("urgencias") === true;
   const selected = emergencies.find((item) => item.id === selectedId) ?? null;
   const urgencyQueues = useMemo(() => {
-    const priority: Record<BackendEmergency["status"], number> = {
-      en_traslado: 0,
-      llegado: 1,
-      notificada: 2,
-      cancelada: 3,
-      cerrada: 4,
-    };
     const mainQueue = emergencies.filter((item) => ["en_traslado", "llegado", "notificada"].includes(item.status));
     const archived = emergencies.filter((item) => item.status === "cancelada" || item.status === "cerrada");
     const oldArrivals = mainQueue
@@ -281,9 +275,9 @@ export function LocalPortal() {
       mainQueue.splice(mainQueue.findIndex((item) => item.id === oldest.id), 1);
       archived.push(oldest);
     }
-    mainQueue.sort((a, b) => priority[a.status] - priority[b.status] || b.created_at.localeCompare(a.created_at));
+    const grouped = partitionTriageQueue(mainQueue);
     archived.sort((a, b) => new Date(archiveEventDate(b)).getTime() - new Date(archiveEventDate(a)).getTime());
-    return { mainQueue, archived };
+    return { mainQueue, archived, ...grouped };
   }, [emergencies]);
   const archiveYears = useMemo(() => [...new Set(urgencyQueues.archived.map((item) => String(new Date(archiveEventDate(item)).getFullYear())))].sort((a, b) => Number(b) - Number(a)), [urgencyQueues.archived]);
   const filteredArchive = useMemo(() => urgencyQueues.archived.filter((item) => {
@@ -323,7 +317,7 @@ export function LocalPortal() {
 
   async function submitEmergency(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!userRef.current || !memory.isCurrent(memory.token) || writeInFlight.current) return;
+    if (!userRef.current?.ambulance || !memory.isCurrent(memory.token) || writeInFlight.current) return;
     writeInFlight.current = true;
     const token = memory.token;
     setError("");
@@ -502,6 +496,8 @@ export function LocalPortal() {
                 </div>
               </div>
 
+              {canAmbulance && !user.ambulance && <div role="status" aria-label="Estado de asignación de ambulancia" className="mt-4 rounded-lg border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100"><strong>Sin unidad asignada.</strong> Tu cuenta sigue activa, pero no puedes crear emergencias como ambulancia hasta que la administración de Urgencias te asigne una unidad habilitada. La asignación se actualizará al revalidar la sesión, sin recargar la página.</div>}
+
               {sessionWarning && (
                 <div role="alert" className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100">
                   La sesión vence en menos de dos minutos. Continúa interactuando o vuelve a autenticarte. El envío requiere una acción manual.
@@ -550,7 +546,7 @@ export function LocalPortal() {
                   ) : (
                     <form onSubmit={submitEmergency} className="mt-5 space-y-5">
                       {creationUncertain && <p role="alert" className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100">Resultado sin confirmar. El servidor podría haber guardado el episodio. Puedes consultar los episodios o reintentar el mismo envío; no se enviará automáticamente. No recargues ni cierres esta página mientras lo revisas.</p>}
-                      <fieldset disabled={submitting || creationUncertain} className="space-y-5 disabled:opacity-70">
+                      <fieldset disabled={submitting || creationUncertain || !user.ambulance} className="space-y-5 disabled:opacity-70">
                       <label className="block text-sm font-medium">Destino receptor <span className="text-rose-300">*</span>
                         <select required value={draft.destinationId} onChange={(event) => updateDraft({ destinationId: event.target.value })} className="mt-1.5 h-11 w-full rounded-lg border border-white/15 bg-ink px-3 text-white">
                           <option value="">Selecciona un destino</option>
@@ -613,7 +609,7 @@ export function LocalPortal() {
                       </div>
                       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.transferStarted} onChange={(event) => updateDraft({ transferStarted: event.target.checked })} /> Traslado iniciado</label>
                       </fieldset>
-                      <button disabled={submitting} className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-bold text-ink disabled:opacity-50"><Activity className="h-4 w-4" /> {submitting ? "Guardando…" : creationUncertain ? "Reintentar envío" : "Guardar emergencia"}</button>
+                      <button disabled={submitting || !user.ambulance} className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-bold text-ink disabled:opacity-50"><Activity className="h-4 w-4" /> {submitting ? "Guardando…" : creationUncertain ? "Reintentar envío" : "Guardar emergencia"}</button>
                     </form>
                   )}
                   </>}
@@ -621,12 +617,15 @@ export function LocalPortal() {
               ) : role === "urgencias" && canUrgencias ? (
                 <section className="mt-5">
                   <div className="flex items-end justify-between gap-3">
-                    <div><h2 className="text-lg font-bold">{urgenciasView === "incoming" ? "Episodios entrantes" : "Archivo de episodios"}</h2><p className="mt-1 text-sm text-muted-dark">Actualización periódica local; sin WebSocket.</p></div>
+                    <div><h2 className="text-lg font-bold">{urgenciasView === "incoming" ? "Episodios entrantes" : "Archivo de episodios"}</h2><p className="mt-1 text-sm text-muted-dark">{socketStatus === "connected" ? "Avisos por WebSocket; conciliación HTTP de respaldo cada 60 s." : "WebSocket no conectado; consulta HTTP de respaldo cada 15 s."}</p></div>
                     <button onClick={() => void refreshEmergencies()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><RefreshCw className="h-4 w-4" /> Actualizar</button>
                   </div>
                   {urgenciasView === "incoming" ? (
                     urgencyQueues.mainQueue.length === 0 ? <p className="mt-5 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios entrantes.</p> : (
-                      <div className="mt-4 space-y-2">{urgencyQueues.mainQueue.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} onSelect={() => setSelectedId(item.id)} onMarkArrived={() => confirmArrivalFromCard(item)} />)}</div>
+                      <div className="mt-4 space-y-6">
+                        {urgencyQueues.unclassified.length > 0 && <section aria-label="Sin clasificar: pendientes de revisión" className="space-y-2"><h3 className="font-semibold text-amber-100">Sin clasificar · Pendientes de revisión</h3><p className="text-xs text-muted-dark">Sin categoría asignada; no equivale a C5 ni a menor gravedad. No se clasifica automáticamente.</p>{urgencyQueues.unclassified.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} onSelect={() => setSelectedId(item.id)} onMarkArrived={() => confirmArrivalFromCard(item)} />)}</section>}
+                        {urgencyQueues.classified.length > 0 && <section aria-label="Clasificados por triaje" className="space-y-2"><h3 className="font-semibold">Clasificados por triaje</h3><p className="text-xs text-muted-dark">C1 a C5; primero el más antiguo de cada categoría. Orden de presentación, no decisión automática de atención.</p>{urgencyQueues.classified.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} onSelect={() => setSelectedId(item.id)} onMarkArrived={() => confirmArrivalFromCard(item)} />)}</section>}
+                      </div>
                     )
                   ) : (
                     <>

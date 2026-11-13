@@ -83,7 +83,7 @@ try {
   await page.getByRole("button", { name: "Registrar rectificación", exact: true }).click();
   await page.getByRole("status").filter({ hasText: "Rectificación registrada" }).waitFor();
   assert.equal(episode.vital_measurements[0].value, 70);
-  await page.getByText("Rectificada → 3", { exact: true }).waitFor();
+  await page.getByText("Rectificada: reemplazo de 80 lpm (medición #3).", { exact: true }).waitFor();
   await page.getByText("Error sintético de digitación", { exact: true }).waitFor();
   lose = true;
   await page.getByLabel("Notas del episodio", { exact: true }).fill("Cambio con respuesta perdida");

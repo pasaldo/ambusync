@@ -1,8 +1,20 @@
 # Etapa 1 — backend local mínimo
 
-Fecha de inicio: 29/10/2026. Estado actualizado: 12/11/2026. **Desarrollo local retomado por aprobación del responsable; sin despliegue ni uso clínico.** Las secciones de pausa/evaluación siguientes conservan su contexto histórico; para el estado vigente prevalece este apartado.
+Fecha de inicio: 29/10/2026. Estado actualizado: 13/11/2026. **Desarrollo local retomado por aprobación del responsable; sin despliegue ni uso clínico.** Las secciones de pausa/evaluación siguientes conservan su contexto histórico; para el estado vigente prevalece este apartado.
 
-## Retoma y plan de entrega — 12/11/2026
+## Revisión del responsable — 13/11/2026
+
+El responsable marcó los checklists de B/C/D y comunicó su ejecución: **B y D aprobados con observaciones; C aprobado en su alcance local**. Esto reemplaza las menciones de revisión manual pendiente del registro histórico del 12/11 siguiente, no acredita correcciones de observaciones ni despliegue. Detalles y límites en [REVISION_MANUAL_BCD_2026-11-13.md](REVISION_MANUAL_BCD_2026-11-13.md).
+
+Pendientes confirmados: aviso de cuenta sin unidad, texto de rectificación que confunde ID con valor, orden D-007 aún ausente y texto obsoleto «sin WebSocket» en Urgencias. El bloqueo del último operador con episodios no terminales es esperado y no depende de otro navegador abierto. El `PASS` de C usa dobles; no se adjuntó evidencia nueva de restore real/RPO/RTO. Solo se repitió la prueba backend de fallo de transporte (1/1 OK, con aviso intencional); los demás resultados nuevos proceden del reporte del responsable. No se modificó código funcional ni se publicaron cambios en esta verificación.
+
+## Correcciones posteriores a la revisión — 13/11/2026
+
+Por solicitud del responsable se corrigieron las cuatro observaciones anteriores antes de iniciar E: aviso **Sin unidad asignada** y creación deshabilitada hasta revalidar asignación; rectificación con valor/unidad del reemplazo e ID explícito; bandeja D-007 clasificadosC1→C5/antigüedad/ID y Sin clasificar en sección separada; texto de WS conectado con conciliaciónHTTP60s o no conectado con respaldo15s. Se aplica sobre todas las páginas recuperadas y se recalcula al conciliar la API. La política previa de selección/archivo de llegados antiguos no cambió. No cambia estado/triaje automáticamente ni decide atención.
+
+Verificación posterior: unitarias frontend27/27, nueva suite de correcciones3/3, integridad30/30 y todas las regresiones/tipos/build/Mermaid3/3; backend161/161 sin keepdb y PSrestore dobles PASS. Sin cambios backend/modelo/migraciones/datos de desarrollo. Revisión independiente sin hallazgos críticos/importantes; menor diferido sobre robustez del test de temporizadores cancelados, sin fallo funcional detectado ni medición de cadencia operativa acreditada. **Revalidación manual de correcciones pendiente**, distinta de la aprobación original. Arranque/casos: [PRUEBAS_CORRECCIONES_BCD.md](PRUEBAS_CORRECCIONES_BCD.md). E no se inició; sin push/merge/despliegue.
+
+## Retoma y plan de entrega — 12/11/2026 (registro histórico)
 
 - Base integrada: `main` en `4091db9`. CI remoto [43010182166](https://github.com/pasaldo/ambusync/actions/runs/43010182166), del 11/11/2026: backend (88 tests), frontend y secretos en verde. Esto reemplaza las menciones históricas de CI pendiente para esa base; no acredita código nuevo aún no publicado.
 - Aprobado el plan `docs/superpowers/plans/2026-11-12-pilot-completion.md`: bloques A–M; decisiones del proyecto prevalecen sobre el informe académico. No autoriza producción clínica, merge/push ni creación de recursos externos.
