@@ -1,5 +1,6 @@
 from django.urls import path
 
+from audit.views import AdministrativeAuditView
 from institutions.account_management import (
     AccountManagementConfigView,
     ManagedAccountAssignmentView,
@@ -13,6 +14,7 @@ from institutions.unit_management import ManagedAmbulanceDeactivateView
 from institutions.views import DestinationListView
 
 urlpatterns = [
+    path("audit/", AdministrativeAuditView.as_view(), name="institution-administrative-audit"),
     path("destinations/", DestinationListView.as_view(), name="destination-list"),
     path(
         "management/accounts/",

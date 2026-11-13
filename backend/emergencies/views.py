@@ -4,6 +4,7 @@ import json
 from django.contrib.auth import get_user_model
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import APIException, NotFound, PermissionDenied, ValidationError
@@ -13,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from audit.models import AuditEvent
+from config.http import NoStoreResourceView
 from emergencies.events import publish_emergency_event
 from emergencies.models import Emergency, ProcessedOperation, VitalMeasurement
 from emergencies.serializers import (
@@ -56,23 +58,35 @@ def active_assignment_for(user, lock=False, lock_unit_only=False):
     ).first()
 
 
-def authorized_emergencies(user):
+def authorized_emergencies(user, include_terminal=False):
+    from reports.scopes import has_report_permission, receiver_institution_ids
+
+    if not user.is_active or user.groups.filter(name="system_admin").exists():
+        return Emergency.objects.none()
     visible = Emergency.objects.none()
     if user.groups.filter(name="ambulance").exists():
         assignment = active_assignment_for(user)
-        if assignment:
-            visible = visible | Emergency.objects.filter(ambulance=assignment.ambulance)
+        if (
+            assignment
+            and InstitutionMembership.objects.filter(
+                user=user,
+                active=True,
+                institution_id=assignment.ambulance.institution_id,
+                institution__enabled=True,
+            ).exists()
+        ):
+            visible = visible | Emergency.objects.filter(ambulance=assignment.ambulance).exclude(
+                status__in=("cerrada", "cancelada")
+            )
     if user.groups.filter(name="urgencias").exists():
-        institutions = InstitutionMembership.objects.filter(
-            user=user,
-            active=True,
-            institution__enabled=True,
-        ).values_list("institution_id", flat=True)
-        visible = visible | Emergency.objects.filter(destination_id__in=institutions)
+        scope = Q(destination_id__in=receiver_institution_ids(user))
+        if not include_terminal or not has_report_permission(user):
+            scope &= ~Q(status__in=("cerrada", "cancelada"))
+        visible = visible | Emergency.objects.filter(scope)
     return (
         visible.distinct()
-        .select_related("operating_institution", "destination", "ambulance")
-        .prefetch_related("vital_measurements")
+        .select_related("operating_institution", "destination", "ambulance", "patient_record")
+        .prefetch_related("vital_measurements__rectification", "patient_context_corrections")
     )
 
 
@@ -82,7 +96,7 @@ class EmergencyPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class EmergencyListCreateView(APIView):
+class EmergencyListCreateView(NoStoreResourceView):
     permission_classes = (IsAuthenticated,)
     pagination_class = EmergencyPagination
 
@@ -164,7 +178,12 @@ class EmergencyListCreateView(APIView):
             if previous:
                 if previous.action != "emergency.created" or previous.request_hash != request_hash:
                     raise OperationConflict()
-                if not authorized_emergencies(actor).filter(pk=previous.emergency_id).exists():
+                if (
+                    previous.emergency is None
+                    or previous.emergency.ambulance_id != assignment.ambulance_id
+                    or previous.emergency.operating_institution_id
+                    != assignment.ambulance.institution_id
+                ):
                     raise PermissionDenied("La operación ya no está dentro del ámbito autorizado.")
                 return Response(
                     emergency_representation(previous.emergency),
@@ -240,11 +259,15 @@ class EmergencyListCreateView(APIView):
         )
 
 
-class EmergencyDetailView(APIView):
+class EmergencyDetailView(NoStoreResourceView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request, emergency_id):
-        emergency = authorized_emergencies(request.user).filter(pk=emergency_id).first()
+        emergency = (
+            authorized_emergencies(request.user, include_terminal=True)
+            .filter(pk=emergency_id)
+            .first()
+        )
         if emergency is None:
             from rest_framework.exceptions import NotFound
 

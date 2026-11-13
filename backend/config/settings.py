@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "institutions",
     "emergencies",
     "audit",
+    "reports",
 ]
 
 MIDDLEWARE = [

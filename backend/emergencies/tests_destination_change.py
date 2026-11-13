@@ -164,12 +164,15 @@ class DestinationChangeTests(TestCase):
             (self.receiver, str(self.episode.pk), new_id),
             (self.new_receiver, new_id, str(self.episode.pk)),
         ):
+            actor.groups.add(Group.objects.get_or_create(name="view_reports")[0])
             client = APIClient()
             client.force_authenticate(actor)
             own_response = client.get(f"/api/v1/emergencies/{own}/")
             self.assertEqual(own_response.status_code, 200)
             self.assertEqual(client.get(f"/api/v1/emergencies/{foreign}/").status_code, 404)
-            ids = [item["id"] for item in client.get("/api/v1/emergencies/").json()["results"]]
+            ids = [
+                item["id"] for item in client.get("/api/v1/reports/emergencies/").json()["results"]
+            ]
             self.assertEqual(ids, [own])
             self.assertNotIn("replacement", own_response.json())
             self.assertNotIn("original", own_response.json())

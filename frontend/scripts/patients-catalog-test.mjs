@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { before, after, test } from "node:test";
 import { chromium } from "playwright";
-import { mockAuthenticatedApi } from "./mock-auth-api.mjs";
+import { mockAuthenticatedApi, reportFixture } from "./mock-auth-api.mjs";
 
 let browser;
 const BASE = process.env.BASE_URL || "http://127.0.0.1:5174";
@@ -249,7 +249,7 @@ test("receiver only sees episode snapshot and explicit deactivation, never maste
     await h.page.getByRole("button", { name: "Guardar emergencia" }).click();
     await h.page.getByRole("status").filter({ hasText: "Episodio guardado" }).waitFor();
     const episode = h.state.episodes[0]; episode.status = "cerrada";
-    h.user.groups = ["urgencias", "deactivate_patients"]; h.user.ambulance = null;
+    h.user.groups = ["urgencias", "view_reports", "deactivate_patients"]; h.user.ambulance = null;
     h.user.institutions = [{ id: "demo-hospital-id", name: "Hospital Central Demo" }];
     await h.context.route("**/api/v1/emergencies/*/patient-deactivate/", (route) => {
       const body = route.request().postDataJSON(); assert.equal(body.expected_version, h.patient.version);
@@ -258,8 +258,9 @@ test("receiver only sees episode snapshot and explicit deactivation, never maste
       return route.fulfill({ json: { id: h.patient.id, enabled: false, version: h.patient.version } });
     });
     const reads = h.state.patientReads;
+    await h.context.route("**/api/v1/reports/emergencies/**", (route) => route.fulfill({ json: reportFixture([episode], route.request().url()) }));
     await h.page.reload();
-    await h.page.getByRole("button", { name: "Archivo de Urgencias", exact: true }).click();
+    await h.page.getByRole("button", { name: "Histórico e informes", exact: true }).click();
     await h.page.getByRole("button", { name: /Caso sintético de desactivación G/ }).click();
     assert.equal(h.state.patientReads, reads, "receiver never requests master directory");
     assert.equal(await h.page.getByRole("button", { name: "Pacientes y catálogo", exact: true }).count(), 0);

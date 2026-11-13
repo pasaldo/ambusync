@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { before, after, test } from "node:test";
 import { chromium } from "playwright";
-import { mockAuthenticatedApi } from "./mock-auth-api.mjs";
+import { mockAuthenticatedApi, reportFixture } from "./mock-auth-api.mjs";
 
 const BASE = process.env.BASE_URL || "http://127.0.0.1:5174";
 let browser;
@@ -20,6 +20,11 @@ async function harness() {
   await context.route("**/api/v1/auth/me/", (route) => route.fulfill(state.expired ? { status: 401, json: { code: "session_expired", message: "Sesión expirada." } } : { json: user }));
   await context.route("**/api/v1/auth/login/", (route) => { state.expired = false; return route.fulfill({ json: { ok: true } }); });
   await context.route("**/api/v1/institutions/destinations/", (route) => route.fulfill({ json: [{ id: "hospital-a", name: "Hospital A sintético" }, { id: "hospital-b", name: "Hospital B sintético" }] }));
+  await context.route("**/api/v1/reports/emergencies/**", (route) => {
+    const all = state.replacement ? [state.replacement, original] : [original];
+    const rows = all.filter((item) => user.institutions.some((institution) => institution.id === item.destination_id));
+    return route.fulfill({ json: reportFixture(rows, route.request().url()) });
+  });
   await context.route("**/api/v1/emergencies/**", async (route) => {
     if (route.request().method() === "GET") {
       const all = state.replacement ? [state.replacement, original] : [original];
@@ -95,15 +100,15 @@ test("destination cancellation is explicit for ambulance and old receiver archiv
     await h.open(); await h.submit();
     await h.page.getByRole("status").filter({ hasText: "Destino cambiado" }).waitFor();
     await h.page.getByText("Cancelado por cambio de destino", { exact: true }).waitFor();
-    h.user.groups = ["urgencias"];
+    h.user.groups = ["urgencias", "view_reports"];
     h.user.institutions = [{ id: "hospital-a", name: "Hospital A sintético" }];
     h.user.ambulance = null;
     await h.page.reload();
-    await h.page.getByRole("button", { name: "Archivo de Urgencias", exact: true }).click();
+    await h.page.getByRole("button", { name: "Histórico e informes", exact: true }).click();
     const card = h.page.getByRole("button", { name: /Caso sintético F/ });
     await card.getByText(/Cancelado por cambio de destino/).waitFor();
     await card.click();
-    const dialog = h.page.getByRole("dialog", { name: "Detalle de episodio" });
+    const dialog = h.page.getByRole("region", { name: "Consulta del episodio histórico" });
     await dialog.getByText("Cancelado por cambio de destino: Derivación sintética autorizada", { exact: true }).waitFor();
     assert.equal(await h.page.getByText("Hospital B sintético", { exact: true }).count(), 0, "label must not reveal the new destination");
     assert.equal(h.state.posts.length, 1, "presentation never writes another operation");

@@ -23,6 +23,7 @@
     "test:milestones": "node --test scripts/milestones-test.mjs",
     "test:destination-change": "node --test scripts/destination-change-test.mjs",
     "test:patients-catalog": "node --test scripts/patients-catalog-test.mjs",
+    "test:reports": "node --test scripts/reports-test.mjs",
     "test:system-admin": "node scripts/system-admin-test.mjs",
     "test:local-websocket": "node scripts/local-websocket-test.mjs",
     "test:local-integrity": "node --test scripts/local-integrity-test.mjs"

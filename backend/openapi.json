@@ -7,6 +7,43 @@
   },
   "servers": [{ "url": "http://127.0.0.1:8000" }],
   "paths": {
+    "/api/v1/reports/emergencies/": {
+      "get": {
+        "operationId": "listDestinationEmergencyReports", "security": [{ "sessionCookie": [] }],
+        "description": "Urgencias + permiso adicional view_reports, destino propio habilitado con membresía activa. Nunca unión con episodios de otras unidades/destinos por rol ambulancia ni acceso clínico por administrar. Filtros y paginación en servidor; mismo snapshot PostgreSQL de lectura para resumen/página por respuesta (no entre peticiones). Fechas inclusivas de creación en America/Santiago. Totales de episodios, no pacientes/traslados únicos: originalF y reemplazo cuentan por separado si ambos son del destino. Sin PDF/Excel ni lectura/preparación automática. Rechaza filtros desconocidos/repetidos/inválidos. Unidad no disponible404 genérico. Respuesta privada/no-store.",
+        "parameters": [
+          { "$ref": "#/components/parameters/ReportDateFrom" }, { "$ref": "#/components/parameters/ReportDateTo" },
+          { "$ref": "#/components/parameters/ReportPageNumber" }, { "$ref": "#/components/parameters/ReportPageSize" },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["notificada", "en_traslado", "llegado", "cancelada", "cerrada"] } },
+          { "name": "triage", "in": "query", "schema": { "type": "string", "enum": ["C1", "C2", "C3", "C4", "C5", "unclassified"] } },
+          { "name": "ambulance_id", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          { "$ref": "#/components/parameters/UserInteraction" }
+        ],
+        "responses": { "200": { "description": "Página autorizada y resumen sobre todos los episodios filtrados.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmergencyReportPage" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/v1/reports/emergencies/{emergency_id}/": {
+      "get": {
+        "operationId": "getDestinationHistoricalEmergency", "security": [{ "sessionCookie": [] }],
+        "description": "Mismo permiso/scope de informes; detalle solo consulta del episodio, sin abrir maestro ni historia de otro receptor por vínculoF. Sin filtros query; no confirma lectura/preparación. Privada/no-store. Gestión de desactivación de pacienteG es una operación separada, exige su permiso propio y no modifica histórico.",
+        "parameters": [{ "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
+        "responses": { "200": { "description": "Representación local del episodio autorizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Emergency" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/v1/institutions/audit/": {
+      "get": {
+        "operationId": "listInstitutionAdministrativeAudit", "security": [{ "sessionCookie": [] }],
+        "description": "Solo institution_admin con institución propia habilitada/membresía activa, sin permiso clínico implícito. Excluye system_admin. Allowlist exacta de pares acción/objeto administrativos; excluye eventos clínicos aunque filtros sean manipulados. Proyección mínima sin executor, nombres actuales ajenos, motivos de revocación ni contenido clínico/logs. Fechas inclusivas de occurred_at America/Santiago. Paginada, sin efectos del GET y privada/no-store; no modifica retenciónC.",
+        "parameters": [
+          { "$ref": "#/components/parameters/ReportDateFrom" }, { "$ref": "#/components/parameters/ReportDateTo" },
+          { "$ref": "#/components/parameters/ReportPageNumber" }, { "$ref": "#/components/parameters/ReportPageSize" },
+          { "name": "action", "in": "query", "schema": { "type": "string", "enum": ["account.created", "account.activated", "account.activation_resent", "account.deactivated", "ambulance.created", "ambulance.deactivated", "ambulance.assignment_started", "ambulance.assignment_ended", "institution_admin.provisioned", "permission.manage_symptoms_granted", "permission.deactivate_patients_granted", "permission.view_reports_granted"] } },
+          { "name": "object_type", "in": "query", "schema": { "type": "string", "enum": ["account", "ambulance", "ambulance_assignment"] } },
+          { "$ref": "#/components/parameters/UserInteraction" }
+        ],
+        "responses": { "200": { "description": "Eventos administrativos propios autorizados.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AdministrativeAuditPage" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
     "/api/v1/emergencies/{emergency_id}/patient-context/": {
       "post": {
         "operationId": "correctEpisodePatientContext", "security": [{ "sessionCookie": [] }],
@@ -293,6 +330,7 @@
     "/api/v1/emergencies/": {
       "get": {
         "operationId": "listEmergencies",
+        "description": "Bandeja operativa: solo notificada/en_traslado/llegado del ámbito vigente; nunca descarga terminales ni siquiera con view_reports. Sin límite visual20 de llegados pendientes. Para histórico paginado usar reports. Privada/no-store.",
         "security": [{ "sessionCookie": [] }],
         "parameters": [
           { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
@@ -323,6 +361,7 @@
     "/api/v1/emergencies/{emergency_id}/": {
       "get": {
         "operationId": "getEmergency",
+        "description": "Consulta operativa dentro del ámbito. Para cerrado/cancelado exige Urgencias+view_reports del DESTINO: la asignación de ambulancia por sí sola no concede histórico. No cambia permisos de escritura ni replay confirmadoA. Privada/no-store.",
         "security": [{ "sessionCookie": [] }],
         "parameters": [{ "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
         "responses": {
@@ -452,7 +491,11 @@
       "CsrfToken": { "name": "X-CSRFToken", "in": "header", "required": true, "schema": { "type": "string" }, "description": "Valor obtenido en GET /api/v1/auth/csrf/." },
       "ManagedUserId": { "name": "user_id", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 } },
       "SystemInstitutionId": { "name": "institution_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
-      "UserInteraction": { "name": "X-AmbuSync-User-Interaction", "in": "header", "required": false, "schema": { "type": "string", "enum": ["1"] }, "description": "Enviar solo para acción humana; omitir en polling/telemetría. Renueva el vencimiento de inactividad (30 min), nunca el límite absoluto de 12 h." }
+      "UserInteraction": { "name": "X-AmbuSync-User-Interaction", "in": "header", "required": false, "schema": { "type": "string", "enum": ["1"] }, "description": "Enviar solo para acción humana; omitir en polling/telemetría. Renueva el vencimiento de inactividad (30 min), nunca el límite absoluto de 12 h." },
+      "ReportDateFrom": { "name": "date_from", "in": "query", "schema": { "type": "string", "format": "date" }, "description": "Primer día incluido en America/Santiago; creación para informes, fecha de evento para auditoría." },
+      "ReportDateTo": { "name": "date_to", "in": "query", "schema": { "type": "string", "format": "date" }, "description": "Último día incluido en America/Santiago; no anterior a date_from ni 9999-12-31." },
+      "ReportPageNumber": { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 2147483647, "default": 1 } },
+      "ReportPageSize": { "name": "page_size", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 25 } }
     },
     "headers": { "SessionCookie": { "description": "Cookie HttpOnly de sesión; Secure se activa para HTTPS.", "schema": { "type": "string" } }, "ResourceReplay": { "description": "Reintento exacto de una operación confirmada, sin duplicar efectos.", "schema": { "type": "string", "const": "true" } } },
     "responses": {
@@ -467,6 +510,21 @@
       "TooManyRequests": { "description": "Umbral por cuenta u origen excedido; reintentar después de Retry-After.", "headers": { "Retry-After": { "schema": { "type": "integer", "minimum": 1 } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
     },
     "schemas": {
+      "EmergencyReportPage": {
+        "allOf": [{ "$ref": "#/components/schemas/EmergencyPage" }, {
+          "type": "object", "required": ["summary", "timezone", "date_basis", "ambulances"],
+          "properties": {
+            "summary": { "type": "object", "required": ["total", "by_status", "by_triage"], "properties": { "total": { "type": "integer", "minimum": 0 }, "by_status": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } }, "by_triage": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } } } },
+            "timezone": { "type": "string", "const": "America/Santiago" }, "date_basis": { "type": "string", "const": "created_at" },
+            "ambulances": { "type": "array", "description": "Solo unidades presentes en episodios del destino autorizado, incluso históricas deshabilitadas; no es un directorio de flota.", "items": { "type": "object", "required": ["id", "code"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" } } } }
+          }
+        }]
+      },
+      "AdministrativeAuditRow": { "type": "object", "additionalProperties": false, "required": ["id", "actor_id", "occurred_at", "action", "object_type", "object_id", "result", "correlation_id"], "properties": {
+        "id": { "type": "string", "format": "uuid" }, "actor_id": { "type": ["string", "null"] }, "occurred_at": { "type": "string", "format": "date-time" },
+        "action": { "type": "string" }, "object_type": { "type": "string", "enum": ["account", "ambulance", "ambulance_assignment"] }, "object_id": { "type": "string" }, "result": { "type": "string", "enum": ["success"] }, "correlation_id": { "type": "string", "format": "uuid" }
+      } },
+      "AdministrativeAuditPage": { "type": "object", "required": ["count", "next", "previous", "results"], "properties": { "count": { "type": "integer", "minimum": 0 }, "next": { "type": ["string", "null"] }, "previous": { "type": ["string", "null"] }, "results": { "type": "array", "items": { "$ref": "#/components/schemas/AdministrativeAuditRow" } } } },
       "Error": {
         "type": "object",
         "required": ["code", "message", "fields", "correlation_id"],

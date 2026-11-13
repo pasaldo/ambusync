@@ -1,3 +1,19 @@
+export function reportFixture(episodes, requestUrl) {
+  const url = new URL(requestUrl);
+  if (!url.pathname.endsWith("/emergencies/")) return episodes.find((row) => url.pathname.endsWith(`/${row.id}/`));
+  let rows = episodes.filter((row) => (!url.searchParams.get("status") || row.status === url.searchParams.get("status"))
+    && (!url.searchParams.get("triage") || (url.searchParams.get("triage") === "unclassified" ? !row.triage : row.triage === url.searchParams.get("triage")))
+    && (!url.searchParams.get("ambulance_id") || row.ambulance_id === url.searchParams.get("ambulance_id")));
+  const day = (row) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(row.created_at));
+  if (url.searchParams.get("date_from")) rows = rows.filter((row) => day(row) >= url.searchParams.get("date_from"));
+  if (url.searchParams.get("date_to")) rows = rows.filter((row) => day(row) <= url.searchParams.get("date_to"));
+  const count = rows.length, page = Number(url.searchParams.get("page") || 1), size = Number(url.searchParams.get("page_size") || 25);
+  const by_status = Object.fromEntries(["notificada", "en_traslado", "llegado", "cancelada", "cerrada"].map((s) => [s, rows.filter((row) => row.status === s).length]));
+  const by_triage = Object.fromEntries(["C1", "C2", "C3", "C4", "C5", "unclassified"].map((s) => [s, rows.filter((row) => s === "unclassified" ? !row.triage : row.triage === s).length]));
+  return { count, results: rows.slice((page - 1) * size, page * size), next: page * size < count ? "next" : null, previous: page > 1 ? "previous" : null,
+    summary: { total: count, by_status, by_triage }, ambulances: [...new Map(episodes.map((row) => [row.ambulance_id || "synthetic-unit", { id: row.ambulance_id || "synthetic-unit", code: row.ambulance_code }])).values()], timezone: "America/Santiago", date_basis: "created_at" };
+}
+
 export async function mockAuthenticatedApi(context, { groups = ["ambulance"], canCreateAccounts = true, includeUrgenciasQueue = false } = {}) {
   let authenticated = false;
   let emergencyListRequests = 0;
@@ -91,6 +107,10 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
   await context.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     const method = route.request().method();
+    if (pathname.startsWith("/api/v1/reports/emergencies/") && method === "GET") {
+      await route.fulfill(groups.includes("view_reports") && groups.includes("urgencias") ? { json: reportFixture(demoEmergencies, route.request().url()) } : { status: 403, json: { code: "permission_denied", message: "Informes no autorizados." } });
+      return;
+    }
 
     if (pathname === "/api/v1/patients/" && method === "GET") {
       await route.fulfill({ json: { count: 0, results: [], next: null } }); return;

@@ -61,13 +61,13 @@ try {
   await ambulanceContext.close();
 
   const urgenciasContext = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, reducedMotion: "reduce" });
-  await mockAuthenticatedApi(urgenciasContext, { groups: ["urgencias", "institution_admin"], includeUrgenciasQueue: true });
+  await mockAuthenticatedApi(urgenciasContext, { groups: ["urgencias", "institution_admin", "view_reports"], includeUrgenciasQueue: true });
   const urgenciasPage = await urgenciasContext.newPage();
   await loginLocal(urgenciasPage, "synthetic_urgencias");
   await urgenciasPage.getByRole("heading", { name: "Episodios entrantes" }).waitFor({ state: "visible" });
   await screenshot(urgenciasPage, "06-urgencias-entrantes.png", { fullPage: false });
-  await urgenciasPage.getByRole("button", { name: "Archivo de Urgencias" }).click();
-  await urgenciasPage.getByRole("heading", { name: "Archivo de episodios" }).waitFor({ state: "visible" });
+  await urgenciasPage.getByRole("button", { name: "Histórico e informes" }).click();
+  await urgenciasPage.getByRole("heading", { name: "Histórico e informes del destino" }).waitFor({ state: "visible" });
   await screenshot(urgenciasPage, "07-archivo-urgencias.png");
   await urgenciasPage.getByRole("button", { name: "Urgencias", exact: true }).click();
   await urgenciasPage.getByRole("button", { name: /Caso en traslado/ }).click();

@@ -14,6 +14,7 @@ class Command(BaseCommand):
         parser.add_argument("username")
         parser.add_argument("--manage-symptoms", action="store_true")
         parser.add_argument("--deactivate-patients", action="store_true")
+        parser.add_argument("--view-reports", action="store_true")
 
     def handle(self, *args, **options):
         from audit.models import AuditEvent
@@ -40,8 +41,9 @@ class Command(BaseCommand):
                     ).exists(),
                 ),
                 ("deactivate_patients", user.groups.filter(name="urgencias").exists()),
+                ("view_reports", user.groups.filter(name="urgencias").exists()),
             ):
-                if options[name]:
+                if options.get(name):
                     if not allowed:
                         raise CommandError(
                             "El permiso adicional requiere su perfil funcional previo."
@@ -50,7 +52,10 @@ class Command(BaseCommand):
                     if not user.groups.filter(pk=group.pk).exists():
                         user.groups.add(group)
                         granted.append(name)
-            if not any(options[name] for name in ("manage_symptoms", "deactivate_patients")):
+            if not any(
+                options.get(name)
+                for name in ("manage_symptoms", "deactivate_patients", "view_reports")
+            ):
                 raise CommandError("Selecciona al menos un permiso adicional.")
             for name in granted:
                 AuditEvent.objects.create(

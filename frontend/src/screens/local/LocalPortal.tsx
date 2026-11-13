@@ -34,6 +34,8 @@ import { usePatientCatalog } from "./usePatientCatalog";
 import { PatientCatalogPanel } from "./PatientCatalogPanel";
 import { UnitPatientPicker } from "./UnitPatientPicker";
 import { PatientContextEditor, PatientContextHistory, identityDescription } from "./PatientContext";
+import { ReportsPanel } from "./ReportsPanel";
+import { AdministrativeAuditPanel } from "./AdministrativeAuditPanel";
 
 function archiveEventDate(emergency: BackendEmergency): string {
   if (emergency.status === "cancelada") return emergency.cancelled_at ?? emergency.created_at;
@@ -64,10 +66,8 @@ export function LocalPortal() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [operationError, setOperationError] = useState("");
-  const [role, setRole] = useState<"ambulance" | "urgencias" | "administration" | null>(null);
+  const [role, setRole] = useState<"ambulance" | "urgencias" | "administration" | "reports" | "audit" | null>(null);
   const [ambulanceView, setAmbulanceView] = useState<"form" | "episodes">("form");
-  const [urgenciasView, setUrgenciasView] = useState<"incoming" | "archive">("incoming");
-  const [archiveFilters, setArchiveFilters] = useState({ day: "", month: "", year: "", status: "all" });
   const [draft, setDraft] = useState<EmergencyDraft>(emptyDraft);
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [emergencies, setEmergencies] = useState<BackendEmergency[]>([]);
@@ -107,7 +107,9 @@ export function LocalPortal() {
       if (!changed && current === "administration" && nextUser.groups.includes("urgencias") && nextUser.groups.includes("institution_admin")) return current;
       if (!changed && current === "ambulance" && nextUser.groups.includes("ambulance")) return current;
       if (!changed && current === "urgencias" && nextUser.groups.includes("urgencias")) return current;
-      return nextUser.groups.includes("ambulance") ? "ambulance" : nextUser.groups.includes("urgencias") ? "urgencias" : null;
+      if (!changed && current === "reports" && nextUser.groups.includes("urgencias") && nextUser.groups.includes("view_reports")) return current;
+      if (!changed && current === "audit" && nextUser.groups.includes("institution_admin")) return current;
+      return nextUser.groups.includes("ambulance") ? "ambulance" : nextUser.groups.includes("urgencias") ? "urgencias" : nextUser.groups.includes("institution_admin") ? "audit" : null;
     });
   }, [memory]);
 
@@ -260,33 +262,17 @@ export function LocalPortal() {
   const sessionWarning = user && remainingMs > 0 && remainingMs <= 120_000;
   const canAmbulance = user?.groups.includes("ambulance") ?? false;
   const canUrgencias = user?.groups.includes("urgencias") ?? false;
+  const canReports = canUrgencias && user?.groups.includes("view_reports") === true;
+  const canAudit = user?.groups.includes("institution_admin") === true;
   // La administración de cuentas pertenece exclusivamente a la cuenta administrativa de Urgencias.
   // Una cuenta de ambulancia no debe heredar este módulo aunque comparta la institución.
   const canAdminister = user?.groups.includes("institution_admin") === true && user?.groups.includes("urgencias") === true;
   const selected = emergencies.find((item) => item.id === selectedId) ?? null;
   const urgencyQueues = useMemo(() => {
     const mainQueue = emergencies.filter((item) => ["en_traslado", "llegado", "notificada"].includes(item.status));
-    const archived = emergencies.filter((item) => item.status === "cancelada" || item.status === "cerrada");
-    const oldArrivals = mainQueue
-      .filter((item) => item.status === "llegado")
-      .sort((a, b) => new Date(a.arrived_at ?? a.created_at).getTime() - new Date(b.arrived_at ?? b.created_at).getTime());
-    while (mainQueue.length > 20 && oldArrivals.length > 0) {
-      const oldest = oldArrivals.shift()!;
-      mainQueue.splice(mainQueue.findIndex((item) => item.id === oldest.id), 1);
-      archived.push(oldest);
-    }
     const grouped = partitionTriageQueue(mainQueue);
-    archived.sort((a, b) => new Date(archiveEventDate(b)).getTime() - new Date(archiveEventDate(a)).getTime());
-    return { mainQueue, archived, ...grouped };
+    return { mainQueue, ...grouped };
   }, [emergencies]);
-  const archiveYears = useMemo(() => [...new Set(urgencyQueues.archived.map((item) => String(new Date(archiveEventDate(item)).getFullYear())))].sort((a, b) => Number(b) - Number(a)), [urgencyQueues.archived]);
-  const filteredArchive = useMemo(() => urgencyQueues.archived.filter((item) => {
-    if (archiveFilters.status !== "all" && item.status !== archiveFilters.status) return false;
-    const date = new Date(archiveEventDate(item));
-    return (!archiveFilters.day || date.getDate() === Number(archiveFilters.day))
-      && (!archiveFilters.month || date.getMonth() + 1 === Number(archiveFilters.month))
-      && (!archiveFilters.year || date.getFullYear() === Number(archiveFilters.year));
-  }), [urgencyQueues.archived, archiveFilters]);
 
   async function handleLogout() {
     memory.clear();
@@ -466,10 +452,11 @@ export function LocalPortal() {
     void runTransition(emergency, "cancel", "Episodio cancelado.", { reason: reason.trim() });
   }
 
-  function deactivateSelectedPatient() {
-    if (!selected?.patient_id || !selected.patient_record_version || !user?.groups.includes("deactivate_patients") || !user.groups.includes("urgencias")) return;
+  async function deactivatePatient(emergency: BackendEmergency | null = selected) {
+    if (!emergency?.patient_id || !emergency.patient_record_version || !user?.groups.includes("deactivate_patients") || !user.groups.includes("urgencias")) return;
     if (!window.confirm("¿Desactivar este paciente sintético? Se conservará el historial; se rechazará si tiene episodios pendientes.")) return;
-    void resources.run(`patient:${selected.patient_id}`, "patient-deactivate", selected.patient_id, `/api/v1/emergencies/${encodeURIComponent(selected.id)}/patient-deactivate/`, selected.patient_record_version, {}, "Paciente sintético desactivado; historial conservado.").then(() => refreshEmergencyList());
+    await resources.run(`patient:${emergency.patient_id}`, "patient-deactivate", emergency.patient_id, `/api/v1/emergencies/${encodeURIComponent(emergency.id)}/patient-deactivate/`, emergency.patient_record_version, {}, "Paciente sintético desactivado; historial conservado.");
+    await refreshEmergencyList();
   }
 
   return (
@@ -522,13 +509,14 @@ export function LocalPortal() {
                 </div>
               )}
 
-              {(canAmbulance || canUrgencias || canAdminister) && (
+              {(canAmbulance || canUrgencias || canAdminister || canAudit) && (
                 <div className="mt-4 flex flex-wrap gap-2" aria-label="Seleccionar módulo">
                   {canAmbulance && <RoleButton active={role === "ambulance" && ambulanceView === "form"} onClick={() => { setRole("ambulance"); setAmbulanceView("form"); }} icon={<Ambulance className="h-4 w-4" />}>Ambulancia</RoleButton>}
                   {canAmbulance && <RoleButton active={role === "ambulance" && ambulanceView === "episodes"} onClick={() => { setRole("ambulance"); setAmbulanceView("episodes"); }} icon={<ClipboardList className="h-4 w-4" />}>Episodios de la unidad</RoleButton>}
-                  {canUrgencias && <RoleButton active={role === "urgencias" && urgenciasView === "incoming"} onClick={() => { setRole("urgencias"); setUrgenciasView("incoming"); }} icon={<HeartPulse className="h-4 w-4" />}>Urgencias</RoleButton>}
-                  {canUrgencias && <RoleButton active={role === "urgencias" && urgenciasView === "archive"} onClick={() => { setRole("urgencias"); setUrgenciasView("archive"); setSelectedId(null); }} icon={<Archive className="h-4 w-4" />}>Archivo de Urgencias</RoleButton>}
+                  {canUrgencias && <RoleButton active={role === "urgencias"} onClick={() => { setRole("urgencias"); setSelectedId(null); }} icon={<HeartPulse className="h-4 w-4" />}>Urgencias</RoleButton>}
+                  {canReports && <RoleButton active={role === "reports"} onClick={() => { setRole("reports"); setSelectedId(null); }} icon={<Archive className="h-4 w-4" />}>Histórico e informes</RoleButton>}
                   {canAdminister && <RoleButton active={role === "administration"} onClick={() => setRole("administration")} icon={<Activity className="h-4 w-4" />}>Administración</RoleButton>}
+                  {canAudit && <RoleButton active={role === "audit"} onClick={() => { setRole("audit"); setSelectedId(null); }} icon={<ClipboardList className="h-4 w-4" />}>Auditoría administrativa</RoleButton>}
                 </div>
               )}
 
@@ -645,39 +633,25 @@ export function LocalPortal() {
               ) : role === "urgencias" && canUrgencias ? (
                 <section className="mt-5">
                   <div className="flex items-end justify-between gap-3">
-                    <div><h2 className="text-lg font-bold">{urgenciasView === "incoming" ? "Episodios entrantes" : "Archivo de episodios"}</h2><p className="mt-1 text-sm text-muted-dark">{socketStatus === "connected" ? "Avisos por WebSocket; conciliación HTTP de respaldo cada 60 s." : "WebSocket no conectado; consulta HTTP de respaldo cada 15 s."}</p></div>
+                    <div><h2 className="text-lg font-bold">Episodios entrantes</h2><p className="mt-1 text-sm text-muted-dark">{socketStatus === "connected" ? "Avisos por WebSocket; conciliación HTTP de respaldo cada 60 s." : "WebSocket no conectado; consulta HTTP de respaldo cada 15 s."}</p><p className="mt-1 text-xs text-muted-dark">Los llegados pendientes permanecen visibles hasta su cierre.</p></div>
                     <button onClick={() => void refreshEmergencies()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><RefreshCw className="h-4 w-4" /> Actualizar</button>
                   </div>
-                  {urgenciasView === "incoming" ? (
+                  {(
                     urgencyQueues.mainQueue.length === 0 ? <p className="mt-5 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios entrantes.</p> : (
                       <div className="mt-4 space-y-6">
                         {urgencyQueues.unclassified.length > 0 && <section aria-label="Sin clasificar: pendientes de revisión" className="space-y-2"><h3 className="font-semibold text-amber-100">Sin clasificar · Pendientes de revisión</h3><p className="text-xs text-muted-dark">Sin categoría asignada; no equivale a C5 ni a menor gravedad. No se clasifica automáticamente.</p>{urgencyQueues.unclassified.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} onSelect={() => setSelectedId(item.id)} onMarkArrived={() => confirmArrivalFromCard(item)} />)}</section>}
                         {urgencyQueues.classified.length > 0 && <section aria-label="Clasificados por triaje" className="space-y-2"><h3 className="font-semibold">Clasificados por triaje</h3><p className="text-xs text-muted-dark">C1 a C5; primero el más antiguo de cada categoría. Orden de presentación, no decisión automática de atención.</p>{urgencyQueues.classified.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} onSelect={() => setSelectedId(item.id)} onMarkArrived={() => confirmArrivalFromCard(item)} />)}</section>}
                       </div>
                     )
-                  ) : (
-                    <>
-                      <div className="mt-4 grid gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 sm:grid-cols-4">
-                        <label className="text-sm">Día
-                          <select value={archiveFilters.day} onChange={(event) => setArchiveFilters((current) => ({ ...current, day: event.target.value }))} className="mt-1 block h-10 w-full rounded-lg border border-white/15 bg-ink px-2"><option value="">Todos</option>{Array.from({ length: 31 }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}</option>)}</select>
-                        </label>
-                        <label className="text-sm">Mes
-                          <select value={archiveFilters.month} onChange={(event) => setArchiveFilters((current) => ({ ...current, month: event.target.value }))} className="mt-1 block h-10 w-full rounded-lg border border-white/15 bg-ink px-2"><option value="">Todos</option>{Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option key={month} value={month}>{new Date(2000, month - 1, 1).toLocaleString("es-CL", { month: "long" })}</option>)}</select>
-                        </label>
-                        <label className="text-sm">Año
-                          <select value={archiveFilters.year} onChange={(event) => setArchiveFilters((current) => ({ ...current, year: event.target.value }))} className="mt-1 block h-10 w-full rounded-lg border border-white/15 bg-ink px-2"><option value="">Todos</option>{archiveYears.map((year) => <option key={year} value={year}>{year}</option>)}</select>
-                        </label>
-                        <label className="text-sm">Estado
-                          <select value={archiveFilters.status} onChange={(event) => setArchiveFilters((current) => ({ ...current, status: event.target.value }))} className="mt-1 block h-10 w-full rounded-lg border border-white/15 bg-ink px-2"><option value="all">Todos</option><option value="cancelada">Cancelada</option><option value="llegado">Llegado</option><option value="cerrada">Cerrada</option></select>
-                        </label>
-                      </div>
-                      {filteredArchive.length === 0 ? <p className="mt-4 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios que coincidan con estos filtros.</p> : <div className="mt-4 space-y-2">{filteredArchive.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} archived onSelect={() => setSelectedId(item.id)} />)}</div>}
-                    </>
                   )}
-                  {selected && <EmergencyDetail emergency={selected} busy={transitionBusy || resources.busy} pending={Boolean(uncertainTransitions[selected.id])} onDeactivatePatient={user.groups.includes("deactivate_patients") && selected.patient_id && selected.patient_record_enabled !== false ? deactivateSelectedPatient : undefined} onRead={() => void runTransition(selected, "read", "Lectura confirmada; primer autor y fecha conservados.")} onPrepare={() => void runTransition(selected, "prepare", "Preparación registrada; no acredita inicio de atención.")} onRetry={() => { const attempt = uncertainTransitions[selected.id]; if (attempt) void executeTransition(selected.id, attempt, "Operación confirmada en el servidor."); }} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} onCloseEmergency={() => void runTransition(selected, "close", "Episodio cerrado.")} />}
+                  {selected && <EmergencyDetail emergency={selected} busy={transitionBusy || resources.busy} pending={Boolean(uncertainTransitions[selected.id])} onDeactivatePatient={user.groups.includes("deactivate_patients") && selected.patient_id && selected.patient_record_enabled !== false ? () => void deactivatePatient(selected) : undefined} onRead={() => void runTransition(selected, "read", "Lectura confirmada; primer autor y fecha conservados.")} onPrepare={() => void runTransition(selected, "prepare", "Preparación registrada; no acredita inicio de atención.")} onRetry={() => { const attempt = uncertainTransitions[selected.id]; if (attempt) void executeTransition(selected.id, attempt, "Operación confirmada en el servidor."); }} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} onCloseEmergency={() => void runTransition(selected, "close", "Episodio cerrado.")} />}
                 </section>
               ) : role === "administration" && canAdminister ? (
                 <AdminAccountsPanel key={JSON.stringify([user.id, user.institutions.map((item) => item.id).sort(), [...user.groups].sort(), user.ambulance?.id ?? null])} currentUserId={user.id} institutionName={user.institutions[0]?.name ?? ""} />
+              ) : role === "reports" && canReports ? (
+                <ReportsPanel key={`reports:${memory.token}`} expireSession={expireSession} onDeactivatePatient={user.groups.includes("deactivate_patients") ? deactivatePatient : undefined} patientBusy={resources.busy} patientPending={(id) => resources.memory.resourceAttempts.has(`patient:${id}`)} />
+              ) : role === "audit" && canAudit ? (
+                <AdministrativeAuditPanel key={`audit:${memory.token}`} expireSession={expireSession} />
               ) : null}
 
               {lastCreated && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Guardado: {lastCreated.id}. Persistencia en servidor, no lectura humana; consulta los hitos del episodio.</p>}

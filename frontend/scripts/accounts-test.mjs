@@ -70,7 +70,7 @@ try {
   await operatorContext.close();
 
   const urgenciasContext = await browser.newContext();
-  await mockAuthenticatedApi(urgenciasContext, { groups: ["urgencias"], includeUrgenciasQueue: true });
+  await mockAuthenticatedApi(urgenciasContext, { groups: ["urgencias", "view_reports"], includeUrgenciasQueue: true });
   const urgenciasPage = await urgenciasContext.newPage();
   await urgenciasPage.goto(`${BASE}/`, { waitUntil: "networkidle" });
   await urgenciasPage.getByLabel("Usuario").fill("synthetic_urgencias");
@@ -79,10 +79,10 @@ try {
   await urgenciasPage.getByRole("heading", { name: "Episodios entrantes" }).waitFor({ state: "visible" });
   await urgenciasPage.getByRole("button", { name: /Caso en traslado/ }).waitFor({ state: "visible" });
   const incomingCards = urgenciasPage.locator("section.mt-5 button.w-full.rounded-xl");
-  if (await incomingCards.count() !== 20) throw new Error("La cola de Urgencias no conserva el límite de 20 episodios");
+  if (await incomingCards.count() !== 23) throw new Error("H: la bandeja debe conservar todos los llegados pendientes, sin límite visual de 20");
   const firstIncoming = await incomingCards.first().innerText();
   const lastIncoming = await incomingCards.last().innerText();
-  if (!firstIncoming.includes("Llegado sintético 04") || !lastIncoming.includes("Caso en traslado")) {
+  if (!firstIncoming.includes("Llegado sintético 01") || !lastIncoming.includes("Caso en traslado")) {
     throw new Error("D-007: episodios de la misma categoría deben mostrar el más antiguo primero");
   }
   const firstCard = incomingCards.first();
@@ -91,14 +91,16 @@ try {
     || await firstCard.getByText("SatO₂", { exact: true }).count() !== 1) {
     throw new Error("La tarjeta de Urgencias no muestra los signos vitales en la vista principal");
   }
-  await urgenciasPage.getByRole("button", { name: "Archivo de Urgencias" }).click();
-  await urgenciasPage.getByRole("heading", { name: "Archivo de episodios" }).waitFor({ state: "visible" });
-  const archiveCards = urgenciasPage.locator("section.mt-5 button.w-full.rounded-xl");
-  if (await archiveCards.count() !== 4) throw new Error("No se archivaron las cancelaciones y llegadas antiguas esperadas");
-  await urgenciasPage.getByLabel("Estado").selectOption("cancelada");
-  await urgenciasPage.getByLabel("Año").selectOption("2025");
-  await urgenciasPage.getByLabel("Mes").selectOption("2");
-  await urgenciasPage.getByLabel("Día").selectOption("10");
+  await urgenciasPage.getByRole("button", { name: "Histórico e informes" }).click();
+  await urgenciasPage.getByRole("heading", { name: "Histórico e informes del destino" }).waitFor({ state: "visible" });
+  const archiveCards = urgenciasPage.locator('button[aria-label^="Ver episodio"]');
+  await urgenciasPage.getByText("24 episodios", { exact: true }).waitFor();
+  if (await archiveCards.count() !== 24) throw new Error("H: el histórico autorizado no muestra la página esperada");
+  await urgenciasPage.getByLabel("Estado del informe").selectOption("cancelada");
+  await urgenciasPage.getByLabel("Desde (fecha de creación)").fill("2025-02-10");
+  await urgenciasPage.getByLabel("Hasta (fecha de creación)").fill("2025-02-10");
+  await urgenciasPage.getByRole("button", { name: "Aplicar filtros", exact: true }).click();
+  await urgenciasPage.getByText("1 episodio", { exact: true }).waitFor();
   if (await archiveCards.count() !== 1 || !(await archiveCards.first().innerText()).includes("Cancelado sintético")) {
     throw new Error("Los filtros de fecha/estado del archivo no coinciden");
   }

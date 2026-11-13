@@ -22,6 +22,7 @@ from emergencies.patient_records import PatientListView, PatientUpdateView
 from institutions.symptom_views import SymptomDeactivateView, SymptomListCreateView
 
 urlpatterns = [
+    path("api/v1/reports/", include("reports.urls")),
     path("api/v1/patients/", PatientListView.as_view(), name="patients"),
     path(
         "api/v1/patients/<uuid:patient_id>/update/",

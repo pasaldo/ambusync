@@ -264,12 +264,14 @@ class UnitManagementTests(TestCase):
                 )
 
     def test_withdrawal_revokes_old_http_scope_without_deleting_history(self):
-        episode = self.episode("cerrada")
+        episode = self.episode("en_traslado")
+        self.add_operator()
         operator_client = APIClient()
         operator_client.force_authenticate(self.operator)
         self.assertEqual(operator_client.get(f"/api/v1/emergencies/{episode.pk}/").status_code, 200)
         self.assertEqual(self.assign(None, expected=self.unit).status_code, 204)
         self.assertEqual(operator_client.get(f"/api/v1/emergencies/{episode.pk}/").status_code, 404)
+        self.assertTrue(Emergency.objects.filter(pk=episode.pk).exists())
 
     def test_unit_creation_is_audited_and_grants_creator_deactivation(self):
         self.institution.kind = "receiver"

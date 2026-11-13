@@ -370,6 +370,29 @@ async function listResourcePages<T>(path: string): Promise<T[]> {
 export const listUnitPatients = () => listResourcePages<PatientRecord>("/api/v1/patients/");
 export const listInstitutionSymptoms = () => listResourcePages<CatalogSymptom>("/api/v1/institutions/symptoms/");
 
+export interface ReadPage<T> { count: number; next: string | null; previous: string | null; results: T[] }
+export interface ReportPage extends ReadPage<BackendEmergency> {
+  summary: { total: number; by_status: Record<string, number>; by_triage: Record<string, number> };
+  ambulances: { id: string; code: string }[]; timezone: string; date_basis: string;
+}
+export interface AdministrativeAuditRow { id: string; actor_id: string | null; occurred_at: string; action: string; object_type: string; object_id: string; result: string; correlation_id: string }
+export async function getReportPage(path: string): Promise<ReportPage> {
+  const data = await request<ReportPage>(path, { cache: "no-store", humanInteraction: true });
+  if (!data || !Array.isArray(data.results) || !Number.isInteger(data.count) || !data.summary || data.summary.total !== data.count || !data.summary.by_status || !data.summary.by_triage || !Array.isArray(data.ambulances)) throw new Error("No se pudo validar el informe recibido.");
+  return data;
+}
+export async function getReportDetail(path: string): Promise<BackendEmergency> {
+  const data = await request<BackendEmergency>(path, { cache: "no-store", humanInteraction: true });
+  const match = path.match(/^\/api\/v1\/reports\/emergencies\/([^/]+)\/$/);
+  if (!match || !data || data.id !== decodeURIComponent(match[1]) || !data.patient || !Array.isArray(data.vital_measurements) || !Array.isArray(data.symptoms) || typeof data.reason !== "string") throw new Error("El detalle recibido no corresponde al episodio solicitado.");
+  return data;
+}
+export async function getAdministrativeAudit(path: string): Promise<ReadPage<AdministrativeAuditRow>> {
+  const data = await request<ReadPage<AdministrativeAuditRow>>(path, { cache: "no-store", humanInteraction: true });
+  if (!data || !Array.isArray(data.results) || !Number.isInteger(data.count)) throw new Error("No se pudo validar la auditoría recibida.");
+  return data;
+}
+
 export async function sendResourceOperation(attempt: ResourceAttempt, isCurrent: () => boolean): Promise<ResourceResult> {
   const result = await requestEmergencyOperation<unknown>(attempt.operation, isCurrent);
   if (!isResourceResult(result, attempt)) throw new Error("La respuesta no confirma el registro solicitado.");

@@ -6,22 +6,14 @@ import json
 from django.contrib.auth import get_user_model
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
-from django.utils.cache import add_never_cache_headers
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from audit.models import AuditEvent
+from config.http import NoStoreResourceView
 from emergencies.models import ProcessedOperation
 from emergencies.views import OperationConflict
-
-
-class NoStoreResourceView(APIView):
-    def finalize_response(self, request, response, *args, **kwargs):
-        response = super().finalize_response(request, response, *args, **kwargs)
-        add_never_cache_headers(response)
-        return response
 
 
 class ResourceMutationView(NoStoreResourceView):
