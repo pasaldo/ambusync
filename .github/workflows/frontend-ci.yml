@@ -151,6 +151,7 @@ jobs:
           BASE_URL=http://127.0.0.1:5173 npm run test:episode-updates
           BASE_URL=http://127.0.0.1:5173 npm run test:review-corrections
           BASE_URL=http://127.0.0.1:5173 npm run test:milestones
+          BASE_URL=http://127.0.0.1:5173 npm run test:destination-change
           BASE_URL=http://127.0.0.1:5173 npm run test:system-admin
           BASE_URL=http://127.0.0.1:5173 npm run test:local-websocket
           BASE_URL=http://127.0.0.1:5173 npm run test:local-integrity

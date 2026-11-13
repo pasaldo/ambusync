@@ -12,7 +12,8 @@ export interface EmergencyEvent {
     | "emergency.measurements_added"
     | "emergency.measurement_rectified"
     | "emergency.read_confirmed"
-    | "emergency.preparation_recorded";
+    | "emergency.preparation_recorded"
+    | "emergency.destination_changed";
   emergency_id: string;
   version: number;
 }
@@ -41,6 +42,7 @@ const EVENT_TYPES = new Set<EmergencyEvent["type"]>([
   "emergency.measurement_rectified",
   "emergency.read_confirmed",
   "emergency.preparation_recorded",
+  "emergency.destination_changed",
 ]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const INITIAL_RETRY_MS = 1_000;

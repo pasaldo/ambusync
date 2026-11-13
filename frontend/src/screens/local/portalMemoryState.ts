@@ -14,6 +14,7 @@ export class PortalMemory {
   transitions = new Map<string, PendingOperation>();
   uncertainTransitions: Record<string, PendingOperation> = {};
   episodeDrafts = new Map<string, ClinicalDraft>();
+  destinationDrafts = new Map<string, { version: number; destinationId: string; reason: string }>();
 
   get token(): number { return this.revision; }
 
@@ -51,5 +52,6 @@ export class PortalMemory {
     this.transitions = new Map();
     this.uncertainTransitions = {};
     this.episodeDrafts = new Map();
+    this.destinationDrafts = new Map();
   }
 }

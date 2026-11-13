@@ -1,5 +1,6 @@
 import { prepareOperation, type PendingOperation } from "./pendingOperation";
 import { hasMilestoneProof } from "./milestoneProof";
+import { isDestinationChangeResult, type DestinationChangeResult } from "./destinationChangeResult";
 
 export interface BackendSession {
   started_at: number;
@@ -66,10 +67,15 @@ export interface VitalMeasurement {
   rectified_by_id?: string | null;
   is_current?: boolean;
   rectification_reason?: string;
+  inherited_at?: string | null;
 }
 
 export interface BackendEmergency {
   id: string;
+  ambulance_id?: string;
+  operating_institution_id?: string;
+  replaces_id?: string | null;
+  replaced_by_id?: string | null;
   destination_id: string;
   destination_name: string;
   ambulance_code: string;
@@ -346,17 +352,31 @@ export function isUncertainWrite(error: unknown): boolean {
   return !(error instanceof BackendApiError) || error.status >= 500 || error.status === 408;
 }
 
-export async function sendEmergencyOperation(operation: PendingOperation, isCurrent: () => boolean): Promise<BackendEmergency> {
+async function requestEmergencyOperation<T>(operation: PendingOperation, isCurrent: () => boolean): Promise<T> {
   if (!isCurrent()) throw new Error("La operación ya no pertenece a la sesión actual.");
   const token = await ensureCsrf();
   // Awaiting CSRF must never let an old payload run under a replacement cookie.
   if (!isCurrent()) throw new Error("La operación ya no pertenece a la sesión actual.");
-  const result = await request<BackendEmergency>(operation.path, {
+  return request<T>(operation.path, {
     method: "POST",
     headers: { "X-CSRFToken": token },
     body: operation.body,
     humanInteraction: true,
   });
+}
+
+export async function sendDestinationChangeOperation(operation: PendingOperation, isCurrent: () => boolean): Promise<DestinationChangeResult> {
+  const match = operation.path.match(/^\/api\/v1\/emergencies\/([^/]+)\/change-destination\/$/);
+  if (!match) throw new Error("La operación no es un cambio de destino.");
+  const result = await requestEmergencyOperation<unknown>(operation, isCurrent);
+  if (!isDestinationChangeResult(result, decodeURIComponent(match[1]), JSON.parse(operation.body))) {
+    throw new Error("La respuesta no confirma la cancelación y su reemplazo vinculado.");
+  }
+  return result;
+}
+
+export async function sendEmergencyOperation(operation: PendingOperation, isCurrent: () => boolean): Promise<BackendEmergency> {
+  const result = await requestEmergencyOperation<BackendEmergency>(operation, isCurrent);
   if (!result || typeof result.id !== "string" || !result.id
     || !Number.isInteger(result.version) || result.version < 1
     || !["notificada", "en_traslado", "llegado", "cancelada", "cerrada"].includes(result.status)
@@ -382,7 +402,7 @@ export async function sendEmergencyOperation(operation: PendingOperation, isCurr
   return result;
 }
 
-export type EmergencyAction = "arrival" | "transfer-start" | "cancel" | "close" | "update" | "measurements" | "measurements/rectify" | "read" | "prepare";
+export type EmergencyAction = "arrival" | "transfer-start" | "cancel" | "close" | "update" | "measurements" | "measurements/rectify" | "read" | "prepare" | "change-destination";
 
 export function prepareEmergencyTransition(
   emergency: BackendEmergency,

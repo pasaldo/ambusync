@@ -17,6 +17,7 @@ export function MeasurementHistory({ measurements, onRectify }: { measurements: 
       return <li key={item.id ?? index} className="border-b border-white/10 pb-3 text-sm">
       <p>{MEASUREMENT_OPTIONS.find((option) => option.kind === item.kind)?.label ?? item.kind}: <strong className={item.is_current === false || item.rectified_by_id ? "line-through text-muted-dark" : "text-white"}>{item.value} {item.unit}</strong></p>
       <p className="text-xs text-muted-dark">Medida: {new Date(item.measured_at).toLocaleString()} · Registrada: {new Date(item.recorded_at).toLocaleString()} · Autor: {item.recorded_by_id ?? "Sin registro legado"}</p>
+      {item.inherited_at && <p className="text-xs text-amber-100">Antecedente heredado; no es una nueva captura. Incorporado: {new Date(item.inherited_at).toLocaleString("es-CL", { timeZone: "America/Santiago" })}. Autor y fechas de medición/registro originales conservados.</p>}
       {Date.parse(item.measured_at) > Date.parse(item.recorded_at) + 60_000 && <p className="text-xs text-amber-100">Revisar reloj: la hora de medición es posterior a la recepción en servidor. No se ajustó automáticamente.</p>}
       {rectification ? <p className="text-amber-100">{rectification}</p> : <p className="text-xs text-muted-dark">Vigente en su cadena</p>}
       {item.rectifies_id && <p className="text-xs text-muted-dark">Rectifica medición #{item.rectifies_id}</p>}

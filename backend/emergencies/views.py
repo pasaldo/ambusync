@@ -32,7 +32,7 @@ class OperationConflict(APIException):
     default_detail = "La operación entra en conflicto con un resultado previo."
 
 
-def active_assignment_for(user, lock=False):
+def active_assignment_for(user, lock=False, lock_unit_only=False):
     assignments = AmbulanceAssignment.objects.select_related("ambulance__institution")
     if lock:
         # The caller holds this user's row. Lock the unit before the assignment,
@@ -43,7 +43,10 @@ def active_assignment_for(user, lock=False):
             .first()
         )
         if unit_id is not None:
-            Ambulance.objects.select_for_update().filter(pk=unit_id).first()
+            # Unit ordering joins its institution. Existing-episode transitions
+            # must not lock that joined row before locking a new destination.
+            units = Ambulance.objects.select_for_update(of=("self",) if lock_unit_only else ())
+            units.filter(pk=unit_id).first()
         assignments = assignments.select_for_update(of=("self",))
     return assignments.filter(
         user=user,
@@ -278,7 +281,9 @@ class EmergencyTransitionView(APIView):
         User = get_user_model()
         with transaction.atomic():
             actor = (
-                User.objects.select_for_update().filter(pk=request.user.pk, is_active=True).first()
+                User.objects.select_for_update(no_key=True)
+                .filter(pk=request.user.pk, is_active=True)
+                .first()
             )
             if actor is None or not actor.groups.filter(name=self.actor_group).exists():
                 raise PermissionDenied("La acción no está permitida para este perfil.")
@@ -304,7 +309,7 @@ class EmergencyTransitionView(APIView):
                 ):
                     raise OperationConflict()
                 return Response(
-                    emergency_representation(emergency),
+                    self.representation(emergency),
                     status=status.HTTP_200_OK,
                     headers={"Idempotent-Replay": "true"},
                 )
@@ -339,14 +344,14 @@ class EmergencyTransitionView(APIView):
                 publish_emergency_event(emergency.pk, self.action, emergency.version)
 
         return Response(
-            emergency_representation(emergency),
+            self.representation(emergency),
             status=status.HTTP_200_OK,
             headers={"Milestone-Already-Recorded": "true"} if not applied else {},
         )
 
     def authorize_scope(self, actor, emergency):
         if self.actor_group == "ambulance":
-            assignment = active_assignment_for(actor, lock=True)
+            assignment = active_assignment_for(actor, lock=True, lock_unit_only=True)
             membership = (
                 InstitutionMembership.objects.select_for_update(of=("self",))
                 .filter(
@@ -376,6 +381,9 @@ class EmergencyTransitionView(APIView):
         )
         if not membership:
             raise NotFound("El episodio no está disponible.")
+
+    def representation(self, emergency):
+        return emergency_representation(emergency)
 
     def apply_transition(self, emergency, actor, values):
         raise NotImplementedError

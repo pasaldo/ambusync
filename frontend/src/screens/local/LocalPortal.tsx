@@ -8,6 +8,7 @@ import { AdminAccountsPanel } from "@/screens/local/AdminAccountsPanel";
 import {
   BackendApiError,
   sendEmergencyOperation,
+  sendDestinationChangeOperation,
   isUncertainWrite,
   getCurrentUser,
   listDestinations,
@@ -28,6 +29,7 @@ import { EpisodeUpdates, MeasurementHistory } from "./EpisodeUpdates";
 import { currentMeasurements, reconcileClinicalDraft } from "./clinicalUpdates";
 import { partitionTriageQueue } from "./queuePresentation";
 import { EmergencyMilestones } from "./EmergencyMilestones";
+import { DestinationChange, ReplacementLink } from "./DestinationChange";
 
 const SYMPTOMS = [
   "Disnea",
@@ -401,7 +403,9 @@ export function LocalPortal() {
     setTransitionBusy(true);
     setOperationError("");
     try {
-      const updated = await sendEmergencyOperation(operation, () => memory.isCurrent(token));
+      const destinationChange = operation.path.endsWith("/change-destination/");
+      const pair = destinationChange ? await sendDestinationChangeOperation(operation, () => memory.isCurrent(token)) : null;
+      const updated = pair ? pair.original : await sendEmergencyOperation(operation, () => memory.isCurrent(token));
       if (!memory.isCurrent(token)) return;
       const clinicalAction = operation.path.match(/\/(update|measurements(?:\/rectify)?)\/$/);
       const clinicalDraft = memory.episodeDrafts.get(emergencyId);
@@ -410,7 +414,11 @@ export function LocalPortal() {
       const next = { ...memory.uncertainTransitions }; delete next[emergencyId];
       memory.uncertainTransitions = next;
       setUncertainTransitions(next);
-      setEmergencies((current) => current.map((item) => item.id === updated.id && item.version <= updated.version ? updated : item));
+      if (pair) {
+        memory.destinationDrafts.delete(emergencyId);
+        memory.episodeDrafts.delete(emergencyId);
+        setEmergencies((current) => preserveNewerEmergencyVersions(current, [pair.replacement, pair.original, ...current.filter((item) => item.id !== pair.original.id && item.id !== pair.replacement.id)]));
+      } else setEmergencies((current) => current.map((item) => item.id === updated.id && item.version <= updated.version ? updated : item));
       setMessage(successMessage);
     } catch (requestError) {
       if (!memory.isCurrent(token)) return;
@@ -534,6 +542,8 @@ export function LocalPortal() {
                       <div className="flex flex-wrap items-center justify-between gap-2"><strong>{item.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{emergencyStatusLabel(item.status)}</span></div>
                       <p className="mt-1 text-sm text-muted-dark">{item.reason} · {item.destination_name}</p>
                       <EmergencyMilestones emergency={item} />
+                      <ReplacementLink emergency={item} />
+                      <DestinationChange emergency={item} destinations={destinations} busy={transitionBusy} pending={Boolean(uncertainTransitions[item.id])} onConfirm={(values, version) => runTransition(item, "change-destination", "Destino cambiado; original cancelado y reemplazo vinculado confirmado.", values, version)} />
                       {(item.status === "notificada" || item.status === "en_traslado") && <div className="mt-3 flex flex-wrap gap-2">
                         {item.status === "notificada" && <button disabled={transitionBusy || Boolean(uncertainTransitions[item.id])} onClick={() => void runTransition(item, "transfer-start", "Inicio de traslado registrado.")} className="rounded-lg bg-signal px-3 py-2 text-sm font-semibold text-ink">Iniciar traslado</button>}
                         <button onClick={() => cancelFromAmbulance(item)} className="rounded-lg border border-rose-300/30 px-3 py-2 text-sm text-rose-100">Cancelar episodio</button>
@@ -761,6 +771,7 @@ function EmergencyDetail({ emergency, busy, pending, onRead, onPrepare, onRetry,
       <p className="mt-2 text-sm text-muted-dark">Edad: {emergency.patient.age_value === null ? "No informada" : `${emergency.patient.age_value} ${ageUnit}`} · Sexo: {emergency.patient.recorded_sex ?? "No informado"}</p>
       <p className="mt-2 text-sm text-muted-dark">Síntomas: {emergency.symptoms.length ? emergency.symptoms.join(", ") : "No informados"}</p>
       <EmergencyMilestones emergency={emergency} busy={busy} pending={pending} onRead={onRead} onPrepare={onPrepare} onRetry={onRetry} />
+      <ReplacementLink emergency={emergency} />
        <MeasurementHistory measurements={emergency.vital_measurements} />
       {emergency.notes && <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white/5 p-3 text-sm">{emergency.notes}</p>}
       {emergency.arrived_at && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Llegada registrada: {new Date(emergency.arrived_at).toLocaleString()}{emergency.arrival_reason ? ` · Motivo: ${emergency.arrival_reason}` : ""}</p>}

@@ -151,6 +151,7 @@ class EmergencyEventsConsumer(AsyncJsonWebsocketConsumer):
             "emergency.measurement_rectified",
             "emergency.read_confirmed",
             "emergency.preparation_recorded",
+            "emergency.destination_changed",
         }:
             return
 

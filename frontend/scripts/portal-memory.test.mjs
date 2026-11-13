@@ -25,6 +25,7 @@ test("suspending and rebinding the same scope preserves the draft but invalidate
   const previous = memory.token;
   memory.draft.reason = "Dato sintético en memoria";
   memory.episodeDrafts.set("synthetic-episode", { version: 1, notes: "Antecedente sintético en memoria" });
+  memory.destinationDrafts.set("synthetic-episode", { version: 1, destinationId: "synthetic-target", reason: "Cambio sintético" });
   memory.creation = prepareOperation("/api/v1/emergencies/", { reason: "Dato sintético en memoria" });
   const body = memory.creation.body;
   memory.suspend();
@@ -34,6 +35,7 @@ test("suspending and rebinding the same scope preserves the draft but invalidate
   assert.equal(memory.creation.body, body);
   assert.equal(memory.creationUncertain, true);
   assert.equal(memory.episodeDrafts.get("synthetic-episode").notes, "Antecedente sintético en memoria");
+  assert.equal(memory.destinationDrafts.get("synthetic-episode").reason, "Cambio sintético");
   assert.equal(memory.isCurrent(previous), false);
   assert.equal(memory.isCurrent(memory.token), true);
 });
@@ -62,12 +64,14 @@ for (const [name, next] of [
     memory.creation = prepareOperation("/api/v1/emergencies/", { reason: "Dato sintético" });
     memory.transitions.set("synthetic-episode", memory.creation);
     memory.episodeDrafts.set("synthetic-episode", { version: 1, notes: "No exponer en otro ámbito" });
+    memory.destinationDrafts.set("synthetic-episode", { version: 1, destinationId: "synthetic-target", reason: "No exponer en otro ámbito" });
     memory.suspend();
     memory.bind(next);
     assert.equal(memory.draft.reason, "");
     assert.equal(memory.creation, null);
     assert.equal(memory.transitions.size, 0);
     assert.equal(memory.episodeDrafts.size, 0);
+    assert.equal(memory.destinationDrafts.size, 0);
     assert.deepEqual(memory.uncertainTransitions, {});
     assert.equal(memory.isCurrent(token), false);
   });

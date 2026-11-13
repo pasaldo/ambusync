@@ -241,6 +241,10 @@ def emergency_representation(emergency):
         "ambulance_code": emergency.ambulance.code,
         "destination_name": emergency.destination.name,
         "status": emergency.status,
+        "replaces_id": str(emergency.replaces_id) if emergency.replaces_id else None,
+        "replaced_by_id": str(emergency.replacement.pk)
+        if hasattr(emergency, "replacement")
+        else None,
         "patient": {
             "identity_unknown": emergency.patient_identity_unknown,
             "alias": emergency.patient_alias or None,
@@ -267,6 +271,7 @@ def emergency_representation(emergency):
                 else None,
                 "is_current": not hasattr(item, "rectification"),
                 "rectification_reason": item.rectification_reason,
+                "inherited_at": item.inherited_at.isoformat() if item.inherited_at else None,
             }
             for item in emergency.vital_measurements.select_related("rectification").all()
         ],

@@ -328,6 +328,19 @@
         "responses": { "200": { "$ref": "#/components/responses/TransitionSuccess" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
       }
     },
+    "/api/v1/emergencies/{emergency_id}/change-destination/": {
+      "post": {
+        "operationId": "changeEmergencyDestination",
+        "description": "Solo ambulancia habilitada/asignada a la unidad y antes de recepción (notificada/en_traslado). Nuevo destino receptor/combined habilitado distinto; motivo obligatorio. Una transacción cancela original (versión+1) y crea reemplazo (ID nuevo/versión1) vinculado por replaces, misma unidad/operadora/paciente. Proyecta solo antecedentes del emisor: motivo, notas, síntomas, triaje/procedencia. Hereda hojas de mediciones no rectificadas con autor/fechas originales e inherited_at de incorporación, no nuevas capturas. No copia hitos del receptor ni posiciones. Conserva estado de traslado y declaración original, sin inventar salida. Replay exacto devuelve par actual aun tras llegada/cambio sucesivo/deshabilitación de destino, sujeto al ámbito vigente de unidad; UUID/cuerpo/acción distintos o versión/estado obsoletos409. Fallo revierte todo. Avisos postcommit: destination_changed del original solo a viejo receptor/unidad, created del reemplazo solo a nuevo receptor/unidad. Vínculo no concede acceso cruzado.",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DestinationChange" } } } },
+        "responses": {
+          "200": { "description": "Cancelación y reemplazo confirmados juntos, o replay del mismo cambio sin duplicados. Cada representación refleja su estado actual.", "headers": { "Idempotent-Replay": { "schema": { "type": "string", "const": "true" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DestinationChangeResult" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
     "/api/v1/emergencies/{emergency_id}/read/": {
       "post": {
         "operationId": "confirmEmergencyReading",
@@ -545,6 +558,8 @@
         }
       },
       "EmergencyOperation": { "type": "object", "required": ["operation_id", "expected_version"], "additionalProperties": false, "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 } } },
+      "DestinationChange": { "type": "object", "required": ["operation_id", "expected_version", "destination_id", "reason"], "additionalProperties": false, "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "destination_id": { "type": "string", "format": "uuid" }, "reason": { "type": "string", "minLength": 3, "maxLength": 2000 } } },
+      "DestinationChangeResult": { "type": "object", "required": ["original", "replacement"], "additionalProperties": false, "properties": { "original": { "$ref": "#/components/schemas/Emergency" }, "replacement": { "$ref": "#/components/schemas/Emergency" } } },
       "EmergencyUpdate": { "type": "object", "required": ["operation_id", "expected_version"], "additionalProperties": false, "anyOf": [{ "required": ["reason"] }, { "required": ["symptoms"] }, { "required": ["notes"] }, { "required": ["triage"] }], "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "reason": { "type": "string", "minLength": 3, "maxLength": 2000 }, "notes": { "type": "string", "maxLength": 2000 }, "symptoms": { "type": "array", "maxItems": 20, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 120 } }, "triage": { "type": ["string", "null"], "enum": ["C1", "C2", "C3", "C4", "C5", "", null] } } },
       "EmergencyMeasurements": { "type": "object", "required": ["operation_id", "expected_version", "vitals"], "additionalProperties": false, "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "vitals": { "allOf": [{ "$ref": "#/components/schemas/EmergencyCreate/properties/vitals" }, { "required": ["taken_at"], "minProperties": 2 }], "description": "Al menos una medición no nula. Fecha con zona explícita; enteros y límites D-007. Capacidad de almacenamiento: hasta seis dígitos enteros; no es un rango clínico." } } },
       "EmergencyRectification": {
@@ -561,7 +576,7 @@
       },
       "EmergencyCancellation": { "type": "object", "required": ["operation_id", "expected_version", "reason"], "additionalProperties": false, "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "reason": { "type": "string", "minLength": 3, "maxLength": 2000 } } },
       "Emergency": {
-        "allOf": [{ "required": ["read_at", "read_by_id", "prepared_at", "prepared_by_id"] }],
+        "allOf": [{ "required": ["read_at", "read_by_id", "prepared_at", "prepared_by_id", "replaces_id", "replaced_by_id"] }],
         "type": "object",
         "required": ["id", "operating_institution_id", "destination_id", "destination_name", "ambulance_id", "ambulance_code", "status", "patient", "reason", "symptoms", "notes", "vital_measurements", "triage", "created_at", "transfer_declared_at", "transfer_declared_by_id", "arrived_at", "arrived_by_id", "arrival_reason", "cancelled_at", "cancelled_by_id", "cancellation_reason", "closed_at", "closed_by_id", "version"],
         "properties": {
@@ -575,7 +590,9 @@
           "patient": { "type": "object", "required": ["identity_unknown", "alias", "age_value", "age_unit", "recorded_sex"], "properties": { "identity_unknown": { "type": "boolean" }, "alias": { "type": ["string", "null"] }, "age_value": { "type": ["integer", "null"] }, "age_unit": { "type": ["string", "null"] }, "recorded_sex": { "type": ["string", "null"] } } },
           "reason": { "type": "string" },
           "symptoms": { "type": "array", "items": { "type": "string" } },
-          "vital_measurements": { "type": "array", "items": { "type": "object", "required": ["id", "kind", "value", "unit", "measured_at", "recorded_at", "recorded_by_id", "operation_id", "rectifies_id", "rectified_by_id", "is_current", "rectification_reason"], "properties": { "id": { "type": "string" }, "kind": { "type": "string", "enum": ["heart_rate", "systolic_pressure", "diastolic_pressure", "spo2", "respiratory_rate", "temperature", "glasgow"] }, "value": { "type": "number" }, "unit": { "type": "string" }, "measured_at": { "type": "string", "format": "date-time" }, "recorded_at": { "type": "string", "format": "date-time" }, "recorded_by_id": { "type": "string" }, "operation_id": { "type": ["string", "null"], "format": "uuid" }, "rectifies_id": { "type": ["string", "null"] }, "rectified_by_id": { "type": ["string", "null"] }, "is_current": { "type": "boolean", "description": "No tiene reemplazo en su cadena; no implica que sea la última muestra temporal." }, "rectification_reason": { "type": "string" } } } },
+          "vital_measurements": { "type": "array", "items": { "type": "object", "required": ["id", "kind", "value", "unit", "measured_at", "recorded_at", "recorded_by_id", "operation_id", "rectifies_id", "rectified_by_id", "is_current", "rectification_reason", "inherited_at"], "properties": { "id": { "type": "string" }, "kind": { "type": "string", "enum": ["heart_rate", "systolic_pressure", "diastolic_pressure", "spo2", "respiratory_rate", "temperature", "glasgow"] }, "value": { "type": "number" }, "unit": { "type": "string" }, "measured_at": { "type": "string", "format": "date-time" }, "recorded_at": { "type": "string", "format": "date-time" }, "recorded_by_id": { "type": "string" }, "operation_id": { "type": ["string", "null"], "format": "uuid" }, "rectifies_id": { "type": ["string", "null"] }, "rectified_by_id": { "type": ["string", "null"] }, "is_current": { "type": "boolean", "description": "No tiene reemplazo en su cadena; no implica que sea la última muestra temporal." }, "rectification_reason": { "type": "string" }, "inherited_at": { "type": ["string", "null"], "format": "date-time", "description": "Incorporación al reemplazo, no nueva captura. Medida/registro/autor originales conservados, UUID original no atribuido a la copia. Sin FK a medición de otro episodio." } } } },
+          "replaces_id": { "type": ["string", "null"], "format": "uuid", "description": "Original inmediato. Solo ID informativo; no otorga acceso ni incluye datos del otro receptor." },
+          "replaced_by_id": { "type": ["string", "null"], "format": "uuid", "description": "Reemplazo inmediato. No se expande automáticamente ni concede acceso." },
           "notes": { "type": "string" },
           "triage": { "type": ["string", "null"] },
           "triage_recorded_at": { "type": ["string", "null"], "format": "date-time", "description": "Fecha servidor; null para legado sin inventar metadatos." },

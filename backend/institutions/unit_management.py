@@ -36,7 +36,9 @@ class AssignmentSerializer(serializers.Serializer):
 def lock_management_users(actor_id, target_id=None):
     users = {
         user.pk: user
-        for user in User.objects.select_for_update()
+        # Exclude concurrent account updates, but allow FK references preserving
+        # authorship while another operation holds a unit lock.
+        for user in User.objects.select_for_update(no_key=True)
         .filter(pk__in={actor_id, target_id} - {None})
         .order_by("pk")
     }

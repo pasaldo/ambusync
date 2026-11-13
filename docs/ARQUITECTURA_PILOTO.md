@@ -1,5 +1,11 @@
 # Arquitectura y contratos mínimos del piloto
 
+## Actualización de contrato F — 13/11/2026
+
+El responsable aprobó la proyección del cambio de destino D-006/D-014: cancelar original y crear reemplazo atómicos, conservando paciente y antecedentes del emisor; mediciones vigentes heredadas con autores/fechas originales, sin copiar hitos del receptor ni posiciones. El traslado conserva su estado/declaración original, no inventa otra salida. Contrato exacto en `backend/openapi.json` (`change-destination/`), plan [bloque F](superpowers/plans/2026-11-13-block-f-destination-change.md), arranque/aceptación [PRUEBAS_F.md](PRUEBAS_F.md). Implementación local en verificación, no aceptación manual ni despliegue; sustituye las menciones históricas de contratoF pendiente, no las de GPSJ/otras funciones futuras.
+
+Cada reemplazo tiene `replaces` one-to-one protegido; representación solo IDs recíprocos, sin expansión/autorización heredada. Se copian hojas no rectificadas de cada cadena, incluidas muestras independientes, a filas locales nuevas sin FK a medición ajena; `inherited_at` marca incorporación, conserva measured_at/recorded_at/recorded_by originales, no recaptura. Leer/preparar empieza vacío para nuevo receptor. Episodio anterior/historial quedan intactos salvo cancelación auditada. RetenciónC global elimina cadenas solo al vencer aplicación, desliga vínculos dentro de purga transaccional; no existe eliminación ordinaria habilitada por F.
+
 Fecha base: 29/10/2026. Actualización: 11/11/2026 (integración WebSocket local en `main`; sin despliegue). Tarea: AS-006/AS-011. Decisiones: D-009/D-015.
 
 **Diseño aprobado por el responsable del proyecto. Implementación parcial:** el primer slice backend local se registra en [ETAPA_1.md](ETAPA_1.md); el resto de la arquitectura no está implementado. No introduce uso clínico real ni sustituye validación profesional. Proveedores, versiones y pendientes operativos se especifican antes de habilitar las funciones correspondientes.

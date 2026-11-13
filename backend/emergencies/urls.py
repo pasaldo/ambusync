@@ -1,5 +1,6 @@
 from django.urls import path
 
+from emergencies.destination_change import EmergencyDestinationChangeView
 from emergencies.milestones import EmergencyPreparationView, EmergencyReadView
 from emergencies.updates import (
     EmergencyMeasurementsView,
@@ -16,6 +17,11 @@ from emergencies.views import (
 )
 
 urlpatterns = [
+    path(
+        "<uuid:emergency_id>/change-destination/",
+        EmergencyDestinationChangeView.as_view(),
+        name="emergency-change-destination",
+    ),
     path("<uuid:emergency_id>/read/", EmergencyReadView.as_view(), name="emergency-read"),
     path(
         "<uuid:emergency_id>/prepare/", EmergencyPreparationView.as_view(), name="emergency-prepare"

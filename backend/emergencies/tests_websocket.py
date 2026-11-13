@@ -75,6 +75,51 @@ class EmergencyWebSocketTests(EmergencyFixtureMixin, TransactionTestCase):
 
         asyncio.run(exercise())
 
+    def test_destination_change_publishes_only_own_episode_to_each_receiver_after_commit(self):
+        self.authenticate_with_csrf(self.operator)
+        created = self.client.post("/api/v1/emergencies/", self.payload(), format="json")
+        self.assertEqual(created.status_code, 201)
+        original_id = created.json()["id"]
+        self.assert_two_audience_events("emergency.created", original_id, 1)
+
+        async def subscribe_new_receiver():
+            channel = await self.layer.new_channel("test.newreceiver")
+            await self.layer.group_add(institution_group_name(self.other_receiver.pk), channel)
+            return channel
+
+        new_channel = asyncio.run(subscribe_new_receiver())
+        body = {
+            "operation_id": str(uuid.uuid4()),
+            "expected_version": 1,
+            "destination_id": str(self.other_receiver.pk),
+            "reason": "Cambio sintético WS",
+        }
+        response = self.client.post(
+            f"/api/v1/emergencies/{original_id}/change-destination/", body, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        replacement_id = response.json()["replacement"]["id"]
+        old_notice = self.receive(self.receiver_channel)
+        new_notice = self.receive(new_channel)
+        self.assertEqual(old_notice["emergency_id"], original_id)
+        self.assertEqual(old_notice["event_type"], "emergency.destination_changed")
+        self.assertEqual(new_notice["emergency_id"], replacement_id)
+        self.assertEqual(new_notice["event_type"], "emergency.created")
+        for notice in (old_notice, new_notice):
+            self.assertEqual(
+                set(notice),
+                {"type", "event_id", "event_type", "emergency_id", "version", "audience_group"},
+            )
+        self.assertEqual(
+            self.client.post(
+                f"/api/v1/emergencies/{original_id}/change-destination/", body, format="json"
+            ).status_code,
+            200,
+        )
+        for channel in (self.receiver_channel, new_channel):
+            with self.assertRaises(asyncio.TimeoutError):
+                self.receive(channel)
+
     def test_episode_update_events_reach_socket_as_minimal_envelopes(self):
         communicator = self.communicator_for(self.receiver_user)
 
@@ -89,6 +134,7 @@ class EmergencyWebSocketTests(EmergencyFixtureMixin, TransactionTestCase):
                     "emergency.measurement_rectified",
                     "emergency.read_confirmed",
                     "emergency.preparation_recorded",
+                    "emergency.destination_changed",
                 ):
                     await self.layer.group_send(
                         group,

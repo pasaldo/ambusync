@@ -115,10 +115,16 @@ class Emergency(models.Model):
         related_name="closed_emergencies",
     )
     version = models.PositiveIntegerField(default=1)
+    replaces = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="replacement"
+    )
 
     class Meta:
         ordering = ("-created_at", "id")
         constraints = [
+            models.CheckConstraint(
+                condition=~Q(pk=models.F("replaces_id")), name="emergency_no_self_replacement"
+            ),
             models.CheckConstraint(
                 condition=Q(read_at__isnull=True, read_by__isnull=True)
                 | Q(read_at__isnull=False, read_by__isnull=False),
@@ -202,6 +208,7 @@ class VitalMeasurement(models.Model):
         "self", on_delete=models.PROTECT, null=True, blank=True, related_name="rectification"
     )
     rectification_reason = models.CharField(max_length=2000, blank=True)
+    inherited_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("measured_at", "kind", "id")

@@ -339,8 +339,13 @@ class UnitManagementTests(TestCase):
                 format="json",
             )
         self.assertEqual(response.status_code, 200)
-        locks = [item["sql"] for item in queries if "FOR UPDATE" in item["sql"]]
+        locks = [
+            item["sql"]
+            for item in queries
+            if "FOR UPDATE" in item["sql"] or "FOR NO KEY UPDATE" in item["sql"]
+        ]
         self.assertIn('FROM "accounts_user"', locks[0])
+        self.assertIn("FOR NO KEY UPDATE", locks[0])
         membership_lock = next(
             sql for sql in locks if 'FROM "institutions_institutionmembership"' in sql
         )
