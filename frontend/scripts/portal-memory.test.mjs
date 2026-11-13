@@ -24,6 +24,7 @@ test("suspending and rebinding the same scope preserves the draft but invalidate
   memory.bind(user);
   const previous = memory.token;
   memory.draft.reason = "Dato sintético en memoria";
+  memory.patientContextDrafts.set("synthetic-episode", { version: 1, alias: "Corrección en memoria" });
   memory.episodeDrafts.set("synthetic-episode", { version: 1, notes: "Antecedente sintético en memoria" });
   memory.destinationDrafts.set("synthetic-episode", { version: 1, destinationId: "synthetic-target", reason: "Cambio sintético" });
   memory.resourceDrafts.set("patient:synthetic", { version: 1, fields: { alias: "Paciente en memoria" } });
@@ -34,6 +35,7 @@ test("suspending and rebinding the same scope preserves the draft but invalidate
   assert.equal(memory.isCurrent(previous), false);
   assert.equal(memory.bind(user), false);
   assert.equal(memory.draft.reason, "Dato sintético en memoria");
+  assert.equal(memory.patientContextDrafts.get("synthetic-episode").alias, "Corrección en memoria");
   assert.equal(memory.creation.body, body);
   assert.equal(memory.creationUncertain, true);
   assert.equal(memory.episodeDrafts.get("synthetic-episode").notes, "Antecedente sintético en memoria");
@@ -65,6 +67,7 @@ for (const [name, next] of [
     memory.bind(user);
     const token = memory.token;
     memory.draft.reason = "Borrador del ámbito anterior";
+    memory.patientContextDrafts.set("synthetic-episode", { version: 1, alias: "No exponer" });
     memory.creation = prepareOperation("/api/v1/emergencies/", { reason: "Dato sintético" });
     memory.transitions.set("synthetic-episode", memory.creation);
     memory.episodeDrafts.set("synthetic-episode", { version: 1, notes: "No exponer en otro ámbito" });
@@ -78,6 +81,7 @@ for (const [name, next] of [
     assert.equal(memory.transitions.size, 0);
     assert.equal(memory.episodeDrafts.size, 0);
     assert.equal(memory.destinationDrafts.size, 0);
+    assert.equal(memory.patientContextDrafts.size, 0);
     assert.equal(memory.resourceDrafts.size, 0);
     assert.equal(memory.resourceAttempts.size, 0);
     assert.deepEqual(memory.uncertainTransitions, {});

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isDestinationChangeResult } from "../src/lib/destinationChangeResult.ts";
+import { hasPatientContextOperation } from "../src/lib/patientContextProof.ts";
 
 const sent = { expected_version: 3, destination_id: "hospital-b", reason: "Cambio sintético" };
 function pair() {
@@ -35,4 +36,35 @@ test("pair proof rejects a different patient even when links, unit and destinati
     value.replacement.patient = { ...value.original.patient, ...patch };
     assert.equal(isDestinationChangeResult(value, "old-f", sent), false);
   }
+});
+
+test("pair replay accepts only coherent replacement-local identification corrections", () => {
+  const value = pair();
+  const previous = structuredClone(value.original.patient);
+  value.replacement.patient = { ...previous, identity_unknown: false, alias: "Identificación sintética corregida" };
+  value.replacement.version = 3;
+  value.replacement.patient_context_corrections = [{ id: "1", previous_patient: previous, corrected_patient: value.replacement.patient, reason: "Error de identificación", recorded_by_id: "actor-g", recorded_at: "2026-11-13T12:00:00Z", operation_id: "10000000-0000-4000-8000-000000000001", episode_version: 2 }];
+  assert.equal(isDestinationChangeResult(value, "old-f", sent), true);
+  for (const mutate of [
+    (v) => { v.replacement.patient_context_corrections[0].previous_patient.alias = "Ajeno"; },
+    (v) => { v.replacement.patient_context_corrections[0].corrected_patient = { ...v.replacement.patient, alias: "Ajeno" }; },
+    (v) => { v.replacement.patient_context_corrections[0].episode_version = 9; },
+    (v) => { v.replacement.patient_context_corrections[0].recorded_by_id = null; },
+    (v) => { v.replacement.patient_context_corrections[0].recorded_at = "bad"; },
+    (v) => { v.replacement.patient_context_corrections[0].operation_id = ""; },
+  ]) { const copy = structuredClone(value); mutate(copy); assert.equal(isDestinationChangeResult(copy, "old-f", sent), false); }
+});
+
+test("episode correction proof binds UUID, acknowledged version, requested fields and current lineage", () => {
+  const episode = pair().replacement;
+  const previous = episode.patient;
+  const sent = { operation_id: "10000000-0000-4000-8000-000000000001", expected_version: 1, patient_identity_unknown: false, patient_alias: "Caso sintético", age_value: 0, age_unit: "days", reason: "Corregir identificación" };
+  episode.patient = { ...previous, identity_unknown: false, alias: "Caso sintético", age_value: 0, age_unit: "days" };
+  episode.version = 2;
+  episode.patient_context_corrections = [{ id: "1", previous_patient: previous, corrected_patient: structuredClone(episode.patient), reason: sent.reason, recorded_by_id: "actor", recorded_at: "2026-11-13T12:00:00Z", operation_id: sent.operation_id, episode_version: 2 }];
+  assert.equal(hasPatientContextOperation(episode, sent), true);
+  assert.equal(hasPatientContextOperation(episode, { ...sent, reason: `  ${sent.reason}  ` }), true);
+  for (const extra of [{ operation_id: "10000000-0000-4000-8000-000000000002" }, { age_value: 1 }, { reason: "Otro motivo" }, { expected_version: 2 }]) assert.equal(hasPatientContextOperation(episode, { ...sent, ...extra }), false);
+  const copy = structuredClone(episode); copy.patient.alias = "Otro";
+  assert.equal(hasPatientContextOperation(copy, sent), false);
 });

@@ -15,6 +15,7 @@ export class PortalMemory {
   transitions = new Map<string, PendingOperation>();
   uncertainTransitions: Record<string, PendingOperation> = {};
   episodeDrafts = new Map<string, ClinicalDraft>();
+  patientContextDrafts = new Map<string, { version: number; unknown: boolean; alias: string; age: string; unit: string; sex: string; reason: string }>();
   destinationDrafts = new Map<string, { version: number; destinationId: string; reason: string }>();
   resourceAttempts = new Map<string, { attempt: ResourceAttempt; uncertain: boolean }>();
   resourceDrafts = new Map<string, { version: number; fields: Record<string, string | boolean> }>();
@@ -56,6 +57,7 @@ export class PortalMemory {
     this.transitions = new Map();
     this.uncertainTransitions = {};
     this.episodeDrafts = new Map();
+    this.patientContextDrafts = new Map();
     this.destinationDrafts = new Map();
     this.resourceAttempts = new Map();
     this.resourceDrafts = new Map();

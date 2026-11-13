@@ -72,6 +72,14 @@ const validEvent = {
   version: 1,
 };
 
+test("identification correction envelope requests API reconciliation without clinical data", () => {
+  const socket = new FakeSocket(), events = [];
+  const connection = connectEmergencyEvents({ onEvent: (event) => events.push(event), onStatus: () => {}, createSocket: () => socket, timers: fakeTimers() });
+  socket.open(); socket.send({ ...validEvent, type: "emergency.patient_context_corrected", patient: "must not be forwarded" });
+  assert.deepEqual(events, [{ ...validEvent, type: "emergency.patient_context_corrected" }]);
+  connection();
+});
+
 test("delivers only valid, unseen event envelopes", () => {
   const socket = new FakeSocket();
   const urls = [];

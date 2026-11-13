@@ -1,5 +1,6 @@
 import type { BackendEmergency } from "./backend";
 import { hasMilestoneProof } from "./milestoneProof.ts";
+import { hasPatientContextLineage } from "./patientContextProof.ts";
 
 export interface DestinationChangeResult { original: BackendEmergency; replacement: BackendEmergency }
 
@@ -25,7 +26,7 @@ export function isDestinationChangeResult(value: unknown, originalId: string, se
     && hasMilestoneProof(original.cancelled_at, original.cancelled_by_id)
     && original.cancellation_reason === sent.reason
     && original.replaced_by_id === replacement.id && replacement.replaces_id === original.id
-    && (["identity_unknown", "alias", "age_value", "age_unit", "recorded_sex"] as const).every((field) => original.patient[field] === replacement.patient[field])
+    && hasPatientContextLineage(replacement, original.patient)
     && replacement.destination_id === sent.destination_id && original.destination_id !== sent.destination_id
     && typeof original.ambulance_id === "string" && Boolean(original.ambulance_id) && original.ambulance_id === replacement.ambulance_id
     && typeof original.operating_institution_id === "string" && Boolean(original.operating_institution_id) && original.operating_institution_id === replacement.operating_institution_id;

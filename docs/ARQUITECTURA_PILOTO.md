@@ -1,5 +1,7 @@
 # Arquitectura y contratos mínimos del piloto
 
+**Revisión posterior G aprobada funcionalmente:** selector de pacientes con búsqueda local alias/ID, solo unidad. `patient-context/` corrige identificación de un episodio antes de llegada con motivo/UUID/versión, historial `PatientContextCorrection` previous/corrected/autor/fecha/versión y auditoría atómicos. No toca maestro/otros episodios; el receptor ve solo historia de su episodio. F copia contexto actual sin historia previa y su proof admite correcciones locales coherentes del reemplazo. C purga filas con episodio, auditoría independiente; WS mínimo solicita refrescoAPI. Migración0010 solo runner durante implementación. Backend228 y frontend38unit+15G más regresiones PASS; aceptación manual pendiente en [PRUEBAS_CORRECCIONES_G.md](PRUEBAS_CORRECCIONES_G.md), sin despliegue/H/J.
+
 ## Actualización G — 13/11/2026, verificación local
 
 FuncionamientoG aprobado por el responsable; búsqueda/reutilización solo de la unidad asignada. Maestro `Patient` de operadora y snapshot en `Emergency`; corregir maestro no modifica identificación/hitos/autores de episodios anteriores. F conserva FK y snapshot del episodio (no lee maestro actualizado). Una raízF legada se vincula a un maestro independiente con sus descendientes, sin matching por alias/edad/sexo ni autoría histórica fabricada. Urgencias no consulta maestro/historial completo; baja explícita autorizada por episodio solo devuelve ID/estado/versión y exige permiso extra/ausencia de no terminales.

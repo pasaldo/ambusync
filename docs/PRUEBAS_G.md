@@ -1,5 +1,7 @@
 # Bloque G — pacientes sintéticos, contexto por episodio y catálogo
 
+**Revisión posterior solicitada por el responsable:** selector con búsqueda por alias/ID y acción explícita de corrección de identificación por episodio antes de llegada. El maestro sigue sin propagar cambios. Arranque con migración0010 y aceptación específica en [PRUEBAS_CORRECCIONES_G.md](PRUEBAS_CORRECCIONES_G.md); la evidencia217 original de esta guía corresponde a G previo, no a esta revisión.
+
 **Implementación local verificada; aceptación manual pendiente.** El responsable aprobó funcionamientoG y búsqueda/reutilización **solo de la unidad asignada**, no directorio de toda la operadora. F aprobado con observación visual corregida en `f7cd573`; revalidación manual del rótuloF sigue pendiente. Solo datos sintéticos; no atención clínica ni identificadores reales. Sin publicación/despliegue ni inicio de H/J.
 
 ## 1. Arranque y migraciones de esta copia

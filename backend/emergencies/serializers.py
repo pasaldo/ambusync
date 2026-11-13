@@ -327,4 +327,17 @@ def emergency_representation(emergency):
         "closed_at": emergency.closed_at.isoformat() if emergency.closed_at else None,
         "closed_by_id": str(emergency.closed_by_id) if emergency.closed_by_id else None,
         "version": emergency.version,
+        "patient_context_corrections": [
+            {
+                "id": str(item.pk),
+                "previous_patient": item.previous_patient,
+                "corrected_patient": item.corrected_patient,
+                "reason": item.reason,
+                "recorded_by_id": str(item.recorded_by_id),
+                "recorded_at": item.recorded_at.isoformat(),
+                "operation_id": str(item.operation_id),
+                "episode_version": item.episode_version,
+            }
+            for item in emergency.patient_context_corrections.all()
+        ],
     }

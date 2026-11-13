@@ -207,6 +207,9 @@ class Command(BaseCommand):
         return VitalMeasurement.objects.filter(id__in=ids).delete()[0]
 
     def _delete_emergencies(self, ids):
+        from emergencies.models import PatientContextCorrection
+
+        PatientContextCorrection.objects.filter(emergency_id__in=ids).delete()
         # Global application expiry purges the entire replacement chain together.
         Emergency.objects.filter(id__in=ids).update(replaces=None)
         ProcessedOperation.objects.filter(emergency_id__in=ids).delete()

@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { BackendUser } from "@/lib/backend";
 import type { PatientRecord } from "@/lib/resourceOperation";
 import type { PatientCatalogState } from "./usePatientCatalog";
-import { patientDisplayLabel } from "./queuePresentation";
+import { UnitPatientPicker } from "./UnitPatientPicker";
 
 const field = "mt-1 block min-h-10 w-full rounded-lg border border-white/15 bg-ink px-3 py-2";
 const button = "rounded-lg border border-signal/40 px-3 py-2 text-sm text-signal-soft disabled:opacity-50";
@@ -22,7 +22,7 @@ export function PatientCatalogPanel({ user, state }: { user: BackendUser; state:
     {open && <div className="space-y-5 rounded-xl border border-white/10 p-4">
       <p className="text-sm text-muted-dark">Pacientes solo de la unidad asignada. Corregir el registro no cambia la identificación conservada en episodios anteriores ni abre sus historiales.</p>
       <button type="button" disabled={state.busy} onClick={() => void state.refresh()} className={button}>Actualizar pacientes y catálogo</button>
-      {canPatients && <div className="space-y-3"><h3 className="font-semibold">Registros de pacientes de la unidad</h3>{state.patients.length === 0 && <p className="text-sm text-muted-dark">No hay pacientes activos registrados para esta unidad.</p>}{state.patients.map((row) => <button key={row.id} type="button" onClick={() => setSelected(row.id)} className={`${button} mr-2`}>Editar registro de {patientDisplayLabel(row.patient)}</button>)}{patient && <PatientEditor patient={patient} state={state} />}</div>}
+      {canPatients && <div className="space-y-3"><h3 className="font-semibold">Registros de pacientes de la unidad</h3>{state.patients.length === 0 && <p className="text-sm text-muted-dark">No hay pacientes activos registrados para esta unidad.</p>}<UnitPatientPicker patients={state.patients} value={selected ?? ""} onChange={setSelected} label="Registro del paciente" searchLabel="Buscar registro por alias o ID" emptyLabel="Selecciona un registro" ready={state.ready} />{patient && <PatientEditor patient={patient} state={state} />}</div>}
       {canCatalog && <div className="space-y-3"><h3 className="font-semibold">Catálogo institucional de síntomas</h3><p className="text-xs text-muted-dark">Permiso adicional explícito; no modifica descripciones ya guardadas en episodios.</p>
         <form onSubmit={(event) => { event.preventDefault(); void state.run("symptom-new", "symptom-create", "", "/api/v1/institutions/symptoms/", 1, { description: String(catalogDraft).trim() }, "Síntoma registrado en el catálogo institucional.", user.institutions[0]?.id); }}>
           <fieldset disabled={state.busy || state.memory.resourceAttempts.has("symptom-new")} className="space-y-2 disabled:opacity-50"><label className="block text-sm">Descripción del síntoma<input required maxLength={120} value={String(catalogDraft)} onChange={(event) => { state.memory.resourceDrafts.set("symptom-new", { version: 1, fields: { description: event.target.value } }); state.rerender(); }} className={field} /></label><button className={button}>Agregar al catálogo</button></fieldset>

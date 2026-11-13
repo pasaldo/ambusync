@@ -1,5 +1,6 @@
 import { prepareOperation, type PendingOperation } from "./pendingOperation";
 import { hasMilestoneProof } from "./milestoneProof";
+import { hasPatientContextOperation, type PatientContextCorrection } from "./patientContextProof";
 import { isDestinationChangeResult, type DestinationChangeResult } from "./destinationChangeResult";
 import { isResourceResult, type ResourceAttempt, type ResourceResult, type PatientRecord, type CatalogSymptom } from "./resourceOperation";
 
@@ -72,6 +73,7 @@ export interface VitalMeasurement {
 }
 
 export interface BackendEmergency {
+  patient_context_corrections?: PatientContextCorrection[];
   id: string;
   patient_id?: string | null;
   patient_record_version?: number | null;
@@ -408,7 +410,7 @@ export async function sendEmergencyOperation(operation: PendingOperation, isCurr
     || !Array.isArray(result.symptoms) || !Array.isArray(result.vital_measurements)) {
     throw new Error("No se pudo confirmar la respuesta de la operación.");
   }
-  const transition = operation.path.match(/^\/api\/v1\/emergencies\/([^/]+)\/(arrival|transfer-start|cancel|close|update|measurements(?:\/rectify)?|read|prepare)\/$/);
+  const transition = operation.path.match(/^\/api\/v1\/emergencies\/([^/]+)\/(arrival|transfer-start|cancel|close|update|measurements(?:\/rectify)?|read|prepare|patient-context)\/$/);
   if (transition) {
     const sent = JSON.parse(operation.body) as { expected_version: number };
     const milestone = transition[2] === "read" || transition[2] === "prepare";
@@ -420,11 +422,12 @@ export async function sendEmergencyOperation(operation: PendingOperation, isCurr
       || (transition[2] === "arrival" && !["llegado", "cerrada"].includes(result.status))) {
       throw new Error("La respuesta no confirma la operación de este episodio.");
     }
+    if (transition[2] === "patient-context" && !hasPatientContextOperation(result, JSON.parse(operation.body))) throw new Error("La respuesta no acredita la corrección de identificación enviada.");
   }
   return result;
 }
 
-export type EmergencyAction = "arrival" | "transfer-start" | "cancel" | "close" | "update" | "measurements" | "measurements/rectify" | "read" | "prepare" | "change-destination";
+export type EmergencyAction = "arrival" | "transfer-start" | "cancel" | "close" | "update" | "measurements" | "measurements/rectify" | "read" | "prepare" | "change-destination" | "patient-context";
 
 export function prepareEmergencyTransition(
   emergency: BackendEmergency,

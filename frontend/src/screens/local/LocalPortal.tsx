@@ -32,6 +32,8 @@ import { EmergencyMilestones } from "./EmergencyMilestones";
 import { DestinationChange, ReplacementLink } from "./DestinationChange";
 import { usePatientCatalog } from "./usePatientCatalog";
 import { PatientCatalogPanel } from "./PatientCatalogPanel";
+import { UnitPatientPicker } from "./UnitPatientPicker";
+import { PatientContextEditor, PatientContextHistory, identityDescription } from "./PatientContext";
 
 function archiveEventDate(emergency: BackendEmergency): string {
   if (emergency.status === "cancelada") return emergency.cancelled_at ?? emergency.created_at;
@@ -408,6 +410,7 @@ export function LocalPortal() {
       const clinicalAction = operation.path.match(/\/(update|measurements(?:\/rectify)?)\/$/);
       const clinicalDraft = memory.episodeDrafts.get(emergencyId);
       if (clinicalAction && clinicalDraft) memory.episodeDrafts.set(emergencyId, reconcileClinicalDraft(clinicalDraft, updated, clinicalAction[1], JSON.parse(operation.body).expected_version));
+      if (operation.path.endsWith("/patient-context/")) memory.patientContextDrafts.delete(emergencyId);
       memory.transitions.delete(emergencyId);
       const next = { ...memory.uncertainTransitions }; delete next[emergencyId];
       memory.uncertainTransitions = next;
@@ -415,6 +418,7 @@ export function LocalPortal() {
       if (pair) {
         memory.destinationDrafts.delete(emergencyId);
         memory.episodeDrafts.delete(emergencyId);
+        memory.patientContextDrafts.delete(emergencyId);
         setEmergencies((current) => preserveNewerEmergencyVersions(current, [pair.replacement, pair.original, ...current.filter((item) => item.id !== pair.original.id && item.id !== pair.replacement.id)]));
       } else setEmergencies((current) => current.map((item) => item.id === updated.id && item.version <= updated.version ? updated : item));
       setMessage(successMessage);
@@ -533,7 +537,7 @@ export function LocalPortal() {
                 <button disabled={transitionBusy} onClick={() => void executeTransition(id, operation, "Operación confirmada en el servidor.")} className="mt-2 rounded-lg border border-amber-300/30 px-3 py-2 disabled:opacity-50">Reintentar operación</button>
               </div>)}
 
-              <PatientCatalogPanel user={user} state={resources} />
+              <PatientCatalogPanel key={memory.token} user={user} state={resources} />
 
               {!role ? (
                 <p className="mt-6 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">La cuenta inició sesión, pero no tiene un rol operativo disponible en este entorno.</p>
@@ -547,6 +551,7 @@ export function LocalPortal() {
                     {emergencies.length === 0 ? <p className="mt-4 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios para esta unidad.</p> : <div className="mt-3 space-y-2">{emergencies.map((item) => <div key={item.id} className="rounded-xl border border-white/10 bg-ink/60 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2"><strong>{patientDisplayLabel(item.patient)}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{item.status === "cancelada" && item.replaced_by_id ? cancellationLabel(item) : emergencyStatusLabel(item.status)}</span></div>
                       <p className="mt-1 text-sm text-muted-dark">{item.reason} · {item.destination_name}</p>
+                      <p className="mt-1 text-sm text-muted-dark">{identityDescription(item.patient)}</p>
                       <EmergencyMilestones emergency={item} />
                       <ReplacementLink emergency={item} />
                       <DestinationChange emergency={item} destinations={destinations} busy={transitionBusy} pending={Boolean(uncertainTransitions[item.id])} onConfirm={(values, version) => runTransition(item, "change-destination", "Destino cambiado; original cancelado y reemplazo vinculado confirmado.", values, version)} />
@@ -555,6 +560,7 @@ export function LocalPortal() {
                         <button onClick={() => cancelFromAmbulance(item)} className="rounded-lg border border-rose-300/30 px-3 py-2 text-sm text-rose-100">Cancelar episodio</button>
                       </div>}
                       <EpisodeUpdates emergency={item} busy={transitionBusy} pending={Boolean(uncertainTransitions[item.id])} symptoms={SYMPTOMS} onSave={(action, values, version) => runTransition(item, action, action === "update" ? "Antecedentes actualizados." : action === "measurements" ? "Medición agregada." : "Rectificación registrada; original conservado.", values, version)} />
+                      <PatientContextEditor key={`${memory.token}:${item.id}`} emergency={item} busy={transitionBusy} pending={Boolean(uncertainTransitions[item.id])} onSave={(values, version) => runTransition(item, "patient-context", "Identificación del episodio corregida; original conservado.", values, version)} />
                     </div>)}</div>}
                   </> : <>
                   <h2 className="text-lg font-bold">Nueva emergencia</h2>
@@ -574,7 +580,7 @@ export function LocalPortal() {
 
                       <fieldset className="space-y-3 rounded-xl border border-white/10 p-4">
                         <legend className="px-1 text-sm font-semibold">Datos de identidad (opcionales)</legend>
-                        <label className="block text-sm">Paciente de la unidad<select aria-label="Paciente de la unidad" value={draft.patientId ?? ""} onChange={(event) => { const patient = resources.patients.find((item) => item.id === event.target.value); updateDraft({ patientId: patient?.id ?? "", patientVersion: patient?.version }); }} className="mt-1 min-h-10 w-full rounded-lg border border-white/15 bg-ink px-3"><option value="">Paciente nuevo</option>{draft.patientId && !draftPatient && <option value={draft.patientId} disabled>{resources.ready ? "Registro seleccionado no disponible" : "Registro seleccionado pendiente de consulta"}</option>}{resources.patients.map((patient) => <option key={patient.id} value={patient.id}>{patientDisplayLabel(patient.patient)} · {patient.id}</option>)}</select></label>
+                        <UnitPatientPicker key={memory.token} patients={resources.patients} value={draft.patientId ?? ""} onChange={(id) => { const patient = resources.patients.find((item) => item.id === id); updateDraft({ patientId: patient?.id ?? "", patientVersion: patient?.version }); }} label="Paciente de la unidad" searchLabel="Buscar paciente de la unidad por alias o ID" emptyLabel="Paciente nuevo" ready={resources.ready} />
                         {draft.patientId ? <><p className="rounded-lg border border-white/10 p-3 text-sm">Identificación desde el registro seleccionado: {patientDisplayLabel(draftPatient?.patient)}. Solo se conserva identificación; no se copian antecedentes ni historial. {draftPatient?.version !== draft.patientVersion && "El registro cambió o no está disponible: revisa y selecciona nuevamente antes de enviar."}</p>{draftPatient && draftPatient.version !== draft.patientVersion && <button type="button" onClick={() => updateDraft({ patientVersion: draftPatient.version })} className="rounded-lg border border-amber-300/30 px-3 py-2 text-sm text-amber-100">Actualizar selección del paciente</button>}</> : <>
                         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.identityUnknown} onChange={(event) => updateDraft({ identityUnknown: event.target.checked, alias: event.target.checked ? "" : draft.alias })} /> Identidad desconocida</label>
                         {!draft.identityUnknown && <label className="block text-sm">Alias
@@ -782,6 +788,7 @@ function EmergencyDetail({ emergency, busy, pending, onRead, onPrepare, onRetry,
       <p className="mt-2 text-sm text-muted-dark">Síntomas: {emergency.symptoms.length ? emergency.symptoms.join(", ") : "No informados"}</p>
       <EmergencyMilestones emergency={emergency} busy={busy} pending={pending} onRead={onRead} onPrepare={onPrepare} onRetry={onRetry} />
       <ReplacementLink emergency={emergency} />
+      <PatientContextHistory emergency={emergency} />
       {onDeactivatePatient && <button type="button" disabled={busy || pending} onClick={onDeactivatePatient} className="mt-3 rounded-lg border border-rose-300/30 px-3 py-2 text-sm text-rose-100 disabled:opacity-50">Desactivar paciente sintético</button>}
        <MeasurementHistory measurements={emergency.vital_measurements} />
       {emergency.notes && <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white/5 p-3 text-sm">{emergency.notes}</p>}

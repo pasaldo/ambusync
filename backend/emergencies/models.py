@@ -172,6 +172,32 @@ class Emergency(models.Model):
         ]
 
 
+class PatientContextCorrection(models.Model):
+    emergency = models.ForeignKey(
+        Emergency, on_delete=models.PROTECT, related_name="patient_context_corrections"
+    )
+    previous_patient = models.JSONField()
+    corrected_patient = models.JSONField()
+    reason = models.CharField(max_length=2000)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="patient_context_corrections",
+    )
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    operation_id = models.UUIDField()
+    episode_version = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ("episode_version", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("emergency", "episode_version"),
+                name="unique_patient_context_episode_version",
+            )
+        ]
+
+
 class ProcessedOperation(models.Model):
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="processed_operations"

@@ -24,6 +24,7 @@ EMERGENCY_EVENT_TYPES = frozenset(
         "emergency.read_confirmed",
         "emergency.preparation_recorded",
         "emergency.destination_changed",
+        "emergency.patient_context_corrected",
     }
 )
 
