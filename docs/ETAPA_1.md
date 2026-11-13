@@ -4,6 +4,8 @@ Fecha de inicio: 29/10/2026. Estado actualizado: 13/11/2026. **Desarrollo local 
 
 ## Revisión del responsable — 13/11/2026
 
+**Actualización posterior a `aeed92b`: E aprobado manualmente según reporte del responsable del 13/11.** Confirmó que después de llegada no se permite registrar lectura/preparación (E4, esperado) y que todo lo demás está probado y aprobado. Reemplaza los pendientes E siguientes, sin nuevos detalles de commit ejecutado/navegadores/dispositivos. Se repitió `test:local-websocket` con BASE_URL5174: exit0; el script es silencioso al aprobar, usa transporte sintético y no acredita una nueva prueba real entre dispositivos. Guía/registro: [PRUEBAS_E.md](PRUEBAS_E.md). F no iniciado; sin publicación ni despliegue.
+
 El responsable marcó los checklists de B/C/D y comunicó su ejecución: **B y D aprobados con observaciones; C aprobado en su alcance local**. Esto reemplaza las menciones de revisión manual pendiente del registro histórico del 12/11 siguiente, no acredita correcciones de observaciones ni despliegue. Detalles y límites en [REVISION_MANUAL_BCD_2026-11-13.md](REVISION_MANUAL_BCD_2026-11-13.md).
 
 Pendientes confirmados: aviso de cuenta sin unidad, texto de rectificación que confunde ID con valor, orden D-007 aún ausente y texto obsoleto «sin WebSocket» en Urgencias. El bloqueo del último operador con episodios no terminales es esperado y no depende de otro navegador abierto. El `PASS` de C usa dobles; no se adjuntó evidencia nueva de restore real/RPO/RTO. Solo se repitió la prueba backend de fallo de transporte (1/1 OK, con aviso intencional); los demás resultados nuevos proceden del reporte del responsable. No se modificó código funcional ni se publicaron cambios en esta verificación.

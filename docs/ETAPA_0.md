@@ -713,6 +713,8 @@ El responsable reportó ejecución y marcó aprobados los checklists B/C/D: B y 
 
 ### Confirmación posterior e inicio de E — 13/11/2026
 
+**Actualización posterior a `aeed92b`: E aprobado manualmente según reporte del responsable (13/11).** E4, bloqueo de nuevos hitos después de llegada, es esperado; el responsable aprobó el resto de las pruebas. Sustituye el pendiente E del párrafo siguiente, sin nuevos detalles de plataformas/commit ejecutado. `test:local-websocket` repetido con BASE_URL5174: exit0; silencio de éxito del script, transporte sintético. Registro [PRUEBAS_E.md](PRUEBAS_E.md). F no iniciado; sin autorización de publicación/despliegue.
+
 Tras entregar `80040c7`, el responsable confirmó B/C/D aprobados y autorizó E; revalidación de las cuatro correcciones aprobada según su reporte, sin nuevos logs/dispositivos detallados. Sustituye el pendiente del apartado histórico siguiente. C conserva alcance local, sin nueva evidencia de restore real/RPO/RTO. E implementa lectura explícita y preparación del destino con primer autor/fecha, versión e idempotencia, sin autolectura por detalle/WS ni hitos inventados por llegada. Verificación local en curso; **aceptación manual E pendiente**, guía [PRUEBAS_E.md](PRUEBAS_E.md). F no iniciado; sin cierre de etapa, publicación ni despliegue.
 
 ### Correcciones posteriores autorizadas — 13/11/2026 (registro histórico)

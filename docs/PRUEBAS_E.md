@@ -1,6 +1,6 @@
 # Bloque E — lectura explícita y preparación de Urgencias
 
-**Aceptación manual del responsable pendiente.** Solo episodios sintéticos, sin uso clínico. B/C/D y las cuatro correcciones anteriores fueron aprobados por el responsable al autorizar E; C conserva alcance local sin nueva evidencia de restore real/RPO/RTO. F no iniciado.
+**Aceptación manual del responsable APROBADA según su reporte del 13/11/2026**, posterior a `aeed92b`. E4 confirmado: después de llegada no se permite nuevo registro de lectura/preparación, comportamiento esperado. El responsable indicó que todo lo demás está probado y aprobado. No detalló commit ejecutado, navegadores/dispositivos ni nuevos logs completos. Solo episodios sintéticos, sin uso clínico. C conserva alcance local sin nueva evidencia de restore real/RPO/RTO. F no iniciado.
 
 ## 1. Arranque de esta copia
 
@@ -114,6 +114,8 @@ npm run check:diagrams
 ```
 
 ## 5. Registro de aceptación
+
+El responsable reportó E4 y aprobó el resto de las pruebas. `npm run test:local-websocket` no imprime un resumen de éxito porque su script no contiene `console.log` ni usa el runner de Node; los fallos de aserción sí producen error. Se repitió en esta rama con `BASE_URL=http://127.0.0.1:5174` y terminó con **exit0**. Es una prueba con HTTP/socket sintéticos, no una nueva aceptación real de Valkey/entre dispositivos; no se cambió el script. Las casillas de abajo se conservan como plantilla para registros detallados, no invalidan la aprobación reportada.
 
 Regresiones finales aprobadas: integridad30/30, correcciones3/3, actualizacionesD, unidades, cuentas, administración global, WebSocket, sincronización, tipos y Mermaid3/3. El selector global de retry de integridad se hizo exacto para distinguirlo del nuevo retry del modal; se observó fallo de ambigüedad y luego30/30 GREEN. Sin cambios funcionales por ese ajuste del test.
 
