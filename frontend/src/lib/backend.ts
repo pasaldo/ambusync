@@ -376,10 +376,10 @@ export interface ReportPage extends ReadPage<BackendEmergency> {
   ambulances: { id: string; code: string }[]; timezone: string; date_basis: string;
 }
 export interface AdministrativeAuditRow { id: string; actor_id: string | null; occurred_at: string; action: string; object_type: string; object_id: string; result: string; correlation_id: string }
-export interface HistoryPage extends ReadPage<BackendEmergency & { event_date: string }> { timezone: string; date_basis: string }
+export interface HistoryPage extends ReadPage<BackendEmergency & { event_date: string }> { timezone: string; date_basis: string; ambulances: { id: string; code: string }[] }
 export async function getHistoryPage(path: string): Promise<HistoryPage> {
   const data = await request<HistoryPage>(path, { cache: "no-store", humanInteraction: true });
-  if (!data || !Array.isArray(data.results) || !Number.isInteger(data.count) || data.date_basis !== "event_date" || data.timezone !== "America/Santiago") throw new Error("No se pudo validar el archivo recibido.");
+  if (!data || !Array.isArray(data.results) || !Number.isInteger(data.count) || !Array.isArray(data.ambulances) || data.date_basis !== "event_date" || data.timezone !== "America/Santiago") throw new Error("No se pudo validar el archivo recibido.");
   return data;
 }
 export async function getReportPage(path: string): Promise<ReportPage> {

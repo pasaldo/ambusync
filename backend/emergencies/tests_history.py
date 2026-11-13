@@ -36,7 +36,9 @@ class EmergencyHistoryTests(TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertEqual([row["id"] for row in result.json()["results"]], [str(self.closed.pk)])
         self.assertNotIn("summary", result.json())
-        self.assertNotIn("ambulances", result.json())
+        self.assertEqual(
+            result.json()["ambulances"], [{"id": str(self.unit.pk), "code": self.unit.code}]
+        )
         self.assertEqual(self.get(f"/api/v1/emergencies/{self.closed.pk}/").status_code, 200)
         self.assertEqual(self.get("/api/v1/reports/emergencies/").status_code, 403)
         self.assertEqual(self.get("/api/v1/institutions/audit/").status_code, 403)
@@ -124,3 +126,33 @@ class EmergencyHistoryTests(TestCase):
             self.assertEqual(self.get(path + "?" + query).status_code, 400, query)
         Institution.objects.filter(pk=self.institution.pk).update(enabled=False)
         self.assertEqual(self.get().status_code, 403)
+
+    def test_archive_unit_filter_options_are_destination_scoped_and_paginated(self):
+        from institutions.models import Ambulance
+
+        other = Ambulance.objects.create(institution=self.institution, code="SYN-HISTORY-OTHER")
+        foreign = Ambulance.objects.create(institution=self.foreign, code="SYN-FOREIGN-HIDDEN")
+        for unit, destination in ((other, self.institution), (foreign, self.foreign)):
+            Emergency.objects.create(
+                operating_institution=unit.institution,
+                destination=destination,
+                ambulance=unit,
+                created_by=self.operator,
+                status="cancelada",
+                patient_identity_unknown=True,
+                reason="Caso sintético filtro de unidad",
+            )
+        path = "/api/v1/emergencies/history/"
+        result = self.get(path + f"?ambulance_id={self.unit.pk}&page_size=1")
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()["count"], 1)
+        self.assertEqual(result.json()["results"][0]["ambulance_id"], str(self.unit.pk))
+        self.assertEqual(
+            {row["id"] for row in result.json()["ambulances"]}, {str(self.unit.pk), str(other.pk)}
+        )
+        self.assertNotContains(result, "SYN-FOREIGN-HIDDEN")
+        self.assertNotIn("summary", result.json())
+        self.assertEqual(self.get(path + "?ambulance_id=invalid").status_code, 400)
+        self.assertEqual(self.get(path + f"?ambulance_id={foreign.pk}").status_code, 404)
+        Ambulance.objects.filter(pk=other.pk).update(enabled=False)
+        self.assertEqual(self.get(path + f"?ambulance_id={other.pk}").status_code, 200)

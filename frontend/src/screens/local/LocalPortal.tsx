@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Activity, Ambulance, Archive, ClipboardList, HeartPulse, LogOut, RefreshCw, Server } from "lucide-react";
 import { VitalsStrip } from "@/components/VitalsStrip";
-import { TRIAGE } from "@/data/triage";
 import type { Vitals } from "@/types";
 import { AdminAccountsPanel } from "@/screens/local/AdminAccountsPanel";
 import {
@@ -26,7 +25,7 @@ import { prepareOperation, type PendingOperation } from "@/lib/pendingOperation"
 import { emptyDraft, VITAL_FIELDS, type EmergencyDraft } from "./emergencyDraft";
 import { usePortalMemory } from "./portalMemory";
 import { EpisodeUpdates, MeasurementHistory } from "./EpisodeUpdates";
-import { currentMeasurements, reconcileClinicalDraft } from "./clinicalUpdates";
+import { reconcileClinicalDraft } from "./clinicalUpdates";
 import { cancellationLabel, partitionTriageQueue, patientDisplayLabel } from "./queuePresentation";
 import { EmergencyMilestones } from "./EmergencyMilestones";
 import { DestinationChange, ReplacementLink } from "./DestinationChange";
@@ -36,12 +35,7 @@ import { UnitPatientPicker } from "./UnitPatientPicker";
 import { PatientContextEditor, PatientContextHistory, identityDescription } from "./PatientContext";
 import { ReportsPanel } from "./ReportsPanel";
 import { AdministrativeAuditPanel } from "./AdministrativeAuditPanel";
-
-function archiveEventDate(emergency: BackendEmergency): string {
-  if (emergency.status === "cancelada") return emergency.cancelled_at ?? emergency.created_at;
-  if (emergency.status === "cerrada") return emergency.closed_at ?? emergency.arrived_at ?? emergency.created_at;
-  return emergency.arrived_at ?? emergency.created_at;
-}
+import { UrgenciasEmergencyCard } from "./UrgenciasEmergencyCard";
 
 function displayError(error: unknown): string {
   if (error instanceof BackendApiError) {
@@ -72,6 +66,7 @@ export function LocalPortal() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [emergencies, setEmergencies] = useState<BackendEmergency[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [patientFeedbackTarget, setPatientFeedbackTarget] = useState<HTMLDivElement | null>(null);
   const [lastCreated, setLastCreated] = useState<BackendEmergency | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const writeInFlight = useRef(false);
@@ -527,7 +522,7 @@ export function LocalPortal() {
                 <button disabled={transitionBusy} onClick={() => void executeTransition(id, operation, "Operación confirmada en el servidor.")} className="mt-2 rounded-lg border border-amber-300/30 px-3 py-2 disabled:opacity-50">Reintentar operación</button>
               </div>)}
 
-              <PatientCatalogPanel key={memory.token} user={user} state={resources} />
+              <PatientCatalogPanel key={memory.token} user={user} state={resources} feedbackTarget={patientFeedbackTarget} />
 
               {!role ? (
                 <p className="mt-6 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">La cuenta inició sesión, pero no tiene un rol operativo disponible en este entorno.</p>
@@ -651,7 +646,7 @@ export function LocalPortal() {
               ) : role === "administration" && canAdminister ? (
                 <AdminAccountsPanel key={JSON.stringify([user.id, user.institutions.map((item) => item.id).sort(), [...user.groups].sort(), user.ambulance?.id ?? null])} currentUserId={user.id} institutionName={user.institutions[0]?.name ?? ""} />
               ) : role === "archive" && canUrgencias ? (
-                <ReportsPanel archive key={`archive:${memory.token}`} expireSession={expireSession} onDeactivatePatient={user.groups.includes("deactivate_patients") ? deactivatePatient : undefined} patientBusy={resources.busy} patientPending={(id) => resources.memory.resourceAttempts.has(`patient:${id}`)} />
+                <ReportsPanel archive key={`archive:${memory.token}`} expireSession={expireSession} onDeactivatePatient={user.groups.includes("deactivate_patients") ? deactivatePatient : undefined} patientBusy={resources.busy} patientPending={(id) => resources.memory.resourceAttempts.has(`patient:${id}`)} onPatientFeedbackTarget={setPatientFeedbackTarget} />
               ) : role === "reports" && canReports ? (
                 <ReportsPanel key={`reports:${memory.token}`} expireSession={expireSession} onDeactivatePatient={user.groups.includes("deactivate_patients") ? deactivatePatient : undefined} patientBusy={resources.busy} patientPending={(id) => resources.memory.resourceAttempts.has(`patient:${id}`)} />
               ) : role === "audit" && canAudit ? (
@@ -684,12 +679,6 @@ function emergencyStatusLabel(status: BackendEmergency["status"]) {
   return "Notificada";
 }
 
-function urgenciasStatusLabel(status: BackendEmergency["status"]) {
-  if (status === "en_traslado") return "Llegando · En traslado";
-  if (status === "notificada") return "Pendiente de traslado";
-  return emergencyStatusLabel(status);
-}
-
 function draftVitalsToDisplay(values: Record<string, string>): Vitals {
   return {
     hr: values.hr ? Number(values.hr) : null,
@@ -701,49 +690,6 @@ function draftVitalsToDisplay(values: Record<string, string>): Vitals {
     glasgow: values.glasgow ? Number(values.glasgow) : null,
     takenAt: 0,
   };
-}
-
-function backendVitalsToDisplay(emergency: BackendEmergency): Vitals {
-  const values: Vitals = {
-    hr: null,
-    bpSys: null,
-    bpDia: null,
-    spo2: null,
-    rr: null,
-    tempC: null,
-    glasgow: null,
-    takenAt: 0,
-  };
-  const kindToKey: Record<string, keyof Omit<Vitals, "takenAt">> = {
-    heart_rate: "hr",
-    systolic_pressure: "bpSys",
-    diastolic_pressure: "bpDia",
-    spo2: "spo2",
-    respiratory_rate: "rr",
-    temperature: "tempC",
-    glasgow: "glasgow",
-  };
-  for (const measurement of currentMeasurements(emergency.vital_measurements)) {
-    const key = kindToKey[measurement.kind];
-    if (key) values[key] = measurement.value;
-  }
-  return values;
-}
-
-function UrgenciasEmergencyCard({ emergency, archived = false, onSelect, onMarkArrived }: { emergency: BackendEmergency; archived?: boolean; onSelect: () => void; onMarkArrived?: () => void }) {
-  const triageLevel = emergency.triage ? Number(emergency.triage.slice(1)) as 1 | 2 | 3 | 4 | 5 : null;
-  const triage = triageLevel ? TRIAGE[triageLevel] : null;
-  return <div className="relative w-full overflow-hidden rounded-xl border border-white/10 bg-ink/60 p-4 pl-5 text-left transition hover:border-signal/40 hover:bg-white/5">
-    <span className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: triage?.color ?? "#64748B" }} aria-hidden="true" />
-    <button type="button" onClick={onSelect} className="block w-full rounded-xl text-left"><span className="flex flex-wrap items-center justify-between gap-2"><strong>{patientDisplayLabel(emergency.patient)}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs" style={triage ? { color: triage.color } : undefined}>{emergency.triage ?? "Sin clasificar"} · {emergency.status === "cancelada" && emergency.replaced_by_id ? cancellationLabel(emergency) : urgenciasStatusLabel(emergency.status)}</span></span>
-    <span className="mt-1 block text-sm text-muted-dark">{emergency.reason}</span>
-    <span className="mt-3 block text-[10px] font-semibold uppercase tracking-widest text-muted-dark">Signos vitales</span>
-    <VitalsStrip vitals={backendVitalsToDisplay(emergency)} tone="dark" dense className="mt-4" />
-     <span className="mt-2 block text-xs text-muted-dark">{emergency.destination_name} · {emergency.ambulance_code} · {new Date(archived ? archiveEventDate(emergency) : emergency.created_at).toLocaleString()}</span>
-     <span className="mt-1 block text-xs text-muted-dark">{emergency.read_at && emergency.read_by_id ? "Lectura confirmada" : "Lectura pendiente"} · {emergency.prepared_at && emergency.prepared_by_id ? "Preparación registrada" : "Preparación no registrada"}</span>
-    </button>
-    {onMarkArrived && (emergency.status === "notificada" || emergency.status === "en_traslado") && <button type="button" onClick={(event) => { event.stopPropagation(); onMarkArrived(); }} className="absolute right-4 top-[3.75rem] inline-flex h-8 items-center gap-2 rounded-lg bg-signal px-3 text-xs font-semibold text-ink hover:brightness-110"><Activity className="h-3.5 w-3.5" />Marcar como llegado</button>}
-  </div>;
 }
 
 function EmergencyDetail({ emergency, busy, pending, onRead, onPrepare, onRetry, onClose, onMarkArrived, onCloseEmergency, onDeactivatePatient }: { emergency: BackendEmergency; busy: boolean; pending: boolean; onRead: () => void; onPrepare: () => void; onRetry: () => void; onClose: () => void; onMarkArrived: (reason: string) => void; onCloseEmergency: () => void; onDeactivatePatient?: () => void }) {

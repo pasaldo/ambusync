@@ -3,7 +3,7 @@ import re
 
 from django.db.models import Case, DateTimeField, When
 from django.db.models.functions import Coalesce, ExtractDay, ExtractMonth, ExtractYear
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -11,7 +11,7 @@ from config.http import NoStoreResourceView
 from emergencies.models import Emergency
 from emergencies.serializers import emergency_representation
 from emergencies.views import EmergencyPagination
-from reports.filters import ZONE, choice_filter, read_snapshot, validated_query
+from reports.filters import ZONE, choice_filter, read_snapshot, uuid_filter, validated_query
 from reports.scopes import receiver_institution_ids
 from reports.views import detailed
 
@@ -24,7 +24,18 @@ class EmergencyHistoryView(NoStoreResourceView):
             ids = receiver_institution_ids(request.user)
             if not ids.exists():
                 raise PermissionDenied("Se requiere Urgencias de un destino habilitado.")
-            values = validated_query(request.query_params, ("day", "month", "year", "status"))
+            values = validated_query(
+                request.query_params, ("day", "month", "year", "status", "ambulance_id")
+            )
+            base = Emergency.objects.filter(destination_id__in=ids)
+            unit = uuid_filter(values, "ambulance_id")
+            if unit and not base.filter(ambulance_id=unit).exists():
+                raise NotFound("La unidad no está disponible para esta consulta.")
+            units = list(
+                base.order_by("ambulance__code", "ambulance_id")
+                .values("ambulance_id", "ambulance__code")
+                .distinct()
+            )
             if set(values) & {"date_from", "date_to"}:
                 raise ValidationError("El archivo usa día, mes y año del hito.")
             for key, maximum in (("day", 31), ("month", 12), ("year", 9999)):
@@ -41,8 +52,7 @@ class EmergencyHistoryView(NoStoreResourceView):
             ):
                 raise ValidationError({"day": "El día no existe en ese mes."})
             choice_filter(values, "status", ("cerrada", "cancelada", "llegado"))
-            query = Emergency.objects.filter(
-                destination_id__in=ids,
+            query = base.filter(
                 status__in=(values["status"],) if "status" in values else ("cerrada", "cancelada"),
             ).annotate(
                 event_date=Case(
@@ -52,6 +62,8 @@ class EmergencyHistoryView(NoStoreResourceView):
                     output_field=DateTimeField(),
                 )
             )
+            if unit:
+                query = query.filter(ambulance_id=unit)
             for key, extractor in (
                 ("day", ExtractDay),
                 ("month", ExtractMonth),
@@ -69,5 +81,12 @@ class EmergencyHistoryView(NoStoreResourceView):
                 for row in page
             ]
             data = paginator.get_paginated_response(rows).data
-            data.update(timezone="America/Santiago", date_basis="event_date")
+            data.update(
+                timezone="America/Santiago",
+                date_basis="event_date",
+                ambulances=[
+                    {"id": str(row["ambulance_id"]), "code": row["ambulance__code"]}
+                    for row in units
+                ],
+            )
             return Response(data)

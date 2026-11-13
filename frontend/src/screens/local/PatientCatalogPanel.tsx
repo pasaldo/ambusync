@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import type { BackendUser } from "@/lib/backend";
 import type { PatientRecord } from "@/lib/resourceOperation";
 import type { PatientCatalogState } from "./usePatientCatalog";
@@ -7,18 +8,21 @@ import { UnitPatientPicker } from "./UnitPatientPicker";
 const field = "mt-1 block min-h-10 w-full rounded-lg border border-white/15 bg-ink px-3 py-2";
 const button = "rounded-lg border border-signal/40 px-3 py-2 text-sm text-signal-soft disabled:opacity-50";
 
-export function PatientCatalogPanel({ user, state }: { user: BackendUser; state: PatientCatalogState }) {
+export function PatientCatalogPanel({ user, state, feedbackTarget }: { user: BackendUser; state: PatientCatalogState; feedbackTarget?: HTMLDivElement | null }) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const canPatients = user.groups.includes("ambulance") && Boolean(user.ambulance);
   const canCatalog = user.groups.includes("manage_symptoms");
   const patient = state.patients.find((row) => row.id === selected);
   const catalogDraft = state.memory.resourceDrafts.get("symptom-new")?.fields.description ?? "";
-  return <section className="mt-4 space-y-3">
-    {(canPatients || canCatalog) && <button type="button" onClick={() => setOpen(!open)} className={button} aria-expanded={open}>Pacientes y catálogo</button>}
+  const feedback = <>
     {state.message && <p role="status" className="rounded-lg bg-signal/10 p-3 text-sm">{state.message}</p>}
     {state.error && <p role="alert" className="rounded-lg bg-amber-300/10 p-3 text-sm text-amber-100">{state.error}</p>}
     {[...state.memory.resourceAttempts.entries()].map(([key, entry]) => entry.uncertain && <div key={key} role="alert" className="space-y-2 rounded-lg border border-amber-300/30 p-3 text-sm text-amber-100"><p>Resultado de registro sin confirmar. No se reenviará automáticamente. Recargar/cerrar puede perder el intento en memoria.</p><button type="button" disabled={state.busy} onClick={() => void state.execute(key)} className={button}>Reintentar operación de registro</button></div>)}
+  </>;
+  return <section className="mt-4 space-y-3">
+    {(canPatients || canCatalog) && <button type="button" onClick={() => setOpen(!open)} className={button} aria-expanded={open}>Pacientes y catálogo</button>}
+    {feedbackTarget ? createPortal(feedback, feedbackTarget) : feedback}
     {open && <div className="space-y-5 rounded-xl border border-white/10 p-4">
       <p className="text-sm text-muted-dark">Pacientes solo de la unidad asignada. Corregir el registro no cambia la identificación conservada en episodios anteriores ni abre sus historiales.</p>
       <button type="button" disabled={state.busy} onClick={() => void state.refresh()} className={button}>Actualizar pacientes y catálogo</button>

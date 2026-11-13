@@ -2,14 +2,16 @@ export function historyFixture(episodes, requestUrl) {
   const url = new URL(requestUrl);
   const eventDate = (row) => row.status === "cancelada" ? row.cancelled_at ?? row.created_at : row.status === "cerrada" ? row.closed_at ?? row.arrived_at ?? row.created_at : row.arrived_at ?? row.created_at;
   const state = url.searchParams.get("status");
-  let rows = episodes.filter((row) => state ? row.status === state : ["cerrada", "cancelada"].includes(row.status));
+  const scoped = episodes.filter((row) => state ? row.status === state : ["cerrada", "cancelada"].includes(row.status));
+  const ambulances = [...new Map(episodes.map((row) => [row.ambulance_id || "synthetic-unit", { id: row.ambulance_id || "synthetic-unit", code: row.ambulance_code }])).values()];
+  let rows = scoped.filter((row) => !url.searchParams.get("ambulance_id") || row.ambulance_id === url.searchParams.get("ambulance_id"));
   rows = rows.filter((row) => {
     const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago", year: "numeric", month: "numeric", day: "numeric" }).formatToParts(new Date(eventDate(row)));
     return ["day", "month", "year"].every((key) => !url.searchParams.get(key) || Number(parts.find((part) => part.type === key).value) === Number(url.searchParams.get(key)));
   }).sort((a, b) => Date.parse(eventDate(b)) - Date.parse(eventDate(a)) || a.id.localeCompare(b.id));
   const size = Number(url.searchParams.get("page_size") || 25), page = Number(url.searchParams.get("page") || 1);
   return { count: rows.length, next: page * size < rows.length ? "next" : null, previous: page > 1 ? "previous" : null,
-    results: rows.slice((page - 1) * size, page * size).map((row) => ({ ...row, event_date: eventDate(row) })), timezone: "America/Santiago", date_basis: "event_date" };
+    results: rows.slice((page - 1) * size, page * size).map((row) => ({ ...row, event_date: eventDate(row) })), ambulances, timezone: "America/Santiago", date_basis: "event_date" };
 }
 
 export function reportFixture(episodes, requestUrl) {
