@@ -140,8 +140,9 @@ class EmergencyFlowTests(EmergencyFixtureMixin, TestCase):
         self.assertEqual(replay.status_code, 200, replay.data)
         self.assertEqual(replay["Idempotent-Replay"], "true")
         self.assertEqual(Emergency.objects.count(), 1)
-        self.assertEqual(AuditEvent.objects.count(), 1)
-        audit = AuditEvent.objects.get()
+        self.assertEqual(AuditEvent.objects.count(), 2)
+        self.assertEqual(AuditEvent.objects.filter(action="patient.created").count(), 1)
+        audit = AuditEvent.objects.get(action="emergency.created")
         self.assertEqual(audit.action, "emergency.created")
         self.assertEqual(audit.object_id, str(uuid.UUID(emergency_id)))
 
@@ -314,6 +315,7 @@ class EmergencyFlowTests(EmergencyFixtureMixin, TestCase):
         self.assertEqual(
             list(AuditEvent.objects.order_by("occurred_at").values_list("action", flat=True)),
             [
+                "patient.created",
                 "emergency.created",
                 "emergency.transfer_started",
                 "emergency.arrived",
@@ -439,7 +441,7 @@ class EmergencyFlowTests(EmergencyFixtureMixin, TestCase):
         self.assertEqual(second.status_code, 201, second.data)
         self.assertNotEqual(first.data["id"], second.data["id"])
         self.assertEqual(Emergency.objects.count(), 2)
-        self.assertEqual(AuditEvent.objects.count(), 2)
+        self.assertEqual(AuditEvent.objects.count(), 4)
 
     def test_operator_without_active_unit_cannot_create(self):
         self.authenticate_with_csrf(self.operator)
@@ -550,7 +552,7 @@ class ConcurrentIdempotencyTests(EmergencyFixtureMixin, TransactionTestCase):
             1,
         )
         self.assertEqual(Emergency.objects.count(), 1)
-        self.assertEqual(AuditEvent.objects.count(), 1)
+        self.assertEqual(AuditEvent.objects.count(), 2)
 
     def test_concurrent_reuse_with_different_payload_conflicts_atomically(self):
         operation_id = str(uuid.uuid4())
@@ -563,4 +565,4 @@ class ConcurrentIdempotencyTests(EmergencyFixtureMixin, TransactionTestCase):
 
         self.assertEqual(sorted(status for status, _, _ in responses), [201, 409])
         self.assertEqual(Emergency.objects.count(), 1)
-        self.assertEqual(AuditEvent.objects.count(), 1)
+        self.assertEqual(AuditEvent.objects.count(), 2)

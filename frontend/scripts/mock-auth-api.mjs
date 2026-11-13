@@ -92,6 +92,14 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
     const { pathname } = new URL(route.request().url());
     const method = route.request().method();
 
+    if (pathname === "/api/v1/patients/" && method === "GET") {
+      await route.fulfill({ json: { count: 0, results: [], next: null } }); return;
+    }
+    if (pathname === "/api/v1/institutions/symptoms/" && method === "GET") {
+      const labels = ["Disnea", "Dolor torácico", "Sudoración", "Náuseas", "Mareo", "Pérdida de conciencia", "Hemorragia", "Convulsión"];
+      await route.fulfill({ json: { count: labels.length, next: null, results: labels.map((description, index) => ({ id: `synthetic-symptom-${index}`, institution_id: "demo-operator-id", description, enabled: true, version: 1 })) } }); return;
+    }
+
     if (pathname === "/api/v1/auth/csrf/") {
       await route.fulfill({ json: { csrf_token: "browser-test-csrf-token" } });
       return;

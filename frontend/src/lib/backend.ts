@@ -1,6 +1,7 @@
 import { prepareOperation, type PendingOperation } from "./pendingOperation";
 import { hasMilestoneProof } from "./milestoneProof";
 import { isDestinationChangeResult, type DestinationChangeResult } from "./destinationChangeResult";
+import { isResourceResult, type ResourceAttempt, type ResourceResult, type PatientRecord, type CatalogSymptom } from "./resourceOperation";
 
 export interface BackendSession {
   started_at: number;
@@ -72,6 +73,9 @@ export interface VitalMeasurement {
 
 export interface BackendEmergency {
   id: string;
+  patient_id?: string | null;
+  patient_record_version?: number | null;
+  patient_record_enabled?: boolean | null;
   ambulance_id?: string;
   operating_institution_id?: string;
   replaces_id?: string | null;
@@ -350,6 +354,24 @@ export async function listEmergencies(): Promise<BackendEmergency[]> {
 
 export function isUncertainWrite(error: unknown): boolean {
   return !(error instanceof BackendApiError) || error.status >= 500 || error.status === 408;
+}
+
+async function listResourcePages<T>(path: string): Promise<T[]> {
+  const rows: T[] = [];
+  for (let page = 1; ; page += 1) {
+    const result = await request<{ results: T[]; next: string | null }>(`${path}?page_size=100&page=${page}`);
+    rows.push(...result.results);
+    if (!result.next) return rows;
+  }
+}
+
+export const listUnitPatients = () => listResourcePages<PatientRecord>("/api/v1/patients/");
+export const listInstitutionSymptoms = () => listResourcePages<CatalogSymptom>("/api/v1/institutions/symptoms/");
+
+export async function sendResourceOperation(attempt: ResourceAttempt, isCurrent: () => boolean): Promise<ResourceResult> {
+  const result = await requestEmergencyOperation<unknown>(attempt.operation, isCurrent);
+  if (!isResourceResult(result, attempt)) throw new Error("La respuesta no confirma el registro solicitado.");
+  return result;
 }
 
 async function requestEmergencyOperation<T>(operation: PendingOperation, isCurrent: () => boolean): Promise<T> {

@@ -26,6 +26,8 @@ test("suspending and rebinding the same scope preserves the draft but invalidate
   memory.draft.reason = "Dato sintético en memoria";
   memory.episodeDrafts.set("synthetic-episode", { version: 1, notes: "Antecedente sintético en memoria" });
   memory.destinationDrafts.set("synthetic-episode", { version: 1, destinationId: "synthetic-target", reason: "Cambio sintético" });
+  memory.resourceDrafts.set("patient:synthetic", { version: 1, fields: { alias: "Paciente en memoria" } });
+  memory.resourceAttempts.set("patient:synthetic", { attempt: { kind: "patient-update", targetId: "synthetic", operation: prepareOperation("/api/v1/patients/synthetic/update/", { expected_version: 1 }) }, uncertain: false });
   memory.creation = prepareOperation("/api/v1/emergencies/", { reason: "Dato sintético en memoria" });
   const body = memory.creation.body;
   memory.suspend();
@@ -36,6 +38,8 @@ test("suspending and rebinding the same scope preserves the draft but invalidate
   assert.equal(memory.creationUncertain, true);
   assert.equal(memory.episodeDrafts.get("synthetic-episode").notes, "Antecedente sintético en memoria");
   assert.equal(memory.destinationDrafts.get("synthetic-episode").reason, "Cambio sintético");
+  assert.equal(memory.resourceDrafts.get("patient:synthetic").fields.alias, "Paciente en memoria");
+  assert.equal(memory.resourceAttempts.get("patient:synthetic").uncertain, true);
   assert.equal(memory.isCurrent(previous), false);
   assert.equal(memory.isCurrent(memory.token), true);
 });
@@ -65,6 +69,8 @@ for (const [name, next] of [
     memory.transitions.set("synthetic-episode", memory.creation);
     memory.episodeDrafts.set("synthetic-episode", { version: 1, notes: "No exponer en otro ámbito" });
     memory.destinationDrafts.set("synthetic-episode", { version: 1, destinationId: "synthetic-target", reason: "No exponer en otro ámbito" });
+    memory.resourceDrafts.set("patient:synthetic", { version: 1, fields: { alias: "No exponer" } });
+    memory.resourceAttempts.set("patient:synthetic", { attempt: { kind: "patient-update", targetId: "synthetic", operation: memory.creation }, uncertain: true });
     memory.suspend();
     memory.bind(next);
     assert.equal(memory.draft.reason, "");
@@ -72,6 +78,8 @@ for (const [name, next] of [
     assert.equal(memory.transitions.size, 0);
     assert.equal(memory.episodeDrafts.size, 0);
     assert.equal(memory.destinationDrafts.size, 0);
+    assert.equal(memory.resourceDrafts.size, 0);
+    assert.equal(memory.resourceAttempts.size, 0);
     assert.deepEqual(memory.uncertainTransitions, {});
     assert.equal(memory.isCurrent(token), false);
   });

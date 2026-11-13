@@ -10,6 +10,8 @@ export const VITAL_FIELDS = [
 
 export interface EmergencyDraft {
   destinationId: string;
+  patientId?: string;
+  patientVersion?: number;
   identityUnknown: boolean;
   alias: string;
   ageValue: string;

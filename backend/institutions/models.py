@@ -63,6 +63,25 @@ class InstitutionMembership(models.Model):
         ]
 
 
+class Symptom(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    institution = models.ForeignKey(
+        Institution, on_delete=models.PROTECT, related_name="symptom_catalog"
+    )
+    description = models.CharField(max_length=120)
+    normalized = models.CharField(max_length=240)
+    enabled = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ("description", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("institution", "normalized"), name="unique_institution_symptom_normalized"
+            )
+        ]
+
+
 class Ambulance(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     institution = models.ForeignKey(

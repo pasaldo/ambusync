@@ -27,20 +27,11 @@ import { emptyDraft, VITAL_FIELDS, type EmergencyDraft } from "./emergencyDraft"
 import { usePortalMemory } from "./portalMemory";
 import { EpisodeUpdates, MeasurementHistory } from "./EpisodeUpdates";
 import { currentMeasurements, reconcileClinicalDraft } from "./clinicalUpdates";
-import { cancellationLabel, partitionTriageQueue } from "./queuePresentation";
+import { cancellationLabel, partitionTriageQueue, patientDisplayLabel } from "./queuePresentation";
 import { EmergencyMilestones } from "./EmergencyMilestones";
 import { DestinationChange, ReplacementLink } from "./DestinationChange";
-
-const SYMPTOMS = [
-  "Disnea",
-  "Dolor torácico",
-  "Sudoración",
-  "Náuseas",
-  "Mareo",
-  "Pérdida de conciencia",
-  "Hemorragia",
-  "Convulsión",
-];
+import { usePatientCatalog } from "./usePatientCatalog";
+import { PatientCatalogPanel } from "./PatientCatalogPanel";
 
 function archiveEventDate(emergency: BackendEmergency): string {
   if (emergency.status === "cancelada") return emergency.cancelled_at ?? emergency.created_at;
@@ -166,6 +157,10 @@ export function LocalPortal() {
       else setError(displayError(requestError));
     }
   }, [expireSession, memory]);
+
+  const resources = usePatientCatalog(user, expireSession);
+  const SYMPTOMS = resources.symptoms.filter((item) => item.enabled).map((item) => item.description);
+  const draftPatient = resources.patients.find((item) => item.id === draft.patientId);
 
   useEffect(() => {
     let active = true;
@@ -335,6 +330,7 @@ export function LocalPortal() {
       memory.creation ??= prepareOperation("/api/v1/emergencies/", {
         destination_id: draft.destinationId,
         transfer_started: draft.transferStarted,
+        ...(draft.patientId ? { patient_id: draft.patientId, patient_version: draft.patientVersion } : {
         patient_identity_unknown: draft.identityUnknown,
         ...(draft.identityUnknown || !draft.alias.trim() ? {} : { patient_alias: draft.alias.trim() }),
         ...(draft.ageValue.trim() || draft.ageUnit
@@ -344,6 +340,7 @@ export function LocalPortal() {
             }
           : {}),
         ...(draft.sex ? { recorded_sex: draft.sex } : {}),
+        }),
         reason: draft.reason,
         symptoms: draft.symptoms,
         notes: draft.notes,
@@ -362,6 +359,7 @@ export function LocalPortal() {
       memory.draft = emptyDraft();
       setDraft(memory.draft);
       setMessage("Episodio guardado en el backend local.");
+      void resources.refresh();
     } catch (submitError) {
       if (!memory.isCurrent(token)) return;
       // A rejection of this retry cannot disprove a previous unacknowledged commit.
@@ -464,6 +462,12 @@ export function LocalPortal() {
     void runTransition(emergency, "cancel", "Episodio cancelado.", { reason: reason.trim() });
   }
 
+  function deactivateSelectedPatient() {
+    if (!selected?.patient_id || !selected.patient_record_version || !user?.groups.includes("deactivate_patients") || !user.groups.includes("urgencias")) return;
+    if (!window.confirm("¿Desactivar este paciente sintético? Se conservará el historial; se rechazará si tiene episodios pendientes.")) return;
+    void resources.run(`patient:${selected.patient_id}`, "patient-deactivate", selected.patient_id, `/api/v1/emergencies/${encodeURIComponent(selected.id)}/patient-deactivate/`, selected.patient_record_version, {}, "Paciente sintético desactivado; historial conservado.").then(() => refreshEmergencyList());
+  }
+
   return (
     <main className="grid-monitor min-h-[100dvh] bg-ink px-4 py-6 text-white sm:px-6">
       <div className="mx-auto w-full max-w-4xl">
@@ -529,6 +533,8 @@ export function LocalPortal() {
                 <button disabled={transitionBusy} onClick={() => void executeTransition(id, operation, "Operación confirmada en el servidor.")} className="mt-2 rounded-lg border border-amber-300/30 px-3 py-2 disabled:opacity-50">Reintentar operación</button>
               </div>)}
 
+              <PatientCatalogPanel user={user} state={resources} />
+
               {!role ? (
                 <p className="mt-6 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">La cuenta inició sesión, pero no tiene un rol operativo disponible en este entorno.</p>
               ) : role === "ambulance" && canAmbulance ? (
@@ -539,7 +545,7 @@ export function LocalPortal() {
                       <button onClick={() => void refreshEmergencies()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5"><RefreshCw className="h-4 w-4" /> Actualizar</button>
                     </div>
                     {emergencies.length === 0 ? <p className="mt-4 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios para esta unidad.</p> : <div className="mt-3 space-y-2">{emergencies.map((item) => <div key={item.id} className="rounded-xl border border-white/10 bg-ink/60 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2"><strong>{item.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{item.status === "cancelada" && item.replaced_by_id ? cancellationLabel(item) : emergencyStatusLabel(item.status)}</span></div>
+                      <div className="flex flex-wrap items-center justify-between gap-2"><strong>{patientDisplayLabel(item.patient)}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{item.status === "cancelada" && item.replaced_by_id ? cancellationLabel(item) : emergencyStatusLabel(item.status)}</span></div>
                       <p className="mt-1 text-sm text-muted-dark">{item.reason} · {item.destination_name}</p>
                       <EmergencyMilestones emergency={item} />
                       <ReplacementLink emergency={item} />
@@ -568,6 +574,8 @@ export function LocalPortal() {
 
                       <fieldset className="space-y-3 rounded-xl border border-white/10 p-4">
                         <legend className="px-1 text-sm font-semibold">Datos de identidad (opcionales)</legend>
+                        <label className="block text-sm">Paciente de la unidad<select aria-label="Paciente de la unidad" value={draft.patientId ?? ""} onChange={(event) => { const patient = resources.patients.find((item) => item.id === event.target.value); updateDraft({ patientId: patient?.id ?? "", patientVersion: patient?.version }); }} className="mt-1 min-h-10 w-full rounded-lg border border-white/15 bg-ink px-3"><option value="">Paciente nuevo</option>{draft.patientId && !draftPatient && <option value={draft.patientId} disabled>{resources.ready ? "Registro seleccionado no disponible" : "Registro seleccionado pendiente de consulta"}</option>}{resources.patients.map((patient) => <option key={patient.id} value={patient.id}>{patientDisplayLabel(patient.patient)} · {patient.id}</option>)}</select></label>
+                        {draft.patientId ? <><p className="rounded-lg border border-white/10 p-3 text-sm">Identificación desde el registro seleccionado: {patientDisplayLabel(draftPatient?.patient)}. Solo se conserva identificación; no se copian antecedentes ni historial. {draftPatient?.version !== draft.patientVersion && "El registro cambió o no está disponible: revisa y selecciona nuevamente antes de enviar."}</p>{draftPatient && draftPatient.version !== draft.patientVersion && <button type="button" onClick={() => updateDraft({ patientVersion: draftPatient.version })} className="rounded-lg border border-amber-300/30 px-3 py-2 text-sm text-amber-100">Actualizar selección del paciente</button>}</> : <>
                         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.identityUnknown} onChange={(event) => updateDraft({ identityUnknown: event.target.checked, alias: event.target.checked ? "" : draft.alias })} /> Identidad desconocida</label>
                         {!draft.identityUnknown && <label className="block text-sm">Alias
                           <input maxLength={160} placeholder="Ej.: Paciente A" value={draft.alias} onChange={(event) => updateDraft({ alias: event.target.value })} className="mt-1.5 h-10 w-full rounded-lg border border-white/15 bg-ink px-3" />
@@ -583,6 +591,7 @@ export function LocalPortal() {
                             <select value={draft.sex} onChange={(event) => updateDraft({ sex: event.target.value as EmergencyDraft["sex"] })} className="mt-1.5 h-10 w-full rounded-lg border border-white/15 bg-ink px-3"><option value="">No informado</option><option value="F">Femenino</option><option value="M">Masculino</option><option value="X">Indeterminado</option></select>
                           </label>
                         </div>
+                        </>}
                       </fieldset>
 
                       <label className="block text-sm font-medium">Motivo de consulta <span className="text-rose-300">*</span>
@@ -594,7 +603,8 @@ export function LocalPortal() {
                         <div className="mt-1 grid gap-2 sm:grid-cols-2">
                           {SYMPTOMS.map((symptom) => <label key={symptom} className="flex items-center gap-2 text-sm text-muted-dark"><input type="checkbox" checked={draft.symptoms.includes(symptom)} onChange={(event) => updateDraft({ symptoms: event.target.checked ? [...draft.symptoms, symptom] : draft.symptoms.filter((item) => item !== symptom) })} /> {symptom}</label>)}
                         </div>
-                        <p className="mt-2 text-xs text-muted-dark">Ejemplos de selección; el catálogo institucional aún no está conectado.</p>
+                        <p className="mt-2 text-xs text-muted-dark">Catálogo activo de tu institución operadora. Texto libre en notas no crea síntomas. {draft.symptoms.some((label) => !SYMPTOMS.includes(label)) && "Hay selecciones que ya no están activas; revísalas antes de enviar."}</p>
+                        {resources.ready && draft.symptoms.filter((label) => !SYMPTOMS.includes(label)).map((label) => <div key={label} className="mt-2 flex flex-wrap items-center gap-2 text-sm text-amber-100"><span>{label} · Selección no activa</span><button type="button" aria-label={`Quitar selección inactiva ${label}`} onClick={() => updateDraft({ symptoms: draft.symptoms.filter((item) => item !== label) })} className="rounded-lg border border-amber-300/30 px-3 py-2">Quitar selección</button></div>)}
                       </fieldset>
 
                       <fieldset className="rounded-xl border border-white/10 p-4">
@@ -621,7 +631,7 @@ export function LocalPortal() {
                       </div>
                       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.transferStarted} onChange={(event) => updateDraft({ transferStarted: event.target.checked })} /> Traslado iniciado</label>
                       </fieldset>
-                      <button disabled={submitting || !user.ambulance} className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-bold text-ink disabled:opacity-50"><Activity className="h-4 w-4" /> {submitting ? "Guardando…" : creationUncertain ? "Reintentar envío" : "Guardar emergencia"}</button>
+                      <button disabled={submitting || !user.ambulance || (!creationUncertain && !resources.ready)} className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-bold text-ink disabled:opacity-50"><Activity className="h-4 w-4" /> {submitting ? "Guardando…" : creationUncertain ? "Reintentar envío" : "Guardar emergencia"}</button>
                     </form>
                   )}
                   </>}
@@ -658,7 +668,7 @@ export function LocalPortal() {
                       {filteredArchive.length === 0 ? <p className="mt-4 rounded-xl bg-white/5 p-4 text-sm text-muted-dark">No hay episodios que coincidan con estos filtros.</p> : <div className="mt-4 space-y-2">{filteredArchive.map((item) => <UrgenciasEmergencyCard key={item.id} emergency={item} archived onSelect={() => setSelectedId(item.id)} />)}</div>}
                     </>
                   )}
-                  {selected && <EmergencyDetail emergency={selected} busy={transitionBusy} pending={Boolean(uncertainTransitions[selected.id])} onRead={() => void runTransition(selected, "read", "Lectura confirmada; primer autor y fecha conservados.")} onPrepare={() => void runTransition(selected, "prepare", "Preparación registrada; no acredita inicio de atención.")} onRetry={() => { const attempt = uncertainTransitions[selected.id]; if (attempt) void executeTransition(selected.id, attempt, "Operación confirmada en el servidor."); }} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} onCloseEmergency={() => void runTransition(selected, "close", "Episodio cerrado.")} />}
+                  {selected && <EmergencyDetail emergency={selected} busy={transitionBusy || resources.busy} pending={Boolean(uncertainTransitions[selected.id])} onDeactivatePatient={user.groups.includes("deactivate_patients") && selected.patient_id && selected.patient_record_enabled !== false ? deactivateSelectedPatient : undefined} onRead={() => void runTransition(selected, "read", "Lectura confirmada; primer autor y fecha conservados.")} onPrepare={() => void runTransition(selected, "prepare", "Preparación registrada; no acredita inicio de atención.")} onRetry={() => { const attempt = uncertainTransitions[selected.id]; if (attempt) void executeTransition(selected.id, attempt, "Operación confirmada en el servidor."); }} onClose={() => setSelectedId(null)} onMarkArrived={(reason) => void confirmArrival(selected.id, reason)} onCloseEmergency={() => void runTransition(selected, "close", "Episodio cerrado.")} />}
                 </section>
               ) : role === "administration" && canAdminister ? (
                 <AdminAccountsPanel key={JSON.stringify([user.id, user.institutions.map((item) => item.id).sort(), [...user.groups].sort(), user.ambulance?.id ?? null])} currentUserId={user.id} institutionName={user.institutions[0]?.name ?? ""} />
@@ -741,7 +751,7 @@ function UrgenciasEmergencyCard({ emergency, archived = false, onSelect, onMarkA
   const triage = triageLevel ? TRIAGE[triageLevel] : null;
   return <div className="relative w-full overflow-hidden rounded-xl border border-white/10 bg-ink/60 p-4 pl-5 text-left transition hover:border-signal/40 hover:bg-white/5">
     <span className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: triage?.color ?? "#64748B" }} aria-hidden="true" />
-    <button type="button" onClick={onSelect} className="block w-full rounded-xl text-left"><span className="flex flex-wrap items-center justify-between gap-2"><strong>{emergency.patient.alias ?? "Paciente no identificado"}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs" style={triage ? { color: triage.color } : undefined}>{emergency.triage ?? "Sin clasificar"} · {emergency.status === "cancelada" && emergency.replaced_by_id ? cancellationLabel(emergency) : urgenciasStatusLabel(emergency.status)}</span></span>
+    <button type="button" onClick={onSelect} className="block w-full rounded-xl text-left"><span className="flex flex-wrap items-center justify-between gap-2"><strong>{patientDisplayLabel(emergency.patient)}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs" style={triage ? { color: triage.color } : undefined}>{emergency.triage ?? "Sin clasificar"} · {emergency.status === "cancelada" && emergency.replaced_by_id ? cancellationLabel(emergency) : urgenciasStatusLabel(emergency.status)}</span></span>
     <span className="mt-1 block text-sm text-muted-dark">{emergency.reason}</span>
     <span className="mt-3 block text-[10px] font-semibold uppercase tracking-widest text-muted-dark">Signos vitales</span>
     <VitalsStrip vitals={backendVitalsToDisplay(emergency)} tone="dark" dense className="mt-4" />
@@ -752,7 +762,7 @@ function UrgenciasEmergencyCard({ emergency, archived = false, onSelect, onMarkA
   </div>;
 }
 
-function EmergencyDetail({ emergency, busy, pending, onRead, onPrepare, onRetry, onClose, onMarkArrived, onCloseEmergency }: { emergency: BackendEmergency; busy: boolean; pending: boolean; onRead: () => void; onPrepare: () => void; onRetry: () => void; onClose: () => void; onMarkArrived: (reason: string) => void; onCloseEmergency: () => void }) {
+function EmergencyDetail({ emergency, busy, pending, onRead, onPrepare, onRetry, onClose, onMarkArrived, onCloseEmergency, onDeactivatePatient }: { emergency: BackendEmergency; busy: boolean; pending: boolean; onRead: () => void; onPrepare: () => void; onRetry: () => void; onClose: () => void; onMarkArrived: (reason: string) => void; onCloseEmergency: () => void; onDeactivatePatient?: () => void }) {
   const ageUnit = emergency.patient.age_unit === "years" ? "años" : emergency.patient.age_unit === "months" ? "meses" : emergency.patient.age_unit === "days" ? "días" : "";
   function confirmArrival() {
     let reason = "";
@@ -766,12 +776,13 @@ function EmergencyDetail({ emergency, busy, pending, onRead, onPrepare, onRetry,
   }
   return <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label="Detalle de episodio">
     <div className="max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/10 bg-ink p-5 shadow-2xl">
-      <div className="flex items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest text-muted-dark">Detalle de emergencia</p><h3 className="mt-1 text-xl font-bold">{emergency.patient.alias ?? "Paciente no identificado"}</h3></div><button onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-muted-dark hover:bg-white/5">Cerrar</button></div>
+      <div className="flex items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest text-muted-dark">Detalle de emergencia</p><h3 className="mt-1 text-xl font-bold">{patientDisplayLabel(emergency.patient)}</h3></div><button onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-muted-dark hover:bg-white/5">Cerrar</button></div>
       <p className="mt-3 rounded-lg bg-white/5 p-3">{emergency.reason}</p>
       <p className="mt-2 text-sm text-muted-dark">Edad: {emergency.patient.age_value === null ? "No informada" : `${emergency.patient.age_value} ${ageUnit}`} · Sexo: {emergency.patient.recorded_sex ?? "No informado"}</p>
       <p className="mt-2 text-sm text-muted-dark">Síntomas: {emergency.symptoms.length ? emergency.symptoms.join(", ") : "No informados"}</p>
       <EmergencyMilestones emergency={emergency} busy={busy} pending={pending} onRead={onRead} onPrepare={onPrepare} onRetry={onRetry} />
       <ReplacementLink emergency={emergency} />
+      {onDeactivatePatient && <button type="button" disabled={busy || pending} onClick={onDeactivatePatient} className="mt-3 rounded-lg border border-rose-300/30 px-3 py-2 text-sm text-rose-100 disabled:opacity-50">Desactivar paciente sintético</button>}
        <MeasurementHistory measurements={emergency.vital_measurements} />
       {emergency.notes && <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white/5 p-3 text-sm">{emergency.notes}</p>}
       {emergency.arrived_at && <p className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Llegada registrada: {new Date(emergency.arrived_at).toLocaleString()}{emergency.arrival_reason ? ` · Motivo: ${emergency.arrival_reason}` : ""}</p>}

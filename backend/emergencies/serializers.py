@@ -77,9 +77,11 @@ class VitalsCreateSerializer(serializers.Serializer):
 
 class EmergencyCreateSerializer(serializers.Serializer):
     operation_id = serializers.UUIDField()
+    patient_id = serializers.UUIDField(required=False)
+    patient_version = serializers.IntegerField(min_value=1, required=False)
     destination_id = serializers.UUIDField()
     transfer_started = serializers.BooleanField(default=False)
-    patient_identity_unknown = serializers.BooleanField()
+    patient_identity_unknown = serializers.BooleanField(required=False)
     patient_alias = serializers.CharField(
         max_length=160, allow_blank=True, required=False, trim_whitespace=True
     )
@@ -118,6 +120,27 @@ class EmergencyCreateSerializer(serializers.Serializer):
         return destination
 
     def validate(self, attrs):
+        context_fields = {
+            "patient_identity_unknown",
+            "patient_alias",
+            "age_value",
+            "age_unit",
+            "recorded_sex",
+        }
+        if "patient_id" in attrs:
+            if context_fields & set(attrs) or "patient_version" not in attrs:
+                raise serializers.ValidationError(
+                    {
+                        "patient_id": "Para reutilizar envía solo paciente y versión, no sobrescribas su identificación."
+                    }
+                )
+            return attrs
+        if "patient_version" in attrs or "patient_identity_unknown" not in attrs:
+            raise serializers.ValidationError(
+                {
+                    "patient_identity_unknown": "Indica explícitamente identidad conocida o desconocida."
+                }
+            )
         age_value = attrs.get("age_value")
         age_unit = attrs.get("age_unit", "")
         if (age_value is None) != (not age_unit):
@@ -137,12 +160,7 @@ class EmergencyCreateSerializer(serializers.Serializer):
 
         alias = attrs.get("patient_alias", "")
         identity_unknown = attrs["patient_identity_unknown"]
-        if not identity_unknown and not alias:
-            raise serializers.ValidationError(
-                {
-                    "patient_alias": "Indica un alias de ejemplo o marca la identidad como desconocida."
-                }
-            )
+        validate_text(alias)
         if identity_unknown and alias:
             raise serializers.ValidationError(
                 {"patient_alias": "No combines identidad desconocida con un alias."}
@@ -241,6 +259,13 @@ def emergency_representation(emergency):
         "ambulance_code": emergency.ambulance.code,
         "destination_name": emergency.destination.name,
         "status": emergency.status,
+        "patient_id": str(emergency.patient_record_id) if emergency.patient_record_id else None,
+        "patient_record_version": emergency.patient_record.version
+        if emergency.patient_record_id
+        else None,
+        "patient_record_enabled": emergency.patient_record.enabled
+        if emergency.patient_record_id
+        else None,
         "replaces_id": str(emergency.replaces_id) if emergency.replaces_id else None,
         "replaced_by_id": str(emergency.replacement.pk)
         if hasattr(emergency, "replacement")

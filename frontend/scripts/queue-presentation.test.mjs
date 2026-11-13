@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { partitionTriageQueue, rectificationDescription, cancellationLabel } from "../src/screens/local/queuePresentation.ts";
+import { partitionTriageQueue, rectificationDescription, cancellationLabel, patientDisplayLabel } from "../src/screens/local/queuePresentation.ts";
+
+test("patient labels distinguish unknown identity, omitted alias and unavailable record", () => {
+  assert.equal(patientDisplayLabel({ identity_unknown: true, alias: null }), "Paciente no identificado");
+  assert.equal(patientDisplayLabel({ identity_unknown: false, alias: null }), "Alias no informado");
+  assert.equal(patientDisplayLabel({ identity_unknown: false, alias: "Caso sintético" }), "Caso sintético");
+  assert.equal(patientDisplayLabel(), "Registro no disponible");
+});
 
 test("cancellation label distinguishes confirmed destination replacement from ordinary cancellation", () => {
   assert.equal(cancellationLabel({ status: "cancelada", replaced_by_id: "synthetic-replacement" }), "Cancelado por cambio de destino");

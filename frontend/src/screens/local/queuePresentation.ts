@@ -1,5 +1,11 @@
 import type { BackendEmergency, VitalMeasurement } from "../../lib/backend";
 
+export function patientDisplayLabel(patient?: BackendEmergency["patient"]): string {
+  if (!patient) return "Registro no disponible";
+  if (patient.identity_unknown) return "Paciente no identificado";
+  return patient.alias?.trim() || "Alias no informado";
+}
+
 /** A reason mentioning a destination is not proof that a replacement exists. */
 export function cancellationLabel(emergency: Pick<BackendEmergency, "status" | "replaced_by_id">): string {
   return emergency.status === "cancelada" && emergency.replaced_by_id

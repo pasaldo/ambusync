@@ -18,7 +18,22 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
+from emergencies.patient_records import PatientListView, PatientUpdateView
+from institutions.symptom_views import SymptomDeactivateView, SymptomListCreateView
+
 urlpatterns = [
+    path("api/v1/patients/", PatientListView.as_view(), name="patients"),
+    path(
+        "api/v1/patients/<uuid:patient_id>/update/",
+        PatientUpdateView.as_view(),
+        name="patient-update",
+    ),
+    path("api/v1/institutions/symptoms/", SymptomListCreateView.as_view(), name="symptoms"),
+    path(
+        "api/v1/institutions/symptoms/<uuid:symptom_id>/deactivate/",
+        SymptomDeactivateView.as_view(),
+        name="symptom-deactivate",
+    ),
     path("admin/", admin.site.urls),
     path("api/v1/auth/", include("accounts.urls")),
     path("api/v1/institutions/", include("institutions.urls")),

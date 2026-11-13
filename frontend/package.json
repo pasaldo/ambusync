@@ -14,7 +14,7 @@
     "lint": "tsc --noEmit",
     "shots": "node scripts/shots.mjs",
     "check:diagrams": "node scripts/check-mermaid.mjs",
-    "test:unit": "node --experimental-strip-types --test scripts/mermaid-checker.test.mjs scripts/emergency-socket.test.mjs scripts/emergency-reconciliation.test.mjs scripts/operation-id.test.mjs scripts/portal-memory.test.mjs scripts/clinical-updates.test.mjs scripts/queue-presentation.test.mjs scripts/milestone-proof.test.mjs scripts/destination-change-result.test.mjs",
+    "test:unit": "node --experimental-strip-types --test scripts/mermaid-checker.test.mjs scripts/emergency-socket.test.mjs scripts/emergency-reconciliation.test.mjs scripts/operation-id.test.mjs scripts/portal-memory.test.mjs scripts/clinical-updates.test.mjs scripts/queue-presentation.test.mjs scripts/milestone-proof.test.mjs scripts/destination-change-result.test.mjs scripts/resource-operation.test.mjs",
     "test:sync": "node scripts/sync-test.mjs",
     "test:accounts": "node scripts/accounts-test.mjs",
     "test:units": "node scripts/unit-management-test.mjs",
@@ -22,6 +22,7 @@
     "test:review-corrections": "node --test scripts/review-corrections-test.mjs",
     "test:milestones": "node --test scripts/milestones-test.mjs",
     "test:destination-change": "node --test scripts/destination-change-test.mjs",
+    "test:patients-catalog": "node --test scripts/patients-catalog-test.mjs",
     "test:system-admin": "node scripts/system-admin-test.mjs",
     "test:local-websocket": "node scripts/local-websocket-test.mjs",
     "test:local-integrity": "node --test scripts/local-integrity-test.mjs"

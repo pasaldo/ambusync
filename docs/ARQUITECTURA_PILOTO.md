@@ -1,5 +1,13 @@
 # Arquitectura y contratos mínimos del piloto
 
+## Actualización G — 13/11/2026, verificación local
+
+FuncionamientoG aprobado por el responsable; búsqueda/reutilización solo de la unidad asignada. Maestro `Patient` de operadora y snapshot en `Emergency`; corregir maestro no modifica identificación/hitos/autores de episodios anteriores. F conserva FK y snapshot del episodio (no lee maestro actualizado). Una raízF legada se vincula a un maestro independiente con sus descendientes, sin matching por alias/edad/sexo ni autoría histórica fabricada. Urgencias no consulta maestro/historial completo; baja explícita autorizada por episodio solo devuelve ID/estado/versión y exige permiso extra/ausencia de no terminales.
+
+CatálogoSymptom institucional, base común al alta/migración; GET sin efectos. Selecciones nuevas activas de operadora, descripción snapshot conservada tras baja; D admite conservar etiquetas históricas ya seleccionadas, no añadir desactivadas nuevas. Gestión requiere `manage_symptoms`, desactivación paciente `urgencias`+`deactivate_patients`; grupos aprovisionados localmente por procedimiento controlado, no implícitos por administración ni delegación web ampliada. `ProcessedOperation` conserva namespace actor/UUID y exactamente un objetivo Emergency/Patient/Symptom. C incluye maestros/recibos de paciente en aplicación90d, auditoría12meses independiente; catálogo permanece configuración con sus recibos.
+
+Verificación local217 backend, frontend35 unitarias+10G y regresiones PASS; nuevas rutas de maestro/recursosG privadas/no-store. **G manual pendiente**. Contrato `backend/openapi.json`, arranque/casos/permisos en [PRUEBAS_G.md](PRUEBAS_G.md). Migraciones solo runner durante implementación; no despliegue ni inicioH/J. Estas precisiones sustituyen pendientesG históricos, no funciones futuras de informes/GPS.
+
 ## Actualización de contrato F — 13/11/2026
 
 El responsable aprobó la proyección del cambio de destino D-006/D-014: cancelar original y crear reemplazo atómicos, conservando paciente y antecedentes del emisor; mediciones vigentes heredadas con autores/fechas originales, sin copiar hitos del receptor ni posiciones. El traslado conserva su estado/declaración original, no inventa otra salida. Contrato exacto en `backend/openapi.json` (`change-destination/`), plan [bloque F](superpowers/plans/2026-11-13-block-f-destination-change.md), arranque/aceptación [PRUEBAS_F.md](PRUEBAS_F.md). Implementación local en verificación, no aceptación manual ni despliegue; sustituye las menciones históricas de contratoF pendiente, no las de GPSJ/otras funciones futuras.

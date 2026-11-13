@@ -7,6 +7,54 @@
   },
   "servers": [{ "url": "http://127.0.0.1:8000" }],
   "paths": {
+    "/api/v1/patients/": {
+      "get": {
+        "operationId": "listAssignedUnitPatients", "security": [{ "sessionCookie": [] }],
+        "description": "Solo ambulancia habilitada/asignada. Maestros activos asociados previamente a episodios de esa unidad, no directorio de la operadora ni historial. Páginas25, page_size máximo100; no alias/datos clínicos en URL. Urgencias y system_admin no consultan maestros.",
+        "responses": { "200": { "description": "Identificación maestra mínima de pacientes de la unidad.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PatientPage" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/v1/patients/{patient_id}/update/": {
+      "post": {
+        "operationId": "updateUnitPatientMaster", "security": [{ "sessionCookie": [] }],
+        "description": "Solo ambulancia de unidad asociada al paciente. Corrección completa de identificación maestra activa con versión/UUID; omitidos opcionales se limpian. No modifica snapshots/versiones/hitos de episodios anteriores ni consulta historia ajena. Replay revalida ámbito y devuelve maestro actual, incluso si posteriormente se desactivó, sin duplicar auditoría. Namespace actor/UUID compartido con emergencias/catálogo.",
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "patient_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PatientUpdate" } } } },
+        "responses": { "200": { "description": "Maestro corregido o replay confirmado.", "headers": { "Idempotent-Replay": { "$ref": "#/components/headers/ResourceReplay" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PatientRecord" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/v1/emergencies/{emergency_id}/patient-deactivate/": {
+      "post": {
+        "operationId": "deactivateSyntheticPatient", "security": [{ "sessionCookie": [] }],
+        "description": "Urgencias del destino autorizado y grupo adicional deactivate_patients, nunca implícito por administrar. UUID y expected_version del PACIENTE, no del episodio. Exige ausencia de episodios no terminales de ese paciente en cualquier unidad; conflicto genérico sin detalles ajenos. Desactivación lógica versionada y auditada, sin borrar ni alterar snapshots/episodios. No abre maestro/historial; respuesta solo ID/estado/versión. Replay mantiene ámbito/permisos actuales.",
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmergencyOperation" } } } },
+        "responses": { "200": { "description": "Paciente desactivado o repetición confirmada.", "headers": { "Idempotent-Replay": { "$ref": "#/components/headers/ResourceReplay" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResourceState" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/v1/institutions/symptoms/": {
+      "get": {
+        "operationId": "listOwnInstitutionSymptoms", "security": [{ "sessionCookie": [] }],
+        "description": "Institución propia habilitada; catálogo de operadora para ambulancia. Base común inicializada por migración/alta institucional, no por GET. Sin permiso manage_symptoms devuelve solo activos; con permiso incluye desactivados para gestión. Paginación25/100; no concede acceso clínico.",
+        "responses": { "200": { "description": "Catálogo institucional.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SymptomPage" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      },
+      "post": {
+        "operationId": "createInstitutionSymptom", "security": [{ "sessionCookie": [] }],
+        "description": "Permiso adicional manage_symptoms e institución propia, sin autoconcesión administrativa. Descripción1–120, normalización NFKC/casefold/espacios y unicidad institucional incluso desactivados; no edición ni autoalta por texto de un episodio. UUID global por actor, auditoría mínima y replay dentro del ámbito.",
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SymptomCreate" } } } },
+        "responses": { "201": { "description": "Síntoma creado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CatalogSymptom" } } } }, "200": { "description": "Replay confirmado, estado actual del síntoma.", "headers": { "Idempotent-Replay": { "$ref": "#/components/headers/ResourceReplay" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CatalogSymptom" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/v1/institutions/symptoms/{symptom_id}/deactivate/": {
+      "post": {
+        "operationId": "deactivateInstitutionSymptom", "security": [{ "sessionCookie": [] }],
+        "description": "manage_symptoms y ámbito institucional propio. UUID/versión vigentes; baja lógica sin alterar descripciones snapshot de episodios. Ya desactivado con versión vigente es no-op que reserva UUID sin incrementar versión/auditoría. Replay exacto revalida permisos/ámbito.",
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "symptom_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmergencyOperation" } } } },
+        "responses": { "200": { "description": "Síntoma desactivado o replay.", "headers": { "Idempotent-Replay": { "$ref": "#/components/headers/ResourceReplay" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CatalogSymptom" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
     "/api/v1/auth/csrf/": {
       "get": {
         "operationId": "getCsrfToken",
@@ -397,7 +445,7 @@
       "SystemInstitutionId": { "name": "institution_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
       "UserInteraction": { "name": "X-AmbuSync-User-Interaction", "in": "header", "required": false, "schema": { "type": "string", "enum": ["1"] }, "description": "Enviar solo para acción humana; omitir en polling/telemetría. Renueva el vencimiento de inactividad (30 min), nunca el límite absoluto de 12 h." }
     },
-    "headers": { "SessionCookie": { "description": "Cookie HttpOnly de sesión; Secure se activa para HTTPS.", "schema": { "type": "string" } } },
+    "headers": { "SessionCookie": { "description": "Cookie HttpOnly de sesión; Secure se activa para HTTPS.", "schema": { "type": "string" } }, "ResourceReplay": { "description": "Reintento exacto de una operación confirmada, sin duplicar efectos.", "schema": { "type": "string", "const": "true" } } },
     "responses": {
       "BadRequest": { "description": "Validación fallida.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
       "Unauthorized": { "description": "Credenciales inválidas o cuenta no disponible.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
@@ -530,12 +578,19 @@
       "EmergencyCreate": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["operation_id", "destination_id", "patient_identity_unknown", "reason"],
+        "required": ["operation_id", "destination_id", "reason"],
+        "description": "Nuevo paciente explícito o patient_id/patient_version de maestro activo asociado a la unidad. Creación de maestro/episodio/snapshot/auditoría atómica, sin deduplicar alias ni personas desconocidas. Reutilizar no copia antecedentes del episodio previo. Síntomas nuevos solo activos de la operadora, notas nunca crean catálogo.",
+        "oneOf": [
+          { "required": ["patient_identity_unknown"], "not": { "anyOf": [{ "required": ["patient_id"] }, { "required": ["patient_version"] }] } },
+          { "required": ["patient_id", "patient_version"], "not": { "anyOf": [{ "required": ["patient_identity_unknown"] }, { "required": ["patient_alias"] }, { "required": ["age_value"] }, { "required": ["age_unit"] }, { "required": ["recorded_sex"] }] } }
+        ],
         "properties": {
           "operation_id": { "type": "string", "format": "uuid" },
           "destination_id": { "type": "string", "format": "uuid" },
           "transfer_started": { "type": "boolean", "default": false },
           "patient_identity_unknown": { "type": "boolean" },
+          "patient_id": { "type": "string", "format": "uuid" },
+          "patient_version": { "type": "integer", "minimum": 1 },
           "patient_alias": { "type": "string", "maxLength": 160 },
           "age_value": { "type": ["integer", "null"], "minimum": 0, "maximum": 130 },
           "age_unit": { "type": "string", "enum": ["years", "months", "days", ""] },
@@ -558,6 +613,13 @@
         }
       },
       "EmergencyOperation": { "type": "object", "required": ["operation_id", "expected_version"], "additionalProperties": false, "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 } } },
+      "ResourceState": { "type": "object", "required": ["id", "enabled", "version"], "properties": { "id": { "type": "string", "format": "uuid" }, "enabled": { "type": "boolean" }, "version": { "type": "integer", "minimum": 1 } } },
+      "PatientRecord": { "allOf": [{ "$ref": "#/components/schemas/ResourceState" }, { "type": "object", "required": ["patient"], "properties": { "patient": { "$ref": "#/components/schemas/Emergency/properties/patient" } } }], "description": "Solo identificación maestra, sin antecedentes ni historia de episodios. Urgencias no consulta esta representación." },
+      "PatientPage": { "type": "object", "required": ["count", "results", "next", "previous"], "properties": { "count": { "type": "integer" }, "results": { "type": "array", "items": { "$ref": "#/components/schemas/PatientRecord" } }, "next": { "type": ["string", "null"] }, "previous": { "type": ["string", "null"] } } },
+      "PatientUpdate": { "type": "object", "additionalProperties": false, "required": ["operation_id", "expected_version", "patient_identity_unknown"], "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "patient_identity_unknown": { "type": "boolean" }, "patient_alias": { "$ref": "#/components/schemas/EmergencyCreate/properties/patient_alias" }, "age_value": { "$ref": "#/components/schemas/EmergencyCreate/properties/age_value" }, "age_unit": { "$ref": "#/components/schemas/EmergencyCreate/properties/age_unit" }, "recorded_sex": { "$ref": "#/components/schemas/EmergencyCreate/properties/recorded_sex" } } },
+      "CatalogSymptom": { "allOf": [{ "$ref": "#/components/schemas/ResourceState" }, { "type": "object", "required": ["institution_id", "description"], "properties": { "institution_id": { "type": "string", "format": "uuid" }, "description": { "type": "string", "minLength": 1, "maxLength": 120 } } }] },
+      "SymptomPage": { "type": "object", "required": ["count", "results", "next", "previous"], "properties": { "count": { "type": "integer" }, "results": { "type": "array", "items": { "$ref": "#/components/schemas/CatalogSymptom" } }, "next": { "type": ["string", "null"] }, "previous": { "type": ["string", "null"] } } },
+      "SymptomCreate": { "type": "object", "additionalProperties": false, "required": ["operation_id", "expected_version", "description"], "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "description": { "type": "string", "minLength": 1, "maxLength": 120 } } },
       "DestinationChange": { "type": "object", "required": ["operation_id", "expected_version", "destination_id", "reason"], "additionalProperties": false, "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "destination_id": { "type": "string", "format": "uuid" }, "reason": { "type": "string", "minLength": 3, "maxLength": 2000 } } },
       "DestinationChangeResult": { "type": "object", "required": ["original", "replacement"], "additionalProperties": false, "properties": { "original": { "$ref": "#/components/schemas/Emergency" }, "replacement": { "$ref": "#/components/schemas/Emergency" } } },
       "EmergencyUpdate": { "type": "object", "required": ["operation_id", "expected_version"], "additionalProperties": false, "anyOf": [{ "required": ["reason"] }, { "required": ["symptoms"] }, { "required": ["notes"] }, { "required": ["triage"] }], "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "reason": { "type": "string", "minLength": 3, "maxLength": 2000 }, "notes": { "type": "string", "maxLength": 2000 }, "symptoms": { "type": "array", "maxItems": 20, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 120 } }, "triage": { "type": ["string", "null"], "enum": ["C1", "C2", "C3", "C4", "C5", "", null] } } },
@@ -576,7 +638,7 @@
       },
       "EmergencyCancellation": { "type": "object", "required": ["operation_id", "expected_version", "reason"], "additionalProperties": false, "properties": { "operation_id": { "type": "string", "format": "uuid" }, "expected_version": { "type": "integer", "minimum": 1 }, "reason": { "type": "string", "minLength": 3, "maxLength": 2000 } } },
       "Emergency": {
-        "allOf": [{ "required": ["read_at", "read_by_id", "prepared_at", "prepared_by_id", "replaces_id", "replaced_by_id"] }],
+        "allOf": [{ "required": ["read_at", "read_by_id", "prepared_at", "prepared_by_id", "replaces_id", "replaced_by_id", "patient_id", "patient_record_version", "patient_record_enabled"] }],
         "type": "object",
         "required": ["id", "operating_institution_id", "destination_id", "destination_name", "ambulance_id", "ambulance_code", "status", "patient", "reason", "symptoms", "notes", "vital_measurements", "triage", "created_at", "transfer_declared_at", "transfer_declared_by_id", "arrived_at", "arrived_by_id", "arrival_reason", "cancelled_at", "cancelled_by_id", "cancellation_reason", "closed_at", "closed_by_id", "version"],
         "properties": {
@@ -588,6 +650,9 @@
           "ambulance_code": { "type": "string" },
           "status": { "type": "string", "enum": ["notificada", "en_traslado", "llegado", "cancelada", "cerrada"] },
           "patient": { "type": "object", "required": ["identity_unknown", "alias", "age_value", "age_unit", "recorded_sex"], "properties": { "identity_unknown": { "type": "boolean" }, "alias": { "type": ["string", "null"] }, "age_value": { "type": ["integer", "null"] }, "age_unit": { "type": ["string", "null"] }, "recorded_sex": { "type": ["string", "null"] } } },
+          "patient_id": { "type": ["string", "null"], "format": "uuid", "description": "Vínculo al maestro, no permiso de consultar maestro ni otros episodios. Null permitido en importaciones/legados no vinculados." },
+          "patient_record_version": { "type": ["integer", "null"], "minimum": 1, "description": "Versión actual del registro para acción explícita, no altera snapshot patient." },
+          "patient_record_enabled": { "type": ["boolean", "null"] },
           "reason": { "type": "string" },
           "symptoms": { "type": "array", "items": { "type": "string" } },
           "vital_measurements": { "type": "array", "items": { "type": "object", "required": ["id", "kind", "value", "unit", "measured_at", "recorded_at", "recorded_by_id", "operation_id", "rectifies_id", "rectified_by_id", "is_current", "rectification_reason", "inherited_at"], "properties": { "id": { "type": "string" }, "kind": { "type": "string", "enum": ["heart_rate", "systolic_pressure", "diastolic_pressure", "spo2", "respiratory_rate", "temperature", "glasgow"] }, "value": { "type": "number" }, "unit": { "type": "string" }, "measured_at": { "type": "string", "format": "date-time" }, "recorded_at": { "type": "string", "format": "date-time" }, "recorded_by_id": { "type": "string" }, "operation_id": { "type": ["string", "null"], "format": "uuid" }, "rectifies_id": { "type": ["string", "null"] }, "rectified_by_id": { "type": ["string", "null"] }, "is_current": { "type": "boolean", "description": "No tiene reemplazo en su cadena; no implica que sea la última muestra temporal." }, "rectification_reason": { "type": "string" }, "inherited_at": { "type": ["string", "null"], "format": "date-time", "description": "Incorporación al reemplazo, no nueva captura. Medida/registro/autor originales conservados, UUID original no atribuido a la copia. Sin FK a medición de otro episodio." } } } },

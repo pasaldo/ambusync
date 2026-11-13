@@ -61,6 +61,7 @@ class EmergencyDestinationChangeView(EmergencyTransitionView):
             raise ValidationError({"destination_id": "El nuevo destino no está disponible."})
         now = timezone.now()
         replacement = Emergency.objects.create(
+            patient_record_id=emergency.patient_record_id,
             replaces=emergency,
             operating_institution_id=emergency.operating_institution_id,
             ambulance_id=emergency.ambulance_id,

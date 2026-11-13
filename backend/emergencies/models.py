@@ -7,6 +7,33 @@ from django.db.models import Q
 from institutions.models import Ambulance, Institution
 
 
+class Patient(models.Model):
+    """Synthetic master; Emergency retains its own immutable identity snapshot."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    operating_institution = models.ForeignKey(
+        Institution, on_delete=models.PROTECT, related_name="synthetic_patients"
+    )
+    patient_identity_unknown = models.BooleanField()
+    patient_alias = models.CharField(max_length=160, blank=True)
+    age_value = models.PositiveSmallIntegerField(null=True, blank=True)
+    age_unit = models.CharField(max_length=8, blank=True)
+    recorded_sex = models.CharField(max_length=1, null=True, blank=True)
+    enabled = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="created_patient_records",
+    )
+
+    class Meta:
+        ordering = ("created_at", "id")
+
+
 class Emergency(models.Model):
     class Status(models.TextChoices):
         NOTIFIED = "notificada", "Notificada"
@@ -115,6 +142,9 @@ class Emergency(models.Model):
         related_name="closed_emergencies",
     )
     version = models.PositiveIntegerField(default=1)
+    patient_record = models.ForeignKey(
+        Patient, on_delete=models.PROTECT, null=True, blank=True, related_name="episodes"
+    )
     replaces = models.OneToOneField(
         "self", on_delete=models.PROTECT, null=True, blank=True, related_name="replacement"
     )
@@ -149,11 +179,31 @@ class ProcessedOperation(models.Model):
     operation_id = models.UUIDField()
     action = models.CharField(max_length=64, default="emergency.created")
     request_hash = models.CharField(max_length=64)
-    emergency = models.ForeignKey(Emergency, on_delete=models.PROTECT, related_name="operations")
+    emergency = models.ForeignKey(
+        Emergency, on_delete=models.PROTECT, null=True, blank=True, related_name="operations"
+    )
+    patient = models.ForeignKey(
+        Patient, on_delete=models.PROTECT, null=True, blank=True, related_name="operations"
+    )
+    symptom = models.ForeignKey(
+        "institutions.Symptom",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="operations",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(emergency__isnull=False, patient__isnull=True, symptom__isnull=True)
+                    | Q(emergency__isnull=True, patient__isnull=False, symptom__isnull=True)
+                    | Q(emergency__isnull=True, patient__isnull=True, symptom__isnull=False)
+                ),
+                name="operation_exactly_one_target",
+            ),
             models.UniqueConstraint(
                 fields=("actor", "operation_id"), name="uniq_actor_operation_id"
             ),

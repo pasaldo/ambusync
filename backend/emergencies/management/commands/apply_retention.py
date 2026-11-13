@@ -84,6 +84,7 @@ class Command(BaseCommand):
                 "operations": self._delete_operations(plan["operations_ids"]),
                 "vital_measurements": self._delete_measurements(plan["measurement_ids"]),
                 "emergencies": self._delete_emergencies(plan["emergency_ids"]),
+                "patients": self._delete_patients(plan["patient_ids"]),
                 "audit": self._delete_audit(plan["audit_ids"]),
                 "session_revocations": SessionRevocationEvent.objects.filter(
                     id__in=plan["session_revocation_ids"]
@@ -133,10 +134,22 @@ class Command(BaseCommand):
             emergency_queryset = emergency_queryset.select_for_update()
         emergency_ids = list(emergency_queryset.values_list("id", flat=True))
         emergency_ids = list(dict.fromkeys(emergency_ids))
+        from django.db.models import Q
+
+        from emergencies.models import Patient
+
+        patient_query = (
+            Patient.objects.all()
+            if application_deadline and as_of > application_deadline
+            else Patient.objects.none()
+        )
+        if lock:
+            patient_query = patient_query.select_for_update(no_key=True)
+        patient_ids = list(patient_query.values_list("id", flat=True))
         operation_ids = list(
-            ProcessedOperation.objects.filter(emergency_id__in=emergency_ids).values_list(
-                "id", flat=True
-            )
+            ProcessedOperation.objects.filter(
+                Q(emergency_id__in=emergency_ids) | Q(patient_id__in=patient_ids)
+            ).values_list("id", flat=True)
         )
         measurement_ids = list(
             VitalMeasurement.objects.filter(emergency_id__in=emergency_ids).values_list(
@@ -167,6 +180,7 @@ class Command(BaseCommand):
                 "technical_logs": technical_log_cutoff.isoformat(),
             },
             "emergency_ids": [str(item) for item in emergency_ids],
+            "patient_ids": [str(item) for item in patient_ids],
             "operations_ids": [str(item) for item in operation_ids],
             "measurement_ids": [str(item) for item in measurement_ids],
             "audit_ids": [str(item) for item in audit_ids],
@@ -174,6 +188,7 @@ class Command(BaseCommand):
             "technical_log_ids": [str(item) for item in technical_log_ids],
             "counts": {
                 "emergencies": len(emergency_ids),
+                "patients": len(patient_ids),
                 "operations": len(operation_ids),
                 "measurements": len(measurement_ids),
                 "audit": len(audit_ids) + len(session_revocation_ids),
@@ -196,6 +211,11 @@ class Command(BaseCommand):
         Emergency.objects.filter(id__in=ids).update(replaces=None)
         ProcessedOperation.objects.filter(emergency_id__in=ids).delete()
         return Emergency.objects.filter(id__in=ids).delete()[0]
+
+    def _delete_patients(self, ids):
+        from emergencies.models import Patient
+
+        return Patient.objects.filter(id__in=ids).delete()[0]
 
     def _delete_audit(self, ids):
         return AuditEvent.objects.filter(id__in=ids).delete()[0]

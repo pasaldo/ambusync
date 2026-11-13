@@ -54,6 +54,12 @@ class EmergencyUpdateView(PreReceptionUpdateView):
 
     def apply_transition(self, emergency, actor, values):
         self.require_open(emergency)
+        if "symptoms" in values:
+            from institutions.symptom_catalog import validate_episode_symptoms
+
+            values["symptoms"] = validate_episode_symptoms(
+                emergency.operating_institution_id, values["symptoms"], emergency.symptoms
+            )
         for name in ("reason", "notes", "symptoms"):
             if name in values:
                 setattr(emergency, name, values[name])

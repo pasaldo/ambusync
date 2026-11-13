@@ -1,5 +1,7 @@
 # Bloque G — diseño de alcance, no implementación
 
+**Actualización:** el responsable aprobó este funcionamiento completo al responder «apruebo este funcionamiento de G». La búsqueda solo de la unidad se mantiene. Autorizado implementar localmente con TDD; no implica migrar desarrollo, conceder permisos a cuentas reales, publicar o iniciar H.
+
 G autorizado por el responsable al aprobar F con observaciónF1. Esta propuesta NO afirma funcionalidad nueva ni permisos ya concedidos. Basec701c58 más corrección visualF1. Autoridad: ETAPA_0 D005/D007/D009 y ARQUITECTURA_PILOTO «Contexto histórico del paciente»; sin datos reales, RUT/documentos fuera de alcance.
 
 ## Alcance aprobado que debe implementar G

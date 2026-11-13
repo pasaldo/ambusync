@@ -172,7 +172,15 @@ class EmergencyListCreateView(APIView):
                     headers={"Idempotent-Replay": "true"},
                 )
 
+            from emergencies.patient_records import resolve_patient
+            from institutions.symptom_catalog import validate_episode_symptoms
+
+            patient = resolve_patient(actor, assignment.ambulance, values, operation_id)
+            values["symptoms"] = validate_episode_symptoms(
+                assignment.ambulance.institution_id, values.get("symptoms", [])
+            )
             emergency = Emergency.objects.create(
+                patient_record=patient,
                 operating_institution=assignment.ambulance.institution,
                 destination=destination,
                 ambulance=assignment.ambulance,
