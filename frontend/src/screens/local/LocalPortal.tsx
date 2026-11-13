@@ -66,7 +66,7 @@ export function LocalPortal() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [operationError, setOperationError] = useState("");
-  const [role, setRole] = useState<"ambulance" | "urgencias" | "administration" | "reports" | "audit" | null>(null);
+  const [role, setRole] = useState<"ambulance" | "urgencias" | "administration" | "reports" | "audit" | "archive" | null>(null);
   const [ambulanceView, setAmbulanceView] = useState<"form" | "episodes">("form");
   const [draft, setDraft] = useState<EmergencyDraft>(emptyDraft);
   const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -108,6 +108,7 @@ export function LocalPortal() {
       if (!changed && current === "ambulance" && nextUser.groups.includes("ambulance")) return current;
       if (!changed && current === "urgencias" && nextUser.groups.includes("urgencias")) return current;
       if (!changed && current === "reports" && nextUser.groups.includes("urgencias") && nextUser.groups.includes("view_reports")) return current;
+      if (!changed && current === "archive" && nextUser.groups.includes("urgencias")) return current;
       if (!changed && current === "audit" && nextUser.groups.includes("institution_admin")) return current;
       return nextUser.groups.includes("ambulance") ? "ambulance" : nextUser.groups.includes("urgencias") ? "urgencias" : nextUser.groups.includes("institution_admin") ? "audit" : null;
     });
@@ -515,6 +516,7 @@ export function LocalPortal() {
                   {canAmbulance && <RoleButton active={role === "ambulance" && ambulanceView === "episodes"} onClick={() => { setRole("ambulance"); setAmbulanceView("episodes"); }} icon={<ClipboardList className="h-4 w-4" />}>Episodios de la unidad</RoleButton>}
                   {canUrgencias && <RoleButton active={role === "urgencias"} onClick={() => { setRole("urgencias"); setSelectedId(null); }} icon={<HeartPulse className="h-4 w-4" />}>Urgencias</RoleButton>}
                   {canReports && <RoleButton active={role === "reports"} onClick={() => { setRole("reports"); setSelectedId(null); }} icon={<Archive className="h-4 w-4" />}>Histórico e informes</RoleButton>}
+                  {canUrgencias && <RoleButton active={role === "archive"} onClick={() => { setRole("archive"); setSelectedId(null); }} icon={<Archive className="h-4 w-4" />}>Archivo de Urgencias</RoleButton>}
                   {canAdminister && <RoleButton active={role === "administration"} onClick={() => setRole("administration")} icon={<Activity className="h-4 w-4" />}>Administración</RoleButton>}
                   {canAudit && <RoleButton active={role === "audit"} onClick={() => { setRole("audit"); setSelectedId(null); }} icon={<ClipboardList className="h-4 w-4" />}>Auditoría administrativa</RoleButton>}
                 </div>
@@ -648,6 +650,8 @@ export function LocalPortal() {
                 </section>
               ) : role === "administration" && canAdminister ? (
                 <AdminAccountsPanel key={JSON.stringify([user.id, user.institutions.map((item) => item.id).sort(), [...user.groups].sort(), user.ambulance?.id ?? null])} currentUserId={user.id} institutionName={user.institutions[0]?.name ?? ""} />
+              ) : role === "archive" && canUrgencias ? (
+                <ReportsPanel archive key={`archive:${memory.token}`} expireSession={expireSession} onDeactivatePatient={user.groups.includes("deactivate_patients") ? deactivatePatient : undefined} patientBusy={resources.busy} patientPending={(id) => resources.memory.resourceAttempts.has(`patient:${id}`)} />
               ) : role === "reports" && canReports ? (
                 <ReportsPanel key={`reports:${memory.token}`} expireSession={expireSession} onDeactivatePatient={user.groups.includes("deactivate_patients") ? deactivatePatient : undefined} patientBusy={resources.busy} patientPending={(id) => resources.memory.resourceAttempts.has(`patient:${id}`)} />
               ) : role === "audit" && canAudit ? (

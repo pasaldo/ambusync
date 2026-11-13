@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { before, after, test } from "node:test";
 import { chromium } from "playwright";
-import { mockAuthenticatedApi } from "./mock-auth-api.mjs";
+import { mockAuthenticatedApi, historyFixture } from "./mock-auth-api.mjs";
 
 let browser;
 before(async () => { browser = await chromium.launch(); });
@@ -47,15 +47,68 @@ async function harness(groups = ["urgencias", "view_reports"], clock = false) {
   return { context, page, state, user };
 }
 
-test("operational urgencias has no clinical archive and retains all pending arrivals", async () => {
+test("operational urgencias retains basic archive and all pending arrivals without reports", async () => {
   const h = await harness(["urgencias"]);
   try {
     h.state.live = Array.from({ length: 26 }, (_, i) => episode(i + 1, "llegado"));
     await h.page.reload();
-    assert.equal(await h.page.getByRole("button", { name: "Archivo de Urgencias", exact: true }).count(), 0);
+    await h.page.getByRole("heading", { name: "synthetic_h" }).waitFor();
+    assert.equal(await h.page.getByRole("button", { name: "Archivo de Urgencias", exact: true }).count(), 1);
     assert.equal(await h.page.getByRole("button", { name: "Histórico e informes", exact: true }).count(), 0);
     await h.page.getByText("Episodio sintético H 1", { exact: true }).waitFor();
     await h.page.getByText("Episodio sintético H 26", { exact: true }).waitFor();
+  } finally { await h.context.close(); }
+});
+
+for (const groups of [["urgencias"], ["urgencias", "institution_admin"], ["urgencias", "institution_admin", "view_reports"]]) test(`archive and audit coexist with independent permissions: ${groups.join("+")}`, async () => {
+  const h = await harness(groups);
+  try {
+    await h.context.route("**/api/v1/emergencies/history/**", (route) => route.fulfill({ json: historyFixture([episode(42)], route.request().url()) }));
+    await h.context.route("**/api/v1/emergencies/10000000-0000-4000-8000-000000000042/", (route) => route.fulfill({ json: episode(42) }));
+    await h.page.getByRole("button", { name: "Archivo de Urgencias", exact: true }).click();
+    await h.page.getByRole("heading", { name: "Archivo de episodios", exact: true }).waitFor();
+    await h.page.getByRole("button", { name: /Ver episodio.*H 42/ }).click();
+    await h.page.getByRole("heading", { name: "Detalle histórico", exact: true }).waitFor();
+    assert.equal(h.state.queries.length, 0, "basic archive must not request report endpoints");
+    assert.equal(await h.page.getByRole("button", { name: "Histórico e informes", exact: true }).count(), groups.includes("view_reports") ? 1 : 0);
+    const audit = h.page.getByRole("button", { name: "Auditoría administrativa", exact: true });
+    assert.equal(await audit.count(), groups.includes("institution_admin") ? 1 : 0);
+    if (groups.includes("institution_admin")) {
+      await audit.click();
+      await h.page.locator("strong").filter({ hasText: /^account\.created$/ }).waitFor();
+      await h.page.getByRole("button", { name: "Archivo de Urgencias", exact: true }).click();
+      await h.page.getByRole("heading", { name: "Archivo de episodios", exact: true }).waitFor();
+    }
+  } finally { await h.context.close(); }
+});
+
+test("basic archive filters and paginates by event date without report summaries", async () => {
+  const h = await harness(["urgencias"]);
+  try {
+    const rows = Array.from({ length: 28 }, (_, i) => ({ ...episode(i + 101), closed_at: "2026-11-14T02:00:00Z", created_at: "2025-01-01T12:00:00Z" }));
+    const reads = [];
+    await h.context.route("**/api/v1/emergencies/history/**", (route) => {
+      reads.push(route.request().url());
+      return route.fulfill({ json: historyFixture(rows, route.request().url()) });
+    });
+    await h.page.getByRole("button", { name: "Archivo de Urgencias", exact: true }).click();
+    await h.page.getByText("28 episodios", { exact: true }).waitFor();
+    await h.page.locator('time[datetime="2026-11-14T02:00:00Z"]').first().waitFor();
+    assert.equal(await h.page.getByRole("heading", { name: "Por estado" }).count(), 0);
+    await h.page.getByLabel("Día", { exact: true }).fill("13");
+    await h.page.getByLabel("Mes", { exact: true }).fill("11");
+    await h.page.getByLabel("Año", { exact: true }).fill("2026");
+    await h.page.getByLabel("Estado del archivo", { exact: true }).selectOption("cerrada");
+    const filtered = h.page.waitForResponse((r) => r.url().includes("day=13"));
+    await h.page.getByRole("button", { name: "Aplicar filtros", exact: true }).click(); await filtered;
+    await h.page.getByRole("button", { name: "Página siguiente", exact: true }).click();
+    await h.page.getByText("Página 2", { exact: true }).waitFor();
+    assert.match(reads.at(-1), /page=2/);
+    assert.match(reads.at(-1), /year=2026/);
+    assert.equal(h.state.queries.length, 0);
+    await h.page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await h.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    if (process.env.HISTORY_SCREENSHOT) await h.page.screenshot({ path: process.env.HISTORY_SCREENSHOT, fullPage: true });
   } finally { await h.context.close(); }
 });
 

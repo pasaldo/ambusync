@@ -48,13 +48,14 @@ class ReportTests(TestCase):
         alien = self.make_episode(destination=self.foreign, status="cerrada")
         self.assertEqual(self.get(f"/api/v1/reports/emergencies/{alien.pk}/").status_code, 404)
 
-    def test_terminal_list_and_detail_not_available_by_operational_role(self):
+    def test_terminal_list_excluded_but_urgencias_keeps_basic_detail(self):
         terminal = self.make_episode(status="cerrada")
         for actor in (self.operator, self.receiver):
             response = self.get("/api/v1/emergencies/", actor)
             self.assertNotIn(str(terminal.pk), [row["id"] for row in response.json()["results"]])
             self.assertEqual(
-                self.get(f"/api/v1/emergencies/{terminal.pk}/", actor).status_code, 404
+                self.get(f"/api/v1/emergencies/{terminal.pk}/", actor).status_code,
+                200 if actor == self.receiver else 404,
             )
         self.grant()
         self.assertEqual(self.get(f"/api/v1/emergencies/{terminal.pk}/").status_code, 200)

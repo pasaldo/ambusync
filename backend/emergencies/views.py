@@ -59,7 +59,7 @@ def active_assignment_for(user, lock=False, lock_unit_only=False):
 
 
 def authorized_emergencies(user, include_terminal=False):
-    from reports.scopes import has_report_permission, receiver_institution_ids
+    from reports.scopes import receiver_institution_ids
 
     if not user.is_active or user.groups.filter(name="system_admin").exists():
         return Emergency.objects.none()
@@ -80,7 +80,7 @@ def authorized_emergencies(user, include_terminal=False):
             )
     if user.groups.filter(name="urgencias").exists():
         scope = Q(destination_id__in=receiver_institution_ids(user))
-        if not include_terminal or not has_report_permission(user):
+        if not include_terminal:
             scope &= ~Q(status__in=("cerrada", "cancelada"))
         visible = visible | Emergency.objects.filter(scope)
     return (

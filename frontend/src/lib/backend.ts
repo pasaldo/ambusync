@@ -376,6 +376,12 @@ export interface ReportPage extends ReadPage<BackendEmergency> {
   ambulances: { id: string; code: string }[]; timezone: string; date_basis: string;
 }
 export interface AdministrativeAuditRow { id: string; actor_id: string | null; occurred_at: string; action: string; object_type: string; object_id: string; result: string; correlation_id: string }
+export interface HistoryPage extends ReadPage<BackendEmergency & { event_date: string }> { timezone: string; date_basis: string }
+export async function getHistoryPage(path: string): Promise<HistoryPage> {
+  const data = await request<HistoryPage>(path, { cache: "no-store", humanInteraction: true });
+  if (!data || !Array.isArray(data.results) || !Number.isInteger(data.count) || data.date_basis !== "event_date" || data.timezone !== "America/Santiago") throw new Error("No se pudo validar el archivo recibido.");
+  return data;
+}
 export async function getReportPage(path: string): Promise<ReportPage> {
   const data = await request<ReportPage>(path, { cache: "no-store", humanInteraction: true });
   if (!data || !Array.isArray(data.results) || !Number.isInteger(data.count) || !data.summary || data.summary.total !== data.count || !data.summary.by_status || !data.summary.by_triage || !Array.isArray(data.ambulances)) throw new Error("No se pudo validar el informe recibido.");
@@ -383,7 +389,7 @@ export async function getReportPage(path: string): Promise<ReportPage> {
 }
 export async function getReportDetail(path: string): Promise<BackendEmergency> {
   const data = await request<BackendEmergency>(path, { cache: "no-store", humanInteraction: true });
-  const match = path.match(/^\/api\/v1\/reports\/emergencies\/([^/]+)\/$/);
+  const match = path.match(/^\/api\/v1\/(?:reports\/)?emergencies\/([^/]+)\/$/);
   if (!match || !data || data.id !== decodeURIComponent(match[1]) || !data.patient || !Array.isArray(data.vital_measurements) || !Array.isArray(data.symptoms) || typeof data.reason !== "string") throw new Error("El detalle recibido no corresponde al episodio solicitado.");
   return data;
 }

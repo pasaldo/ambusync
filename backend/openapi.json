@@ -7,6 +7,21 @@
   },
   "servers": [{ "url": "http://127.0.0.1:8000" }],
   "paths": {
+    "/api/v1/emergencies/history/": {
+      "get": {
+        "operationId": "listUrgenciasArchive", "security": [{ "sessionCookie": [] }],
+        "description": "Archivo básico para Urgencias del destino habilitado con membresía activa, sin requerir view_reports. No concede resúmenes ni auditoría. Terminales cerrada/cancelada por defecto; llegado solo con filtro explícito, conservado también en operativo. Fecha del hito America/Santiago: cancelada cancelled_at/created_at; cerrada closed_at/arrived_at/created_at; llegado arrived_at/created_at. Orden descendente por hito y ID. Snapshot de lectura por respuesta, paginación25/100, privada/no-store. Rechaza parámetros desconocidos/repetidos, rangos inválidos y combinaciones de fecha imposibles; día/mes/año son filtros independientes. Sin directorio de unidades ni summary.",
+        "parameters": [
+          { "$ref": "#/components/parameters/ReportPageNumber" }, { "$ref": "#/components/parameters/ReportPageSize" },
+          { "name": "day", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 31 } },
+          { "name": "month", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 12 } },
+          { "name": "year", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 9999 } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["cerrada", "cancelada", "llegado"] } },
+          { "$ref": "#/components/parameters/UserInteraction" }
+        ],
+        "responses": { "200": { "description": "Página del archivo básico; cada episodio incluye event_date.", "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/EmergencyPage" }, { "type": "object", "properties": { "timezone": { "const": "America/Santiago" }, "date_basis": { "const": "event_date" }, "results": { "type": "array", "items": { "allOf": [{ "$ref": "#/components/schemas/Emergency" }, { "type": "object", "required": ["event_date"], "properties": { "event_date": { "type": "string", "format": "date-time" } } }] } } } }] } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
     "/api/v1/reports/emergencies/": {
       "get": {
         "operationId": "listDestinationEmergencyReports", "security": [{ "sessionCookie": [] }],
@@ -361,7 +376,7 @@
     "/api/v1/emergencies/{emergency_id}/": {
       "get": {
         "operationId": "getEmergency",
-        "description": "Consulta operativa dentro del ámbito. Para cerrado/cancelado exige Urgencias+view_reports del DESTINO: la asignación de ambulancia por sí sola no concede histórico. No cambia permisos de escritura ni replay confirmadoA. Privada/no-store.",
+        "description": "Consulta dentro del ámbito. Cerrado/cancelado disponible a Urgencias del DESTINO con membresía activa y destino habilitado, sin exigir view_reports para el archivo básico. La asignación de ambulancia y administración sin Urgencias no conceden histórico. No cambia permisos de informes, auditoría, escritura ni replay confirmadoA. Privada/no-store.",
         "security": [{ "sessionCookie": [] }],
         "parameters": [{ "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "$ref": "#/components/parameters/UserInteraction" }],
         "responses": {
