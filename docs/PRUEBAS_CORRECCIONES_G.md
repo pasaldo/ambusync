@@ -1,6 +1,6 @@
 # Correcciones G — selector buscable e identificación por episodio
 
-El responsable solicitó sustituir los botones de pacientes por un menú con búsqueda por alias/ID y aprobó **corregir la identificación de un episodio antes de llegada**, con motivo, autor, fecha e identificación anterior conservada. La edición del maestro sigue separada: no propaga cambios al historial. Solo datos sintéticos, sin atención clínica. H/J no iniciados. Aceptación manual pendiente.
+El responsable solicitó sustituir los botones de pacientes por un menú con búsqueda por alias/ID y aprobó **corregir la identificación de un episodio antes de llegada**, con motivo, autor, fecha e identificación anterior conservada. La edición del maestro sigue separada: no propaga cambios al historial. Solo datos sintéticos, sin atención clínica. H/J no iniciados. **Aceptación manual reportada el13/11/2026 tras `1799cac`**, incluida la aprobación explícita posterior de todos los casosG.
 
 ## Arranque de esta copia
 
@@ -104,7 +104,9 @@ npm run check:diagrams
 
 Las regresiones completas y PSrestore usan únicamente datos/transporte sintéticos y dobles locales. No acreditan aceptación real entre dispositivos, atención clínica, despliegue ni restore/RPO/RTO. No se aplicó0010 a desarrollo durante implementación.
 
-## Aceptación pendiente
+## Aceptación reportada
+
+El responsable reportó «ahora todo funciono sin problemas» después del diagnóstico0010 pendiente y luego pidió dar por aprobados todos los demás casosG. Se registra su aceptación; no se observó el comando de migración ni se aportaron navegadores/dispositivos. No se presenta como nueva ejecución del agente. Solicitó detener procesosAmbuSync y publicar commits en la rama de trabajo; no merge/despliegue ni inicioH/J.
 
 ### Evidencia local del13/11/2026
 
@@ -114,11 +116,11 @@ Las regresiones completas y PSrestore usan únicamente datos/transporte sintéti
 - Las capturas del fixturePlaywright local no sustituyen aceptación operativa. No se instaló `agent-browser` ni se realizó inspecciónCDP adicional: CLI ausente. No se modificaron capturas versionadas deREADME.
 - Respuesta de corrección privada/no-store; ninguna nueva persistencia clínica de navegador. PSrestore solo dobles localesPASS, sin restore real/RPO/RTO. Migración0010 únicamente runner durante implementación; no grants/cierre/purga/despliegue reales. Gmanual y sus correcciones siguen pendientes.
 
-- [ ] CG1 búsqueda alias/ID, fuera de filtro, Enter y ámbito.
-- [ ] CG2 corrección explícita solo del episodio, maestro/otro episodio intactos.
-- [ ] CG3 actualización en ambos lados e historial de identificación.
-- [ ] CG4 validaciones, conflicto y bloqueo tras llegada.
-- [ ] CG5 incertidumbre/replay seguro y memoria por ámbito.
-- [ ] CG6 aislamientoF sin heredar historia anterior.
-- [ ] Móvil390px sin desborde y formularios legibles.
+- [x] CG1 búsqueda alias/ID, fuera de filtro, Enter y ámbito.
+- [x] CG2 corrección explícita solo del episodio, maestro/otro episodio intactos.
+- [x] CG3 actualización en ambos lados e historial de identificación.
+- [x] CG4 validaciones, conflicto y bloqueo tras llegada.
+- [x] CG5 incertidumbre/replay seguro y memoria por ámbito.
+- [x] CG6 aislamientoF sin heredar historia anterior.
+- [x] Móvil390px sin desborde y formularios legibles (aprobación global, sin dispositivo indicado).
 - [ ] Responsable registra fecha, commit, navegador/dispositivos y observaciones; estas casillas no se completan mediante pruebas automáticas.

@@ -2,7 +2,7 @@
 
 **Revisión posterior solicitada por el responsable:** selector con búsqueda por alias/ID y acción explícita de corrección de identificación por episodio antes de llegada. El maestro sigue sin propagar cambios. Arranque con migración0010 y aceptación específica en [PRUEBAS_CORRECCIONES_G.md](PRUEBAS_CORRECCIONES_G.md); la evidencia217 original de esta guía corresponde a G previo, no a esta revisión.
 
-**Implementación local verificada; aceptación manual pendiente.** El responsable aprobó funcionamientoG y búsqueda/reutilización **solo de la unidad asignada**, no directorio de toda la operadora. F aprobado con observación visual corregida en `f7cd573`; revalidación manual del rótuloF sigue pendiente. Solo datos sintéticos; no atención clínica ni identificadores reales. Sin publicación/despliegue ni inicio de H/J.
+**G y sus correcciones aprobados manualmente por reporte del responsable el13/11/2026, tras entregar `1799cac`.** Confirmó primero la corrección de identificación funcionando tras resolver0010 pendiente y luego aprobó expresamente todos los demás casosG. No aportó navegador/dispositivos ni comprobante del comando de migración. La búsqueda/reutilización sigue **solo de la unidad asignada**, no de toda la operadora. Autoriza commit/push del trabajo existente y detener procesos locales; no merge/despliegue, uso clínico ni iniciarH/J. El pendiente histórico de revalidación del rótuloF no se amplía por inferencia fuera de la aprobaciónG.
 
 ## 1. Arranque y migraciones de esta copia
 
@@ -141,7 +141,9 @@ npm run check:diagrams
 
 `test:local-websocket` es silencioso al aprobar; comprobar `$LASTEXITCODE`=0. Desde raíz, `./ops/backups/tests/restore-postgres.tests.ps1` solo prueba dobles locales sin restauración real/RPO/RTO. C conserva plazo global90d de aplicación/pacientes/recibos vinculados y12meses auditoría; catálogo es configuración institucional conservada junto a sus recibos, no historial clínico. No se ejecutaron grants/cierre/purga/restore sobre desarrollo para esta implementación.
 
-## 5. Registro de aceptación pendiente
+## 5. Registro de aceptación reportada
+
+Aceptación funcional de G1–G6 y móvil según aprobación global explícita del responsable. Las marcas siguientes reflejan su reporte, no una nueva ejecución del agente. Metadatos de dispositivos pendientes de aportarse. Los resultados técnicos siguientes son evidencia histórica de implementación, no nuevos ensayos tras la aprobación.
 
 ### Evidencia técnica local del13/11
 
@@ -152,12 +154,12 @@ npm run check:diagrams
 - Catálogo se trata como configuración institucional conservada con sus recibos; pacientes/recibos clínicos siguen plazoC global. Si se cambia esa clasificación, se requiere procedimiento de purga explícito, no borrar configuración por inferencia. DigestSHA256 normalizado evita límites de expansiónUnicode; riesgo residual de colisión teórica no se presenta como igualdad de identidad de pacientes.
 - Migraciones y permisos solo probados con DB efímera; no aplicación/grants/cierre/purga/restore sobre desarrollo. Revisión no certifica uso clínico, aceptación operativa, despliegue ni respaldo real. Guía y OpenAPI revisados localmente, no aprobación manual del responsable.
 
-- [ ] Migraciones/arranque local y lectura de límites de legados.
-- [ ] G1 paciente nuevo/identidad opcional y validaciones.
-- [ ] G2 reutilización solo de unidad, sin directorio/historial ajeno.
-- [ ] G3 maestro corregido sin modificar snapshots, compatibilidadF.
-- [ ] G4 catálogo institucional/permisos/histórico/retirada explícita de selección inactiva.
-- [ ] G5 baja autorizada sin episodios pendientes, historial conservado.
-- [ ] G6 resultado incierto/replay/login y descarte por ámbito.
-- [ ] Móvil sin desborde, formularios y avisos legibles.
+- [x] Migraciones/arranque local y lectura de límites de legados (aceptación reportada; sin comprobante del comando).
+- [x] G1 paciente nuevo/identidad opcional y validaciones.
+- [x] G2 reutilización solo de unidad, sin directorio/historial ajeno.
+- [x] G3 maestro corregido sin modificar snapshots, compatibilidadF.
+- [x] G4 catálogo institucional/permisos/histórico/retirada explícita de selección inactiva.
+- [x] G5 baja autorizada sin episodios pendientes, historial conservado.
+- [x] G6 resultado incierto/replay/login y descarte por ámbito.
+- [x] Móvil sin desborde, formularios y avisos legibles (aprobación global, sin dispositivo indicado).
 - [ ] Responsable registra fecha, commit ejecutado, navegadores/dispositivos y observaciones. La suite sintética no marca esta aceptación.
