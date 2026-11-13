@@ -1,5 +1,7 @@
 # Bloque H — histórico, informes y auditoría administrativa
 
+> **Legibilidad de auditoría posterior:** [PRUEBAS_AUDITORIA_LEGIBLE_H.md](PRUEBAS_AUDITORIA_LEGIBLE_H.md). Doce eventos y filtros en español, cuenta/unidad/responsable distinguibles mediante referencias actuales verificadas; IDs/correlación en detalles técnicos. Sin ampliar roles/ámbitos ni inventar nombres históricos.
+
 > **Corrección posterior vigente:** [PRUEBAS_CORRECCION_H.md](PRUEBAS_CORRECCION_H.md). El Archivo de Urgencias vuelve a estar disponible para Urgencias normal y administración+Urgencias, sin `view_reports`; este permiso sigue reservado para informes/resúmenes. Auditoría mantiene `institution_admin`. Las restricciones de archivo básico descritas abajo son evidencia histórica de H y quedan sustituidas por esta aclaración.
 
 **Implementación local verificada; aceptación manual pendiente.** Funcionamiento aprobado por el responsable, incluida la elección **Restringir histórico**. Solo datos sintéticos, sin atención clínica. BaseG aceptada `f510d0a`; H no autoriza iniciarI/J, publicar/desplegar ni crear servicios externos.

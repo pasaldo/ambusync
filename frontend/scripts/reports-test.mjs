@@ -38,7 +38,7 @@ async function harness(groups = ["urgencias", "view_reports"], clock = false) {
     if (state.hold) await state.hold(url);
     await route.fulfill({ json: data });
   });
-  await context.route("**/api/v1/institutions/audit/**", (route) => route.fulfill({ json: { count: 1, next: null, previous: null, results: [{ id: "audit-h", actor_id: "actor-h", occurred_at: "2026-11-13T12:00:00Z", action: "account.created", object_type: "account", object_id: "synthetic-account", result: "success", correlation_id: "correlation-h" }] } }));
+  await context.route("**/api/v1/institutions/audit/**", (route) => route.fulfill({ json: { count: 1, next: null, previous: null, results: [{ id: "audit-h", actor_id: "actor-h", occurred_at: "2026-11-13T12:00:00Z", action: "account.created", object_type: "account", object_id: "synthetic-account", result: "success", correlation_id: "correlation-h", display: { actor: "admin_sintetico", account: "cuenta_sintetica", unit: null, reference_basis: "current_records" } }] } }));
   const page = await context.newPage(); page.setDefaultTimeout(10000);
   if (clock) await page.clock.install();
   await page.addInitScript(() => { window.WebSocket = class extends EventTarget { readyState = 0; close() {} }; });
@@ -76,7 +76,7 @@ for (const groups of [["urgencias"], ["urgencias", "institution_admin"], ["urgen
     if (groups.includes("institution_admin")) {
       await h.page.getByRole("dialog", { name: "Detalle de episodio", exact: true }).getByRole("button", { name: "Cerrar", exact: true }).click();
       await audit.click();
-      await h.page.locator("strong").filter({ hasText: /^account\.created$/ }).waitFor();
+      await h.page.getByRole("heading", { name: "Cuenta creada", exact: true }).waitFor();
       await h.page.getByRole("button", { name: "Archivo de Urgencias", exact: true }).click();
       await h.page.getByRole("heading", { name: "Archivo de episodios", exact: true }).waitFor();
     }
@@ -262,9 +262,52 @@ test("non-clinical institutional administrator sees only administrative audit", 
   const h = await harness(["institution_admin"]);
   try {
     await h.page.getByRole("button", { name: "Auditoría administrativa", exact: true }).click();
-    await h.page.locator("strong").filter({ hasText: /^account\.created$/ }).waitFor();
+    await h.page.getByRole("heading", { name: "Cuenta creada", exact: true }).waitFor();
     assert.equal(await h.page.getByRole("button", { name: "Histórico e informes", exact: true }).count(), 0);
     assert.equal(h.state.queries.length, 0);
+  } finally { await h.context.close(); }
+});
+
+test("all administrative events explain action account unit actor and keep technical IDs collapsed", async () => {
+  const h = await harness(["urgencias", "institution_admin"]);
+  try {
+    const titles = [
+      ["account.created", "Cuenta creada", "account"], ["account.activated", "Cuenta activada", "account"],
+      ["account.activation_resent", "Invitación de activación reenviada", "account"], ["account.deactivated", "Cuenta desactivada", "account"],
+      ["ambulance.created", "Unidad creada", "ambulance"], ["ambulance.deactivated", "Unidad desactivada", "ambulance"],
+      ["ambulance.assignment_started", "Unidad asignada a una cuenta", "ambulance_assignment"], ["ambulance.assignment_ended", "Asignación de unidad retirada", "ambulance_assignment"],
+      ["institution_admin.provisioned", "Administración institucional habilitada", "account"],
+      ["permission.manage_symptoms_granted", "Permiso para gestionar síntomas concedido", "account"],
+      ["permission.deactivate_patients_granted", "Permiso para desactivar pacientes concedido", "account"],
+      ["permission.view_reports_granted", "Permiso de informes concedido", "account"],
+    ];
+    await h.context.route("**/api/v1/institutions/audit/**", (route) => {
+      const action = new URL(route.request().url()).searchParams.get("action");
+      const rows = titles.filter(([key]) => !action || key === action).map(([key, , type], i) => ({
+        id: `audit-${i}`, actor_id: "10", action: key, object_type: type, object_id: "12", result: "success",
+        occurred_at: "2026-11-13T12:00:00Z", correlation_id: "1f9b90ff-fef3-4374-9a1a-d29e374c2128",
+        display: { actor: "admin_sintetico", account: type !== "ambulance" ? "urgencias_sintetica" : null, unit: type !== "account" ? "SYN-01" : null, reference_basis: "current_records" },
+      }));
+      return route.fulfill({ json: { count: rows.length, results: rows, next: null, previous: null } });
+    });
+    await h.page.getByRole("button", { name: "Auditoría administrativa", exact: true }).click();
+    for (const [, title] of titles) await h.page.getByRole("heading", { name: title, exact: true }).waitFor();
+    const created = h.page.getByRole("listitem").filter({ has: h.page.getByRole("heading", { name: "Cuenta creada", exact: true }) });
+    await created.getByText("urgencias_sintetica", { exact: true }).waitFor();
+    await created.getByText("admin_sintetico", { exact: true }).waitFor();
+    await created.getByText("Confirmado", { exact: true }).waitFor();
+    assert.equal(await created.getByText("account.created", { exact: true }).isVisible(), false);
+    await created.getByText("Detalles técnicos", { exact: true }).click();
+    await created.getByText("account.created", { exact: true }).waitFor();
+    await h.page.getByText(/identificación actual/i).first().waitFor();
+    await h.page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await h.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    if (process.env.AUDIT_SCREENSHOT) await h.page.screenshot({ path: process.env.AUDIT_SCREENSHOT, fullPage: true });
+    await h.page.getByLabel("Acción administrativa", { exact: true }).selectOption("account.activated");
+    const filtered = h.page.waitForResponse((r) => r.url().includes("action=account.activated"));
+    await h.page.getByRole("button", { name: "Aplicar filtros de auditoría", exact: true }).click(); await filtered;
+    await h.page.getByText("1 evento administrativo", { exact: true }).waitFor();
+    assert.equal(await h.page.getByRole("heading", { name: "Cuenta creada", exact: true }).count(), 0);
   } finally { await h.context.close(); }
 });
 

@@ -375,7 +375,7 @@ export interface ReportPage extends ReadPage<BackendEmergency> {
   summary: { total: number; by_status: Record<string, number>; by_triage: Record<string, number> };
   ambulances: { id: string; code: string }[]; timezone: string; date_basis: string;
 }
-export interface AdministrativeAuditRow { id: string; actor_id: string | null; occurred_at: string; action: string; object_type: string; object_id: string; result: string; correlation_id: string }
+export interface AdministrativeAuditRow { id: string; actor_id: string | null; occurred_at: string; action: string; object_type: string; object_id: string; result: string; correlation_id: string; display: { actor: string; account: string | null; unit: string | null; reference_basis: "current_records" } }
 export interface HistoryPage extends ReadPage<BackendEmergency & { event_date: string }> { timezone: string; date_basis: string; ambulances: { id: string; code: string }[] }
 export async function getHistoryPage(path: string): Promise<HistoryPage> {
   const data = await request<HistoryPage>(path, { cache: "no-store", humanInteraction: true });
@@ -395,7 +395,7 @@ export async function getReportDetail(path: string): Promise<BackendEmergency> {
 }
 export async function getAdministrativeAudit(path: string): Promise<ReadPage<AdministrativeAuditRow>> {
   const data = await request<ReadPage<AdministrativeAuditRow>>(path, { cache: "no-store", humanInteraction: true });
-  if (!data || !Array.isArray(data.results) || !Number.isInteger(data.count)) throw new Error("No se pudo validar la auditoría recibida.");
+  if (!data || !Array.isArray(data.results) || !Number.isInteger(data.count) || data.results.some((row) => !row.display || typeof row.display.actor !== "string" || row.display.reference_basis !== "current_records" || (row.display.account !== null && typeof row.display.account !== "string") || (row.display.unit !== null && typeof row.display.unit !== "string"))) throw new Error("No se pudo validar la auditoría recibida.");
   return data;
 }
 

@@ -49,7 +49,7 @@
     "/api/v1/institutions/audit/": {
       "get": {
         "operationId": "listInstitutionAdministrativeAudit", "security": [{ "sessionCookie": [] }],
-        "description": "Solo institution_admin con institución propia habilitada/membresía activa, sin permiso clínico implícito. Excluye system_admin. Allowlist exacta de pares acción/objeto administrativos; excluye eventos clínicos aunque filtros sean manipulados. Proyección mínima sin executor, nombres actuales ajenos, motivos de revocación ni contenido clínico/logs. Fechas inclusivas de occurred_at America/Santiago. Paginada, sin efectos del GET y privada/no-store; no modifica retenciónC.",
+        "description": "Solo institution_admin con institución propia habilitada/membresía activa, sin permiso clínico implícito. Excluye system_admin. Allowlist exacta de pares acción/objeto administrativos; excluye eventos clínicos aunque filtros sean manipulados. Proyección mínima sin executor, nombres actuales ajenos, motivos de revocación ni contenido clínico/logs. display resuelve username/código actuales solo en la institución exacta del evento; no expone usernames de cuentas con membresía activa en otra institución. Sin snapshots históricos de nombres: reference_basis=current_records y fallback explícito si no disponible. Asignaciones se resuelven por ID histórico y unidad coincidente, nunca asignaciónactual. Resolución en lote por página, mismo snapshot de lectura. Fechas inclusivas de occurred_at America/Santiago. Paginada, sin efectos del GET y privada/no-store; no modifica retenciónC.",
         "parameters": [
           { "$ref": "#/components/parameters/ReportDateFrom" }, { "$ref": "#/components/parameters/ReportDateTo" },
           { "$ref": "#/components/parameters/ReportPageNumber" }, { "$ref": "#/components/parameters/ReportPageSize" },
@@ -536,9 +536,10 @@
           }
         }]
       },
-      "AdministrativeAuditRow": { "type": "object", "additionalProperties": false, "required": ["id", "actor_id", "occurred_at", "action", "object_type", "object_id", "result", "correlation_id"], "properties": {
+      "AdministrativeAuditRow": { "type": "object", "additionalProperties": false, "required": ["id", "actor_id", "occurred_at", "action", "object_type", "object_id", "result", "correlation_id", "display"], "properties": {
         "id": { "type": "string", "format": "uuid" }, "actor_id": { "type": ["string", "null"] }, "occurred_at": { "type": "string", "format": "date-time" },
-        "action": { "type": "string" }, "object_type": { "type": "string", "enum": ["account", "ambulance", "ambulance_assignment"] }, "object_id": { "type": "string" }, "result": { "type": "string", "enum": ["success"] }, "correlation_id": { "type": "string", "format": "uuid" }
+        "action": { "type": "string" }, "object_type": { "type": "string", "enum": ["account", "ambulance", "ambulance_assignment"] }, "object_id": { "type": "string" }, "result": { "type": "string", "enum": ["success"] }, "correlation_id": { "type": "string", "format": "uuid" },
+        "display": { "type": "object", "additionalProperties": false, "required": ["actor", "account", "unit", "reference_basis"], "properties": { "actor": { "type": "string" }, "account": { "type": ["string", "null"] }, "unit": { "type": ["string", "null"] }, "reference_basis": { "type": "string", "const": "current_records" } } }
       } },
       "AdministrativeAuditPage": { "type": "object", "required": ["count", "next", "previous", "results"], "properties": { "count": { "type": "integer", "minimum": 0 }, "next": { "type": ["string", "null"] }, "previous": { "type": ["string", "null"] }, "results": { "type": "array", "items": { "$ref": "#/components/schemas/AdministrativeAuditRow" } } } },
       "Error": {

@@ -5,6 +5,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 
 from audit.models import AuditEvent
+from audit.presentation import administrative_displays
 from emergencies.resource_mutations import NoStoreResourceView
 from emergencies.views import EmergencyPagination
 from institutions.models import InstitutionMembership
@@ -58,6 +59,7 @@ class AdministrativeAuditView(NoStoreResourceView):
             page = paginator.paginate_queryset(
                 query.order_by("-occurred_at", "id"), request, view=self
             )
+            displays = administrative_displays(page)
             rows = [
                 {
                     "id": str(row.pk),
@@ -68,6 +70,7 @@ class AdministrativeAuditView(NoStoreResourceView):
                     "object_id": row.object_id,
                     "result": row.result,
                     "correlation_id": str(row.correlation_id),
+                    "display": displays[row.pk],
                 }
                 for row in page
             ]
