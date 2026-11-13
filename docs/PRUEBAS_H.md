@@ -1,5 +1,7 @@
 # Bloque H — histórico, informes y auditoría administrativa
 
+> **Aceptación integral registrada —13/11/2026, entrega `5b2387f`:** el responsable dio por aprobado todoH y sus correcciones y autorizó el push de los commits locales a `feature/pilot-completion`. Sustituye los pendientes manuales de esta guía y las guías de correcciones/presentación/auditoría. Aprobación por reporte, sin detalle individual de casos o navegadores/dispositivos aportados. La evidencia previa continúa siendo local; no acredita nuevaCI, uso clínico ni despliegue. Menores documentados sin cambios.
+
 > **Legibilidad de auditoría posterior:** [PRUEBAS_AUDITORIA_LEGIBLE_H.md](PRUEBAS_AUDITORIA_LEGIBLE_H.md). Doce eventos y filtros en español, cuenta/unidad/responsable distinguibles mediante referencias actuales verificadas; IDs/correlación en detalles técnicos. Sin ampliar roles/ámbitos ni inventar nombres históricos.
 
 > **Corrección posterior vigente:** [PRUEBAS_CORRECCION_H.md](PRUEBAS_CORRECCION_H.md). El Archivo de Urgencias vuelve a estar disponible para Urgencias normal y administración+Urgencias, sin `view_reports`; este permiso sigue reservado para informes/resúmenes. Auditoría mantiene `institution_admin`. Las restricciones de archivo básico descritas abajo son evidencia histórica de H y quedan sustituidas por esta aclaración.

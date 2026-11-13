@@ -676,6 +676,8 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 
 ## 11. Condiciones para cerrar la etapa 0
 
+**Aceptación posterior de H —13/11/2026:** el responsable dio por aprobado todo el pasoH sobre `5b2387f`, incluidas sus correcciones de coexistencia, presentación del archivo y auditoría legible, y autorizó subir los commits locales a `origin/feature/pilot-completion`. Esta aprobación por reporte sustituye los pendientes manualesH históricos; no se aportaron detalles de navegadores/dispositivos ni de casos individuales. No equivale a cerrar toda etapa0, aprobar uso clínico, acreditar nuevaCI/restore real ni autorizar merge/despliegue o inicioI/J. Se conserva la evidencia técnica previa y los menores documentados; el push se verificará aparte.
+
 - [x] Objetivo de piloto desplegado confirmado (D-001).
 - [x] Cuentas personales confirmadas (D-002).
 - [x] Permisos combinables confirmados (D-003).

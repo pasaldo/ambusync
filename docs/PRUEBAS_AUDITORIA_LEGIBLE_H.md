@@ -1,5 +1,7 @@
 # H — auditoría administrativa comprensible
 
+> **Aprobado por reporte del responsable el13/11/2026 sobre `5b2387f`, como parte de la aprobación completa deH.** Sustituye los pendientes manuales siguientes. No se aportaron navegadores/dispositivos ni ejecución individual de casos. Push a la rama autorizado; no merge/despliegue ni inicioI/J.
+
 Solicitud posterior a5597eb9. Corrige legibilidad, no amplía permisos ni alcance del histórico.
 
 ## Qué debe mostrar

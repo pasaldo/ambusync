@@ -1,5 +1,7 @@
 # Archivo H — tarjetas, modal, calendario y unidad
 
+> **Aprobado por reporte del responsable el13/11/2026 sobre `5b2387f`, como parte de la aprobación completa deH.** Sustituye los pendientes manuales siguientes. No se aportaron navegadores/dispositivos ni ejecución individual de casos. Push a la rama autorizado; no merge/despliegue ni inicioI/J.
+
 Solicitud posterior a `0c67dfd`. Refinamiento del archivo básico, con los permisos de coexistencia intactos: Urgencias de su destino activo puede consultar archivo; auditoría exige `institution_admin` e informes/resúmenes siguen exigiendo `view_reports`.
 
 ## Preparación

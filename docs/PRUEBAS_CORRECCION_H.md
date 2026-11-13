@@ -1,5 +1,7 @@
 # Corrección H — archivo de Urgencias y auditoría coexistentes
 
+> **Aprobado por reporte del responsable el13/11/2026 sobre `5b2387f`, como parte de la aprobación completa deH.** Sustituye los pendientes manuales siguientes. No se aportaron navegadores/dispositivos ni ejecución individual de casos. Push a la rama autorizado; no merge/despliegue ni inicioI/J.
+
 > **Presentación posterior vigente:** [PRUEBAS_PRESENTACION_ARCHIVO_H.md](PRUEBAS_PRESENTACION_ARCHIVO_H.md). Tarjetas compartidas con Urgencias y detalle en modal; calendario reemplaza campos numéricos, y se añade filtro por unidad. Opciones de unidad solo desde episodios del destino, no directorio ajeno. Permisos de coexistencia se mantienen.
 
 **Aclaración del responsable posterior a `2dda7cd`:** el archivo previo debe conservarse para cuentas Urgencias normales y administración + Urgencias. Auditoría administrativa es un módulo adicional, nunca su reemplazo. Esto sustituye la restricción previa de informes para el **archivo básico**, no para los resúmenes adicionales.
