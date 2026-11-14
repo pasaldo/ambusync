@@ -16,6 +16,8 @@ ADMIN_ACTIONS = {
     "account.activated": "account",
     "account.activation_resent": "account",
     "account.deactivated": "account",
+    "account.recovery_requested": "account",
+    "account.password_recovered": "account",
     "ambulance.created": "ambulance",
     "ambulance.deactivated": "ambulance",
     "ambulance.assignment_started": "ambulance_assignment",

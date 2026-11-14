@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from accounts.recovery_models import IdentityRecoveryCase, PasswordRecovery
 from audit.models import (
     AuditEvent,
     PilotClosure,
@@ -90,8 +91,15 @@ class Command(BaseCommand):
                     id__in=plan["session_revocation_ids"]
                 ).delete()[0],
                 "technical_logs": self._delete_technical_logs(plan["technical_log_ids"]),
+                "password_recoveries": PasswordRecovery.objects.filter(
+                    id__in=plan["password_recovery_ids"]
+                ).delete()[0],
+                "identity_recovery_cases": IdentityRecoveryCase.objects.filter(
+                    id__in=plan["identity_recovery_case_ids"]
+                ).delete()[0],
             }
             deleted["audit"] += deleted["session_revocations"]
+            deleted["audit"] += deleted["identity_recovery_cases"]
             RetentionExecution.objects.create(
                 mode=RetentionExecution.Mode.APPLY,
                 command_version=COMMAND_VERSION,
@@ -166,6 +174,16 @@ class Command(BaseCommand):
             if audit_deadline and as_of > audit_deadline
             else []
         )
+        password_recovery_ids = (
+            list(PasswordRecovery.objects.values_list("id", flat=True))
+            if audit_deadline and as_of > audit_deadline
+            else []
+        )
+        identity_recovery_case_ids = (
+            list(IdentityRecoveryCase.objects.values_list("id", flat=True))
+            if audit_deadline and as_of > audit_deadline
+            else []
+        )
         technical_log_ids = list(
             TechnicalLog.objects.filter(occurred_at__lt=technical_log_cutoff).values_list(
                 "id", flat=True
@@ -185,13 +203,19 @@ class Command(BaseCommand):
             "measurement_ids": [str(item) for item in measurement_ids],
             "audit_ids": [str(item) for item in audit_ids],
             "session_revocation_ids": [str(item) for item in session_revocation_ids],
+            "password_recovery_ids": [str(item) for item in password_recovery_ids],
+            "identity_recovery_case_ids": [str(item) for item in identity_recovery_case_ids],
             "technical_log_ids": [str(item) for item in technical_log_ids],
             "counts": {
                 "emergencies": len(emergency_ids),
                 "patients": len(patient_ids),
                 "operations": len(operation_ids),
                 "measurements": len(measurement_ids),
-                "audit": len(audit_ids) + len(session_revocation_ids),
+                "audit": len(audit_ids)
+                + len(session_revocation_ids)
+                + len(identity_recovery_case_ids),
+                "password_recoveries": len(password_recovery_ids),
+                "identity_recovery_cases": len(identity_recovery_case_ids),
                 "session_revocations": len(session_revocation_ids),
                 "technical_logs": len(technical_log_ids),
             },

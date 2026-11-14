@@ -27,6 +27,7 @@ interface TimerScheduler {
 interface EmergencySocketOptions {
   onEvent: (event: EmergencyEvent) => void;
   onStatus: (status: EmergencySocketStatus) => void;
+  onSessionExpired?: () => void;
   createSocket?: (url: string) => WebSocket;
   timers?: TimerScheduler;
   random?: () => number;
@@ -92,6 +93,7 @@ function parseEmergencyEvent(data: unknown): EmergencyEvent | null {
 export function connectEmergencyEvents({
   onEvent,
   onStatus,
+  onSessionExpired,
   createSocket = (url) => new WebSocket(url),
   timers = { setTimeout, clearTimeout },
   random = Math.random,
@@ -147,9 +149,15 @@ export function connectEmergencyEvents({
     activeSocket.addEventListener("error", () => {
       if (!stopped && socket === activeSocket) setStatus("reconnecting");
     });
-    activeSocket.addEventListener("close", () => {
+    activeSocket.addEventListener("close", (event) => {
       if (stopped || socket !== activeSocket) return;
       socket = null;
+      if (event.code === 4401) {
+        stopped = true;
+        setStatus("disconnected");
+        onSessionExpired?.();
+        return;
+      }
       setStatus("reconnecting");
       scheduleReconnect();
     });

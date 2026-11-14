@@ -676,6 +676,8 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 
 ## 11. Condiciones para cerrar la etapa 0
 
+**I posterior a H aprobado —14/11/2026:** el responsable aprobó funcionamiento completo de recuperación con D-013 por soporte técnico, no delegación web de cambiar correo. Implementación verificada localmente (backend289/289, frontend39unit+7I y todas regresiones/checksPASS), manual pendiente en PRUEBAS_I. Migraciónaccounts0005 solo testDB; falta autorización para prepararla en desarrollo/reiniciarDaphne antes de aceptación real, sin contactos/grants/datoscreados. El consentimiento para I no autoriza correo externo, nuevos push/merge/despliegue ni inicioJ–M. No cierra etapa0 ni acredita uso clínico/operación externa.
+
 **Aceptación posterior de H —13/11/2026:** el responsable dio por aprobado todo el pasoH sobre `5b2387f`, incluidas sus correcciones de coexistencia, presentación del archivo y auditoría legible, y autorizó subir los commits locales a `origin/feature/pilot-completion`. Esta aprobación por reporte sustituye los pendientes manualesH históricos; no se aportaron detalles de navegadores/dispositivos ni de casos individuales. No equivale a cerrar toda etapa0, aprobar uso clínico, acreditar nuevaCI/restore real ni autorizar merge/despliegue o inicioI/J. Se conserva la evidencia técnica previa y los menores documentados; el push se verificará aparte.
 
 - [x] Objetivo de piloto desplegado confirmado (D-001).

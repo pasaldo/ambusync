@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Activity, LogIn } from "lucide-react";
 import { Logo } from "@/components/Logo";
@@ -138,6 +138,7 @@ export function LoginScreen() {
           )}
           {notice && <p role="status" className="mt-4 rounded-lg bg-white/5 p-3 text-sm text-muted-dark">{notice}</p>}
           {error && <p role="alert" className="mt-4 rounded-lg border border-rose-300/20 bg-rose-300/10 p-3 text-sm text-rose-100">{error}</p>}
+          {!checkingSession && <Link to="/recuperar-cuenta" className="mt-4 inline-flex min-h-11 items-center text-sm text-signal-soft hover:underline">Olvidé mi contraseña</Link>}
         </section>
 
         <p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-muted-dark">

@@ -8,6 +8,8 @@ const actions: Record<string, string> = {
   "account.activated": "Cuenta activada",
   "account.activation_resent": "Invitación de activación reenviada",
   "account.deactivated": "Cuenta desactivada",
+  "account.recovery_requested": "Recuperación de cuenta solicitada",
+  "account.password_recovered": "Contraseña restablecida",
   "ambulance.created": "Unidad creada",
   "ambulance.deactivated": "Unidad desactivada",
   "ambulance.assignment_started": "Unidad asignada a una cuenta",

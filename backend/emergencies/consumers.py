@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib.sessions.backends.db import SessionStore
 
 from accounts.models import User
+from accounts.session_events import user_session_group
 from institutions.models import AmbulanceAssignment, InstitutionMembership
 
 
@@ -103,17 +104,27 @@ class EmergencyEventsConsumer(AsyncJsonWebsocketConsumer):
         self.user_id = str(user.pk)
         self.session_key = session_key
         self.audience_groups = groups
+        self.session_group = user_session_group(user.pk)
+        await self.channel_layer.group_add(self.session_group, self.channel_name)
         for group in groups:
             await self.channel_layer.group_add(group, self.channel_name)
         await self.accept()
 
     async def disconnect(self, close_code):
+        if getattr(self, "session_group", None):
+            await self.channel_layer.group_discard(self.session_group, self.channel_name)
         for group in getattr(self, "audience_groups", set()):
             await self.channel_layer.group_discard(group, self.channel_name)
 
     async def receive_json(self, content, **kwargs):
         # This is a server-to-client notification channel, not a write API.
         await self.close(code=4400)
+
+    async def session_revoked(self, event):
+        # Reject only stale sessions, not a newly authenticated socket racing an old notice.
+        status, _ = await current_socket_access(self.user_id, self.session_key)
+        if status == "unauthenticated":
+            await self.close(code=4401)
 
     async def emergency_event(self, event):
         status, current_groups = await current_socket_access(self.user_id, self.session_key)

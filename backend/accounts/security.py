@@ -107,4 +107,7 @@ def revoke_user_sessions(user, *, executor, reason):
         reason=reason,
         resulting_session_version=locked_user.session_version,
     )
+    from accounts.session_events import publish_session_revocation
+
+    publish_session_revocation(locked_user.pk)
     return locked_user.session_version

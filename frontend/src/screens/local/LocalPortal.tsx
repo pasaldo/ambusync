@@ -194,6 +194,7 @@ export function LocalPortal() {
       return;
     }
     return connectEmergencyEvents({
+      onSessionExpired: expireSession,
       onStatus: (status) => {
         setSocketStatus(status);
         if (status === "connected") {

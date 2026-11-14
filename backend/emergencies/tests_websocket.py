@@ -75,6 +75,23 @@ class EmergencyWebSocketTests(EmergencyFixtureMixin, TransactionTestCase):
 
         asyncio.run(exercise())
 
+    def test_session_revocation_closes_idle_socket_without_clinical_event(self):
+        from accounts.security import revoke_user_sessions
+
+        communicator = self.communicator_for(self.operator)
+
+        async def exercise():
+            connected, _ = await communicator.connect()
+            self.assertTrue(connected)
+            await database_sync_to_async(revoke_user_sessions)(
+                self.operator, executor="synthetic-support", reason="Recuperación sintética"
+            )
+            message = await communicator.receive_output(timeout=2)
+            self.assertEqual(message, {"type": "websocket.close", "code": 4401})
+            await communicator.disconnect()
+
+        asyncio.run(exercise())
+
     def test_destination_change_publishes_only_own_episode_to_each_receiver_after_commit(self):
         self.authenticate_with_csrf(self.operator)
         created = self.client.post("/api/v1/emergencies/", self.payload(), format="json")

@@ -45,3 +45,6 @@ class AccountActivation(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=("expires_at",), name="account_activation_exp_idx")]
+
+
+from accounts.recovery_models import IdentityRecoveryCase, PasswordRecovery, RecoveryContact  # noqa: F401

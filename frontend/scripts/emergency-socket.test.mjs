@@ -105,6 +105,16 @@ test("delivers only valid, unseen event envelopes", () => {
   assert.deepEqual(urls, ["ws://localhost:5173/ws/emergencies/"]);
 });
 
+test("revoked session closes reconnect loop and notifies caller without clinical envelope", () => {
+  const socket = new FakeSocket(), timers = fakeTimers();
+  let expired = 0;
+  const stop = connectEmergencyEvents({ onEvent: () => assert.fail("no clinical event"), onStatus: () => {}, onSessionExpired: () => expired++, createSocket: () => socket, timers });
+  socket.open(); socket.emit("close", { code: 4401 });
+  assert.equal(expired, 1);
+  assert.equal(timers.timers.size, 0);
+  stop();
+});
+
 test("accepts clinical update notification types without clinical payload", () => {
   const socket = new FakeSocket();
   const events = [];

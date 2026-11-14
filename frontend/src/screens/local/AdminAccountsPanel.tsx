@@ -11,6 +11,7 @@ import {
   listManagedAccounts,
   listManagedAmbulances,
   resendManagedActivation,
+  requestManagedRecovery,
   type ManagedAccount,
   type ManagedAmbulance,
   type ManagedInstitution,
@@ -153,6 +154,11 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
     await mutate((current) => assignManagedAccount(account.id, ambulanceId, account.ambulance?.id ?? null, current), ambulanceId ? `Unidad asignada a ${account.username}.` : `Unidad retirada de ${account.username}; la cuenta conserva sus permisos.`);
   }
 
+  async function requestRecovery(account: ManagedAccount) {
+    if (!window.confirm(`¿Solicitar recuperación de ${account.username} al correo registrado? No recibirás su contraseña ni un enlace. Si perdió el correo, debe intervenir soporte técnico.`)) return;
+    await mutate((current) => requestManagedRecovery(account.id, current), "Recuperación solicitada. Si la cuenta está disponible, recibirá instrucciones en su correo registrado; no se garantiza la entrega.");
+  }
+
   async function deactivateUnit(unit: ManagedAmbulance) {
     if (!window.confirm(`¿Desactivar ${unit.code}? Se retirarán sus asignaciones. El historial se conservará. No se permite con episodios activos.`)) return;
     await mutate((current) => deactivateManagedAmbulance(unit.id, current), "Unidad desactivada; historial conservado.");
@@ -241,6 +247,7 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
                 </div>
                 {account.id !== currentUserId && <div className="flex gap-2">
                   {!account.active && <button onClick={() => void resendActivation(account)} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-muted-dark hover:bg-white/5">Reenviar activación</button>}
+                  {account.active && <button aria-label={`Solicitar recuperación de ${account.username}`} onClick={() => void requestRecovery(account)} className="rounded-lg border border-signal/30 px-3 py-2 text-xs text-signal-soft">Solicitar recuperación</button>}
                   <button onClick={() => void deactivate(account)} className="inline-flex items-center gap-2 rounded-lg border border-rose-300/20 px-3 py-2 text-xs text-rose-100 hover:bg-rose-300/10"><UserRoundX className="h-4 w-4" />{account.active ? "Desactivar" : "Cancelar invitación"}</button>
                 </div>}
               </li>

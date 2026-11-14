@@ -251,6 +251,21 @@ async function managementMutation<T>(path: string, body: unknown, isCurrent: () 
   return request(path, { method: "POST", headers: { "X-CSRFToken": token }, body: JSON.stringify(body), humanInteraction: true });
 }
 
+export async function requestAccountRecovery(email: string, isCurrent = () => true): Promise<{ message: string }> {
+  const result = await managementMutation<{ message: string }>("/api/v1/auth/recovery/request/", { email }, isCurrent);
+  if (!result || typeof result.message !== "string") throw new Error("No se confirmó la solicitud.");
+  return result;
+}
+
+export async function completeAccountRecovery(body: { id: string; token: string; password: string; password_confirmation: string }, isCurrent = () => true): Promise<void> {
+  const result = await managementMutation<{ recovered: boolean }>("/api/v1/auth/recovery/complete/", body, isCurrent);
+  if (!result || result.recovered !== true) throw new Error("No se confirmó la recuperación.");
+  csrfGeneration += 1; csrfToken = null;
+}
+
+export const requestManagedRecovery = (id: string, isCurrent = () => true) =>
+  managementMutation(`/api/v1/institutions/management/accounts/${encodeURIComponent(id)}/recovery/`, {}, isCurrent);
+
 export async function createManagedAmbulance(code: string, institutionId: string, isCurrent = () => true): Promise<ManagedAmbulance> {
   return managementMutation("/api/v1/institutions/management/ambulances/create/", { code, institution_id: institutionId }, isCurrent);
 }

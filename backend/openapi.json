@@ -7,6 +7,33 @@
   },
   "servers": [{ "url": "http://127.0.0.1:8000" }],
   "paths": {
+    "/api/v1/auth/recovery/request/": {
+      "post": {
+        "operationId": "requestAccountRecovery",
+        "description": "Pública con CSRF. 202 genérico para correo registrado/no existente/no disponible. Cinco solicitudes por identificador y20 por origen en15min, clavesHMAC aisladas del login. Resolución de cuenta y entrega SMTP desacopladas en worker volátil acotado:202 no garantiza envío ni cola durable. No consulta existencia de cuenta dentro de la respuesta HTTP. Mailpit local por defecto, ningún proveedor externo autorizado. Un caso técnico D-013 pendiente/aprobado bloquea recuperación por correo anterior. Nunca devuelve enlaces ni tokens.",
+        "parameters": [{ "name": "X-CSRFToken", "in": "header", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["email"], "properties": { "email": { "type": "string", "format": "email", "maxLength": 254 } } } } } },
+        "responses": { "202": { "description": "Solicitud recibida, resultado genérico sin confirmar existencia o entrega.", "content": { "application/json": { "schema": { "type": "object", "required": ["message"], "properties": { "message": { "type": "string" } } } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "403": { "$ref": "#/components/responses/Forbidden" }, "429": { "description": "Espera antes de volver a solicitar; mismo límite para cuentas inexistentes." } }
+      }
+    },
+    "/api/v1/auth/recovery/complete/": {
+      "post": {
+        "operationId": "completeAccountRecovery",
+        "description": "Pública con CSRF y autorización secreta de un uso/30min. Enlace enviado al correo usa fragmentoSPA, no queryHTTP; no GET que confirme. Validación de cuenta/ámbito/fingerprint/hash y caso/contactoD-013siaplica. Una transacción aplica contraseña propia y eventualmente correo nuevo, consume autorización e invalida otras, incrementa versión de sesión y registra revocación. No activa cuentas, no concede roles/unidades y no inicia sesión; limpia sesión del navegador que confirma. Validar contraseñas15–128caracteres. Enlace inválido/usado/vencido devuelve400genérico; contraseña inválida no consume autorización. CSRF/no-store, límites5por autorización/20origen en15min. Tras respuesta perdida no afirmar fallo ni autoenviar; sugerir login o enlace nuevo.",
+        "parameters": [{ "name": "X-CSRFToken", "in": "header", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["id", "token", "password", "password_confirmation"], "properties": { "id": { "type": "string", "format": "uuid" }, "token": { "type": "string", "minLength": 32, "maxLength": 128 }, "password": { "type": "string", "minLength": 15, "maxLength": 128 }, "password_confirmation": { "type": "string", "minLength": 15, "maxLength": 128 } } } } } },
+        "responses": { "200": { "description": "Recuperación confirmada, sin autologin.", "content": { "application/json": { "schema": { "type": "object", "required": ["recovered"], "properties": { "recovered": { "const": true } } } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "403": { "$ref": "#/components/responses/Forbidden" }, "429": { "description": "Demasiados intentos." } }
+      }
+    },
+    "/api/v1/institutions/management/accounts/{user_id}/recovery/": {
+      "post": {
+        "operationId": "requestManagedAccountRecovery", "security": [{ "sessionCookie": [] }],
+        "description": "AdministraciónUrgencias (institution_admin+urgencias) activa, sin system_admin/staff/superuser; mismo ámbito de gestiónB, nunca cambio web de correo ni contraseña. Cuerpo exactamente{}. Solicita al correo registrado de cuenta elegible y audita petición administrativa mínima, no confirma envío. Misma respuesta genérica202, sin enlace ni datos de contacto de recuperación. Cinco solicitudes por cuenta/20por administrador en15min. CSRF y no-store.",
+        "parameters": [{ "name": "user_id", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 } }, { "name": "X-CSRFToken", "in": "header", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false } } } },
+        "responses": { "202": { "description": "Petición administrativa recibida, no garantía de entrega." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "429": { "description": "Demasiadas solicitudes." } }
+      }
+    },
     "/api/v1/emergencies/history/": {
       "get": {
         "operationId": "listUrgenciasArchive", "security": [{ "sessionCookie": [] }],
@@ -53,7 +80,7 @@
         "parameters": [
           { "$ref": "#/components/parameters/ReportDateFrom" }, { "$ref": "#/components/parameters/ReportDateTo" },
           { "$ref": "#/components/parameters/ReportPageNumber" }, { "$ref": "#/components/parameters/ReportPageSize" },
-          { "name": "action", "in": "query", "schema": { "type": "string", "enum": ["account.created", "account.activated", "account.activation_resent", "account.deactivated", "ambulance.created", "ambulance.deactivated", "ambulance.assignment_started", "ambulance.assignment_ended", "institution_admin.provisioned", "permission.manage_symptoms_granted", "permission.deactivate_patients_granted", "permission.view_reports_granted"] } },
+          { "name": "action", "in": "query", "schema": { "type": "string", "enum": ["account.created", "account.activated", "account.activation_resent", "account.deactivated", "account.recovery_requested", "account.password_recovered", "ambulance.created", "ambulance.deactivated", "ambulance.assignment_started", "ambulance.assignment_ended", "institution_admin.provisioned", "permission.manage_symptoms_granted", "permission.deactivate_patients_granted", "permission.view_reports_granted"] } },
           { "name": "object_type", "in": "query", "schema": { "type": "string", "enum": ["account", "ambulance", "ambulance_assignment"] } },
           { "$ref": "#/components/parameters/UserInteraction" }
         ],

@@ -85,6 +85,17 @@ class AdministrativeHistoryTests(TestCase):
         AuditEvent.objects.filter(pk=event.pk).update(object_type="patient")
         self.assertEqual(self.get().json()["count"], 0)
 
+    def test_recovery_events_are_minimal_readable_administrative_actions(self):
+        for action in ("account.recovery_requested", "account.password_recovered"):
+            event = self.event(action=action)
+            AuditEvent.objects.filter(pk=event.pk).update(object_id=str(self.operator.pk))
+        response = self.get()
+        self.assertEqual(response.json()["count"], 2)
+        self.assertEqual(
+            response.json()["results"][0]["display"]["account"], self.operator.username
+        )
+        self.assertNotContains(response, "token_digest")
+
     def test_pagination_filters_and_revocation(self):
         for _ in range(28):
             self.event()
