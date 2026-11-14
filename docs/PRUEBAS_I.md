@@ -1,5 +1,7 @@
 # Bloque I — recuperación segura de cuenta
 
+> **Aceptación vigente —14/11/2026:** el responsable informó «las pruebas de I se encuentran aprobadas», sobre implementación `7237333` y preparación local `6b4618e`, y autorizó publicar los commits locales en `origin/feature/pilot-completion`. Esta aprobación sustituye los pendientes manuales de este documento. No se aportaron detalles por caso, navegador o dispositivo: no se certifican ejecuciones individuales adicionales. La evidencia automatizada indicada abajo sigue siendo la verificación local previa, no una nueva ejecución ni CI remota. Sin merge, despliegue, uso clínico, correo externo ni inicio J–M.
+
 **Funcionamiento aprobado; implementación local verificada, aceptación manual pendiente.** BaseH aprobada/publicada958f7fe. Solo cuentas/correos/contactos ficticios y Mailpit local, sin atención clínica ni envío externo.
 
 > **Preparación ya realizada con autorización expresa el14/11/2026, sobre7237333:** accounts0005 aplicada en ambusync_dev127.0.0.1:55432 y únicamenteDaphnepropio reiniciado. migrate--check/showmigrations[X]/checkPASS, rutasPOSTrecuperación cargadas(GET405sin ejecutar), SPA5174yMailpit8025HTTP200. No hace falta repetir el arranque ni duplicar procesos en esta copia. No se registraron contactos, casos, autorizaciones ni se cambiaron cuentas/permisos. Puedes empezar por I1; I4 requiere preparar de forma controlada un contacto ficticio previo. La aceptación manual sigue pendiente.

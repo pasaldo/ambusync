@@ -676,6 +676,8 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 
 ## 11. Condiciones para cerrar la etapa 0
 
+**Aceptación I posterior —14/11/2026:** el responsable reportó aprobadas las pruebas de I sobre7237333/preparación6b4618e y autorizó push de los commits locales a origin/feature/pilot-completion. Sustituye los pendientes manualesI históricos; sin detalle por caso/navegador/dispositivo ni nueva evidencia técnica/CI. No implica cierre de etapa0, merge, despliegue, uso clínico, correo externo o inicioJ–M.
+
 **Actualización operativa posterior I —14/11/2026:** autorizada y aplicada únicamenteaccounts0005 en ambusync_dev127.0.0.1:55432, y reiniciadoDaphnepropio para cargarI. Migración/checks y rutas cargadas verificados; sin nuevoscontactos/casos/autorizaciones, cambios de cuentas ni recuperación real. Sustituye el pendiente de preparaciónI indicado abajo, **no** su aceptación manual ni cierre de etapa. No push/merge/despliegue/J–M.
 
 **I posterior a H aprobado —14/11/2026:** el responsable aprobó funcionamiento completo de recuperación con D-013 por soporte técnico, no delegación web de cambiar correo. Implementación verificada localmente (backend289/289, frontend39unit+7I y todas regresiones/checksPASS), manual pendiente en PRUEBAS_I. Migraciónaccounts0005 solo testDB; falta autorización para prepararla en desarrollo/reiniciarDaphne antes de aceptación real, sin contactos/grants/datoscreados. El consentimiento para I no autoriza correo externo, nuevos push/merge/despliegue ni inicioJ–M. No cierra etapa0 ni acredita uso clínico/operación externa.

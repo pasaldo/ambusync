@@ -1,5 +1,7 @@
 # Etapa 1 — backend local mínimo
 
+**Aceptación I —14/11/2026:** pruebas aprobadas por reporte explícito del responsable sobre7237333 y preparación6b4618e; autorizado push de los commits locales a origin/feature/pilot-completion. Sustituye pendientes manualesI históricos, sin inventar casos individuales/navegadores/dispositivos. Evidencia técnica local previa conservada, no nuevaCIremota. Sin merge/despliegue/uso clínico/correo externo/J–M; servicios y menoresHprevios sin cambios.
+
 Fecha de inicio: 29/10/2026. Estado actualizado: 14/11/2026. **Desarrollo local retomado por aprobación del responsable; sin despliegue ni uso clínico.** Las secciones de pausa/evaluación siguientes conservan su contexto histórico; para el estado vigente prevalece este apartado.
 
 **Preparación I posterior autorizada y completada:** sobre entrega7237333, el responsable autorizó aplicar `accounts/0005` y reiniciarDaphne. Se verificó base efectiva `ambusync_dev` en127.0.0.1:55432, plan exclusivo0005, migraciónOK/migrate--check0/showmigrations[X]/DjangocheckPASS. SoloDaphnepropio reiniciado, nuevasrutasPOST cargadas(GET405sin ejecutarrecuperación), SPA5174yMailpit8025HTTP200. Nuevastablascontactos/casos/autorizaciones0alverificar; no se modificaron cuentas/contraseñas/correos/permisos ni se enviaron recuperaciones. Sustituye el pendiente operativo de la entrega previa; **aceptación manualI pendiente** enPRUEBAS_I. No nueva pruebaautenticadareal, push/merge/despliegue o inicioJ–M.
