@@ -2,6 +2,8 @@
 
 **Funcionamiento aprobado; implementación local verificada, aceptación manual pendiente.** BaseH aprobada/publicada958f7fe. Solo cuentas/correos/contactos ficticios y Mailpit local, sin atención clínica ni envío externo.
 
+> **Preparación ya realizada con autorización expresa el14/11/2026, sobre7237333:** accounts0005 aplicada en ambusync_dev127.0.0.1:55432 y únicamenteDaphnepropio reiniciado. migrate--check/showmigrations[X]/checkPASS, rutasPOSTrecuperación cargadas(GET405sin ejecutar), SPA5174yMailpit8025HTTP200. No hace falta repetir el arranque ni duplicar procesos en esta copia. No se registraron contactos, casos, autorizaciones ni se cambiaron cuentas/permisos. Puedes empezar por I1; I4 requiere preparar de forma controlada un contacto ficticio previo. La aceptación manual sigue pendiente.
+
 ## 1. Antes de probar en la aplicación
 
 I incorpora `accounts/0005_identityrecoverycase_passwordrecovery_and_more.py`, con contactos previos, casos técnicos y autorizaciones hasheadas. **Durante implementación se aplica solo en testDB, no en desarrollo.** No se crean contactos/permisos ni se cambian contraseñas/correos de cuentas de desarrollo por ejecutar tests.
@@ -148,7 +150,7 @@ Las pruebas usan transporte sintético o testDB; no acreditan una llamada de ver
 
 ## 5. Aceptación
 
-- [ ] Preparación de base autorizada, migración aplicada por responsable y Daphne actualizado.
+- [x] Preparación de base autorizada expresamente y realizada localmente por el agente: accounts0005 y Daphne actualizado, sin datos de recuperación creados.
 - [ ] I1 recuperación normal, sin autologin y con contraseña nueva.
 - [ ] I2 enlace no reutilizable y sesiones anteriores revocadas.
 - [ ] I3 administración solo inicia envío al correo registrado, auditoría mínima.
