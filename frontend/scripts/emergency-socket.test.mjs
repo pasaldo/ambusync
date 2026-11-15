@@ -3,6 +3,17 @@ import test, { before } from "node:test";
 
 import { connectEmergencyEvents } from "../src/lib/emergencySocket.ts";
 
+test("position notices use their own sequence and never reconcile a clinical version", () => {
+  const socket = new FakeSocket(), notices = [];
+  const stop = connectEmergencyEvents({ onEvent: () => assert.fail("not a clinical event"), onPosition: (event) => notices.push(event), onStatus: () => {}, createSocket: () => socket });
+  socket.open();
+  socket.send({ event_id: "10000000-0000-4000-8000-000000000001", emergency_id: "10000000-0000-4000-8000-000000000002", type: "emergency.position_recorded", position_sequence: 4, latitude: -33 });
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0].position_sequence, 4);
+  assert.equal(notices[0].latitude, undefined);
+  stop();
+});
+
 before(() => {
   globalThis.window = { location: { protocol: "http:", host: "localhost:5173" } };
 });

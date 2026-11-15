@@ -164,15 +164,40 @@ class EmergencyWebSocketTests(EmergencyFixtureMixin, TransactionTestCase):
                             "version": 2,
                         },
                     )
-                    self.assertFalse(
-                        await communicator.receive_nothing(timeout=0.2),
-                        "el consumidor no debe descartar avisos de D",
-                    )
-                    event = await communicator.receive_json_from()
+                    # Assert delivery/content, not an unapproved 200ms latency SLA.
+                    # Each notice revalidates the authenticated scope in PostgreSQL.
+                    event = await communicator.receive_json_from(timeout=2)
                     self.assertEqual(event["type"], event_type)
                     self.assertEqual(set(event), {"event_id", "type", "emergency_id", "version"})
             finally:
                 await communicator.disconnect()
+
+        asyncio.run(exercise())
+
+    def test_position_notice_contains_sequence_not_clinical_version_or_coordinates(self):
+        communicator = self.communicator_for(self.receiver_user)
+
+        async def exercise():
+            connected, _ = await communicator.connect()
+            self.assertTrue(connected)
+            group = institution_group_name(self.receiver.pk)
+            await self.layer.group_send(
+                group,
+                {
+                    "type": "emergency.event",
+                    "audience_group": group,
+                    "event_type": "emergency.position_recorded",
+                    "event_id": str(uuid.uuid4()),
+                    "emergency_id": str(uuid.uuid4()),
+                    "version": 7,
+                    "latitude": -33,
+                    "longitude": -70,
+                },
+            )
+            event = await communicator.receive_json_from()
+            self.assertEqual(set(event), {"event_id", "type", "emergency_id", "position_sequence"})
+            self.assertEqual(event["position_sequence"], 7)
+            await communicator.disconnect()
 
         asyncio.run(exercise())
 

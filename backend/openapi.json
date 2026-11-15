@@ -7,6 +7,36 @@
   },
   "servers": [{ "url": "http://127.0.0.1:8000" }],
   "paths": {
+    "/api/v1/system/geocoding/": {
+      "post": {
+        "operationId": "geocodeInstitutionAddress",
+        "security": [{ "sessionCookie": [] }],
+        "description": "Solo administración global exclusiva, CSRF y no-store. Geoapify HTTPS desde backend, dirección institucional únicamente, filtro Chile/es; nunca GPS de ambulancia ni datos clínicos. Clave privada, sin redirecciones, timeout5s y respuesta máxima128KiB. Caché por dirección normalizada; cuota compartida persistente100/díaUTC por defecto, máximo3000, una salida/segundo; fallos consumen reserva. No reintento automático. retry=true permite repetir fallos tras10s; ready/not_found cacheados no se repiten. Sin clave/proveedor/no coincidencia/cuota: HTTP200 con estado explícito, permite guardar institución pendiente. No confirma coordenadas automáticamente.",
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["address"], "additionalProperties": false, "properties": { "address": { "type": "string", "minLength": 1, "maxLength": 255 }, "retry": { "type": "boolean", "default": false } } } } } },
+        "responses": {
+          "200": { "description": "Resultado mínimo sin clave ni URL secreta.", "content": { "application/json": { "schema": { "type": "object", "required": ["lookup_id", "status", "candidates", "attribution"], "properties": { "lookup_id": { "type": "string", "minLength": 64, "maxLength": 64 }, "status": { "enum": ["pending", "ready", "not_found", "not_configured", "unavailable", "quota_exceeded", "rate_limited"] }, "candidates": { "type": "array", "maxItems": 5, "items": { "$ref": "#/components/schemas/InstitutionLocation" } }, "attribution": { "type": "string" } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/emergencies/{emergency_id}/positions/": {
+      "get": {
+        "operationId": "getEpisodePosition",
+        "security": [{ "sessionCookie": [] }],
+        "description": "Solo ámbito autorizado: unidad asignada para episodio operativo o Urgencias del destino (incluido archivo básico H). No informe extra ni directorioGPSglobal. Última posición con reloj consistente ordenada por captura y secuencia, última recepción separada para advertir reloj inválido, destino confirmado|null, hora servidor y estado. Posición antigua no acredita seguimiento activo; frescura>30s se advierte. No renueva inactividad humana. No-store.",
+        "parameters": [{ "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Última muestra/destino o ausencia explícita.", "content": { "application/json": { "schema": { "type": "object", "required": ["latest", "last_received", "target", "server_time", "status"], "properties": { "latest": { "anyOf": [{ "$ref": "#/components/schemas/EpisodePosition" }, { "type": "null" }] }, "last_received": { "anyOf": [{ "$ref": "#/components/schemas/EpisodePosition" }, { "type": "null" }] }, "target": { "anyOf": [{ "$ref": "#/components/schemas/InstitutionLocation" }, { "type": "null" }] }, "server_time": { "type": "string", "format": "date-time" }, "status": { "type": "string" } } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "post": {
+        "operationId": "recordEpisodePosition",
+        "security": [{ "sessionCookie": [] }],
+        "description": "Ambulancia activa/unidad asignada/habilitada, autorización revalidada en replay. Una captura por actor en notificada; periódicas en_traslado. Ninguna nueva tras llegada/cancelación/cierre o destino inactivo. UUID en namespace compartido actor/operación ProcessedOperation; mismo cuerpo recupera muestra exacta aun en terminal si conserva ámbito, diferente cuerpo/acción/episodio409. No expected_version ni incremento clínico. Secuencia independiente bajo bloqueoepisodio. Captura UTC explícita, coordenadas finitas numéricas y precisión opcional>=0. Capturas fuera created_at-30s..received_at+5s conservadas como reloj inconsistente, no última ubicación. Muestras retrasadas no desplazan captura más reciente. Sin marcador de interacción humana. WS solo aviso position_sequence/IDs, sin coordenadas. Incertidumbre suspende cliente y conserva UUID/cuerpo para reintento manual, nunca automático. RetenciónC con episodio90dtrascierreglobal.",
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "emergency_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["operation_id", "latitude", "longitude", "captured_at"], "properties": { "operation_id": { "type": "string", "format": "uuid" }, "latitude": { "type": "number", "minimum": -90, "maximum": 90 }, "longitude": { "type": "number", "minimum": -180, "maximum": 180 }, "accuracy_m": { "type": ["number", "null"], "minimum": 0, "maximum": 1000000000, "default": null }, "captured_at": { "type": "string", "format": "date-time" } } } } } },
+        "responses": { "201": { "description": "Muestra nueva registrada sin cambio de versión clínica.", "content": { "application/json": { "schema": { "type": "object", "required": ["position"], "properties": { "position": { "$ref": "#/components/schemas/EpisodePosition" } } } } } }, "200": { "description": "Replay exacto, cabecera Idempotent-Replay:true." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "description": "Estado/recibo en conflicto." } }
+      }
+    },
     "/api/v1/auth/recovery/request/": {
       "post": {
         "operationId": "requestAccountRecovery",
@@ -553,6 +583,18 @@
       "TooManyRequests": { "description": "Umbral por cuenta u origen excedido; reintentar después de Retry-After.", "headers": { "Retry-After": { "schema": { "type": "integer", "minimum": 1 } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
     },
     "schemas": {
+      "InstitutionLocation": {
+        "type": "object", "required": ["latitude", "longitude"],
+        "properties": { "latitude": { "type": "number", "minimum": -90, "maximum": 90 }, "longitude": { "type": "number", "minimum": -180, "maximum": 180 }, "formatted": { "type": "string", "maxLength": 500 }, "result_type": { "enum": ["building", "amenity"] }, "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }, "address": { "type": "string" }, "provider": { "const": "geoapify" }, "attribution": { "type": "string" }, "resolved_at": { "type": "string", "format": "date-time" }, "confirmed_at": { "type": "string", "format": "date-time" } }
+      },
+      "LocationSelection": {
+        "anyOf": [{ "type": "null" }, { "type": "object", "additionalProperties": false, "required": ["lookup_id", "index"], "properties": { "lookup_id": { "type": "string", "minLength": 64, "maxLength": 64 }, "index": { "type": "integer", "minimum": 0, "maximum": 4 } } }],
+        "description": "Dirección de la institución debe coincidir con consulta normalizada; solo candidato cacheado ready. null guarda pendiente. Cambiar dirección sin confirmación invalida ubicación anterior. No admite coordenadas arbitrarias."
+      },
+      "EpisodePosition": {
+        "type": "object", "required": ["id", "sequence", "latitude", "longitude", "accuracy_m", "captured_at", "received_at", "clock_consistent"],
+        "properties": { "id": { "type": "string", "format": "uuid" }, "sequence": { "type": "integer", "minimum": 1 }, "latitude": { "type": "number" }, "longitude": { "type": "number" }, "accuracy_m": { "type": ["number", "null"] }, "captured_at": { "type": "string", "format": "date-time" }, "received_at": { "type": "string", "format": "date-time" }, "clock_consistent": { "type": "boolean" } }
+      },
       "EmergencyReportPage": {
         "allOf": [{ "$ref": "#/components/schemas/EmergencyPage" }, {
           "type": "object", "required": ["summary", "timezone", "date_basis", "ambulances"],
@@ -619,7 +661,9 @@
           "rut": { "type": "string", "pattern": "^\\d{2}\\.\\d{3}\\.\\d{3}-[0-9K]$" },
           "address": { "type": "string", "maxLength": 255 },
           "phone": { "type": "string", "maxLength": 15 },
-          "email": { "type": "string", "format": "email", "maxLength": 254 }
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "location": { "anyOf": [{ "$ref": "#/components/schemas/InstitutionLocation" }, { "type": "null" }] },
+          "location_status": { "enum": ["confirmed", "pending"] }
         }
       },
       "SystemInstitutionCreate": {
@@ -633,7 +677,8 @@
           "phone": { "type": "string", "maxLength": 15, "pattern": "^[0-9+ ()-]{0,15}$" },
           "email": { "type": "string", "format": "email", "maxLength": 254 },
           "first_username": { "type": "string", "minLength": 1, "maxLength": 150 },
-          "first_email": { "type": "string", "format": "email", "maxLength": 254 }
+          "first_email": { "type": "string", "format": "email", "maxLength": 254 },
+          "location_selection": { "$ref": "#/components/schemas/LocationSelection" }
         }
       },
       "SystemInstitutionUpdate": {
@@ -645,7 +690,8 @@
           "rut": { "type": "string", "pattern": "^\\d{2}\\.\\d{3}\\.\\d{3}-[0-9K]$" },
           "address": { "type": "string", "minLength": 1, "maxLength": 255 },
           "phone": { "type": "string", "maxLength": 15, "pattern": "^[0-9+ ()-]{0,15}$" },
-          "email": { "type": "string", "format": "email", "maxLength": 254 }
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "location_selection": { "$ref": "#/components/schemas/LocationSelection" }
         }
       },
       "SystemInstitutionCreated": {

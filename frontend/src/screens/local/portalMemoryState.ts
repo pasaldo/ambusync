@@ -19,6 +19,7 @@ export class PortalMemory {
   destinationDrafts = new Map<string, { version: number; destinationId: string; reason: string }>();
   resourceAttempts = new Map<string, { attempt: ResourceAttempt; uncertain: boolean }>();
   resourceDrafts = new Map<string, { version: number; fields: Record<string, string | boolean> }>();
+  gpsAttempts = new Map<string, import("../../lib/gps").PositionBody>();
 
   get token(): number { return this.revision; }
 
@@ -61,5 +62,6 @@ export class PortalMemory {
     this.destinationDrafts = new Map();
     this.resourceAttempts = new Map();
     this.resourceDrafts = new Map();
+    this.gpsAttempts = new Map();
   }
 }

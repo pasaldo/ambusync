@@ -12,7 +12,7 @@ from audit.models import (
     SessionRevocationEvent,
     TechnicalLog,
 )
-from emergencies.models import Emergency, ProcessedOperation, VitalMeasurement
+from emergencies.models import Emergency, Position, ProcessedOperation, VitalMeasurement
 from emergencies.retention import deadlines, parse_timestamp
 
 COMMAND_VERSION = "d010-d011-v2"
@@ -84,6 +84,9 @@ class Command(BaseCommand):
             deleted = {
                 "operations": self._delete_operations(plan["operations_ids"]),
                 "vital_measurements": self._delete_measurements(plan["measurement_ids"]),
+                "positions": Position.objects.filter(
+                    emergency_id__in=plan["emergency_ids"]
+                ).delete()[0],
                 "emergencies": self._delete_emergencies(plan["emergency_ids"]),
                 "patients": self._delete_patients(plan["patient_ids"]),
                 "audit": self._delete_audit(plan["audit_ids"]),
@@ -201,12 +204,19 @@ class Command(BaseCommand):
             "patient_ids": [str(item) for item in patient_ids],
             "operations_ids": [str(item) for item in operation_ids],
             "measurement_ids": [str(item) for item in measurement_ids],
+            "position_ids": [
+                str(item)
+                for item in Position.objects.filter(emergency_id__in=emergency_ids).values_list(
+                    "id", flat=True
+                )
+            ],
             "audit_ids": [str(item) for item in audit_ids],
             "session_revocation_ids": [str(item) for item in session_revocation_ids],
             "password_recovery_ids": [str(item) for item in password_recovery_ids],
             "identity_recovery_case_ids": [str(item) for item in identity_recovery_case_ids],
             "technical_log_ids": [str(item) for item in technical_log_ids],
             "counts": {
+                "positions": Position.objects.filter(emergency_id__in=emergency_ids).count(),
                 "emergencies": len(emergency_ids),
                 "patients": len(patient_ids),
                 "operations": len(operation_ids),

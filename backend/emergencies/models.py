@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
+from emergencies.position_models import Position  # noqa: F401
 from institutions.models import Ambulance, Institution
 
 

@@ -676,6 +676,8 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 
 ## 11. Condiciones para cerrar la etapa 0
 
+**Bloque J —alcance aprobado15/11/2026, implementación local:** GPSprimerplano con consentimiento/frescura/distanciaHaversine y parada por estado; destino desde dirección con Geoapify gratuito aprobado, confirmación humana y cuota/caché backend. Clave en poder del responsable, no recibida/configurada; sin llamadas externas de direcciones ni GPS real. Migracionesinstitutions0006/emergencies0011 solo testDB, preparación de desarrollo y aceptación manual pendientes en PRUEBAS_J. No cierra etapa0 ni autoriza uso clínico, nuevos gastos, push/merge/despliegue o inicioK–M.
+
 **Aceptación I posterior —14/11/2026:** el responsable reportó aprobadas las pruebas de I sobre7237333/preparación6b4618e y autorizó push de los commits locales a origin/feature/pilot-completion. Sustituye los pendientes manualesI históricos; sin detalle por caso/navegador/dispositivo ni nueva evidencia técnica/CI. No implica cierre de etapa0, merge, despliegue, uso clínico, correo externo o inicioJ–M.
 
 **Actualización operativa posterior I —14/11/2026:** autorizada y aplicada únicamenteaccounts0005 en ambusync_dev127.0.0.1:55432, y reiniciadoDaphnepropio para cargarI. Migración/checks y rutas cargadas verificados; sin nuevoscontactos/casos/autorizaciones, cambios de cuentas ni recuperación real. Sustituye el pendiente de preparaciónI indicado abajo, **no** su aceptación manual ni cierre de etapa. No push/merge/despliegue/J–M.

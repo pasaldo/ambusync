@@ -36,6 +36,8 @@ import { PatientContextEditor, PatientContextHistory, identityDescription } from
 import { ReportsPanel } from "./ReportsPanel";
 import { AdministrativeAuditPanel } from "./AdministrativeAuditPanel";
 import { UrgenciasEmergencyCard } from "./UrgenciasEmergencyCard";
+import { LocationPanel } from "./LocationPanel";
+import { sendPosition } from "@/lib/backend";
 
 function displayError(error: unknown): string {
   if (error instanceof BackendApiError) {
@@ -68,6 +70,13 @@ export function LocalPortal() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [patientFeedbackTarget, setPatientFeedbackTarget] = useState<HTMLDivElement | null>(null);
   const [lastCreated, setLastCreated] = useState<BackendEmergency | null>(null);
+  const [shareFirstGps, setShareFirstGps] = useState(false);
+  const firstGpsGeneration = useRef(0);
+  useEffect(() => {
+    const hidden = () => { if (document.visibilityState !== "visible") { firstGpsGeneration.current++; setShareFirstGps(false); } };
+    document.addEventListener("visibilitychange", hidden);
+    return () => { firstGpsGeneration.current++; document.removeEventListener("visibilitychange", hidden); };
+  }, []);
   const [submitting, setSubmitting] = useState(false);
   const writeInFlight = useRef(false);
   const [creationUncertain, setCreationUncertain] = useState(false);
@@ -126,6 +135,10 @@ export function LocalPortal() {
   }, [navigate, memory]);
 
   useEffect(() => () => memory.suspend(), [memory]);
+  useEffect(() => {
+    window.addEventListener("ambusync:session-expired", expireSession);
+    return () => window.removeEventListener("ambusync:session-expired", expireSession);
+  }, [expireSession]);
 
   const refreshUser = useCallback(async (humanInteraction = false) => {
     const token = memory.token;
@@ -194,6 +207,7 @@ export function LocalPortal() {
       return;
     }
     return connectEmergencyEvents({
+      onPosition: (notice) => window.dispatchEvent(new CustomEvent("ambusync:position", { detail: notice.emergency_id })),
       onSessionExpired: expireSession,
       onStatus: (status) => {
         setSocketStatus(status);
@@ -303,6 +317,8 @@ export function LocalPortal() {
     if (!userRef.current?.ambulance || !memory.isCurrent(memory.token) || writeInFlight.current) return;
     writeInFlight.current = true;
     const token = memory.token;
+    const gpsConsentGeneration = ++firstGpsGeneration.current;
+    const wantsFirstGps = shareFirstGps;
     setError("");
     setOperationError("");
     setSubmitting(true);
@@ -340,6 +356,25 @@ export function LocalPortal() {
       memory.creationUncertain = false;
       setCreationUncertain(false);
       setLastCreated(created);
+      if (wantsFirstGps && gpsConsentGeneration === firstGpsGeneration.current && document.visibilityState === "visible") {
+        setShareFirstGps(false);
+        const gpsGeneration = gpsConsentGeneration;
+        const currentGps = () => memory.isCurrent(token) && !!userRef.current && gpsGeneration === firstGpsGeneration.current && document.visibilityState === "visible";
+        if (window.isSecureContext && navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition((position) => {
+            if (!currentGps()) return;
+            const body = { operation_id: crypto.randomUUID(), latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy_m: position.coords.accuracy, captured_at: new Date(position.timestamp).toISOString() };
+            memory.gpsAttempts.set(created.id, body);
+            void sendPosition(created.id, body, currentGps).then(() => {
+              if (currentGps()) { memory.gpsAttempts.delete(created.id); setMessage("Primera ubicación enviada. Para seguimiento periódico activa GPS en Episodios de la unidad."); }
+            }).catch((error: unknown) => {
+              if (!currentGps()) return;
+              if (error instanceof BackendApiError && [400, 403, 404, 409, 429].includes(error.status)) memory.gpsAttempts.delete(created.id);
+              setOperationError("Primera posición sin confirmar. Revisa Episodios de la unidad; no se reenviará automáticamente.");
+            });
+          }, () => { if (currentGps()) setOperationError("Ubicación no disponible. El episodio se registró sin GPS."); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+        } else setOperationError("El episodio se registró sin GPS: se requiere contexto seguro HTTPS y un dispositivo compatible.");
+      }
       setEmergencies((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       memory.draft = emptyDraft();
       setDraft(memory.draft);
@@ -539,6 +574,7 @@ export function LocalPortal() {
                       <p className="mt-1 text-sm text-muted-dark">{item.reason} · {item.destination_name}</p>
                       <p className="mt-1 text-sm text-muted-dark">{identityDescription(item.patient)}</p>
                       <EmergencyMilestones emergency={item} />
+                      <LocationPanel key={`${memory.token}:${item.id}`} id={item.id} status={item.status} canWrite expireSession={expireSession} />
                       <ReplacementLink emergency={item} />
                       <DestinationChange emergency={item} destinations={destinations} busy={transitionBusy} pending={Boolean(uncertainTransitions[item.id])} onConfirm={(values, version) => runTransition(item, "change-destination", "Destino cambiado; original cancelado y reemplazo vinculado confirmado.", values, version)} />
                       {(item.status === "notificada" || item.status === "en_traslado") && <div className="mt-3 flex flex-wrap gap-2">
@@ -622,6 +658,8 @@ export function LocalPortal() {
                         </label>
                       </div>
                       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.transferStarted} onChange={(event) => updateDraft({ transferStarted: event.target.checked })} /> Traslado iniciado</label>
+                      <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={shareFirstGps} onChange={(event) => setShareFirstGps(event.target.checked)} />Compartir una primera posición GPS al enviar (opcional)</label>
+                      <p className="text-xs text-muted-dark">Se solicitará permiso del dispositivo para compartir ubicación con Urgencias. Si no está disponible, la emergencia se registra igual. El seguimiento periódico se activa explícitamente desde Episodios de la unidad.</p>
                       </fieldset>
                       <button disabled={submitting || !user.ambulance || (!creationUncertain && !resources.ready)} className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-signal px-4 font-bold text-ink disabled:opacity-50"><Activity className="h-4 w-4" /> {submitting ? "Guardando…" : creationUncertain ? "Reintentar envío" : "Guardar emergencia"}</button>
                     </form>
@@ -712,6 +750,7 @@ function EmergencyDetail({ emergency, busy, pending, onRead, onPrepare, onRetry,
       <p className="mt-2 text-sm text-muted-dark">Edad: {emergency.patient.age_value === null ? "No informada" : `${emergency.patient.age_value} ${ageUnit}`} · Sexo: {emergency.patient.recorded_sex ?? "No informado"}</p>
       <p className="mt-2 text-sm text-muted-dark">Síntomas: {emergency.symptoms.length ? emergency.symptoms.join(", ") : "No informados"}</p>
       <EmergencyMilestones emergency={emergency} busy={busy} pending={pending} onRead={onRead} onPrepare={onPrepare} onRetry={onRetry} />
+      <LocationPanel key={emergency.id} id={emergency.id} status={emergency.status} />
       <ReplacementLink emergency={emergency} />
       <PatientContextHistory emergency={emergency} />
       {onDeactivatePatient && <button type="button" disabled={busy || pending} onClick={onDeactivatePatient} className="mt-3 rounded-lg border border-rose-300/30 px-3 py-2 text-sm text-rose-100 disabled:opacity-50">Desactivar paciente sintético</button>}

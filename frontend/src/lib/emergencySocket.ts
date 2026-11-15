@@ -28,9 +28,21 @@ interface EmergencySocketOptions {
   onEvent: (event: EmergencyEvent) => void;
   onStatus: (status: EmergencySocketStatus) => void;
   onSessionExpired?: () => void;
+  onPosition?: (notice: PositionNotice) => void;
   createSocket?: (url: string) => WebSocket;
   timers?: TimerScheduler;
   random?: () => number;
+}
+
+interface PositionNotice { event_id: string; emergency_id: string; type: "emergency.position_recorded"; position_sequence: number }
+
+function parsePositionNotice(data: unknown): PositionNotice | null {
+  if (typeof data !== "string") return null;
+  try {
+    const value = JSON.parse(data);
+    if (!value || value.type !== "emergency.position_recorded" || typeof value.event_id !== "string" || !UUID_PATTERN.test(value.event_id) || typeof value.emergency_id !== "string" || !UUID_PATTERN.test(value.emergency_id) || !Number.isSafeInteger(value.position_sequence) || value.position_sequence < 1) return null;
+    return { event_id: value.event_id, emergency_id: value.emergency_id, type: "emergency.position_recorded", position_sequence: value.position_sequence };
+  } catch { return null; }
 }
 
 const EVENT_TYPES = new Set<EmergencyEvent["type"]>([
@@ -94,6 +106,7 @@ export function connectEmergencyEvents({
   onEvent,
   onStatus,
   onSessionExpired,
+  onPosition,
   createSocket = (url) => new WebSocket(url),
   timers = { setTimeout, clearTimeout },
   random = Math.random,
@@ -138,13 +151,15 @@ export function connectEmergencyEvents({
     });
     activeSocket.addEventListener("message", (message) => {
       if (stopped || socket !== activeSocket) return;
-      const event = parseEmergencyEvent(message.data);
+      const position = parsePositionNotice(message.data);
+      const event = position ?? parseEmergencyEvent(message.data);
       if (!event || seenEventIds.has(event.event_id)) return;
       seenEventIds.add(event.event_id);
       if (seenEventIds.size > MAX_SEEN_EVENTS) {
         seenEventIds.delete(seenEventIds.values().next().value as string);
       }
-      onEvent(event);
+      if ("position_sequence" in event) onPosition?.(event);
+      else onEvent(event);
     });
     activeSocket.addEventListener("error", () => {
       if (!stopped && socket === activeSocket) setStatus("reconnecting");

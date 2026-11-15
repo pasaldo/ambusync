@@ -5,6 +5,7 @@ from emergencies.history import EmergencyHistoryView
 from emergencies.milestones import EmergencyPreparationView, EmergencyReadView
 from emergencies.patient_context import PatientContextView
 from emergencies.patient_records import PatientDeactivateView
+from emergencies.positions import PositionsView
 from emergencies.updates import (
     EmergencyMeasurementsView,
     EmergencyRectificationView,
@@ -20,6 +21,7 @@ from emergencies.views import (
 )
 
 urlpatterns = [
+    path("<uuid:emergency_id>/positions/", PositionsView.as_view(), name="emergency-positions"),
     path("history/", EmergencyHistoryView.as_view(), name="emergency-history"),
     path(
         "<uuid:emergency_id>/patient-context/",

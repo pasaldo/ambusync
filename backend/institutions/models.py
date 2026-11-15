@@ -20,6 +20,7 @@ class Institution(models.Model):
     address = models.CharField(max_length=255, blank=True, default="")
     phone = models.CharField(max_length=15, blank=True, default="")
     email = models.EmailField(max_length=254, blank=True, default="")
+    location = models.JSONField(null=True, blank=True, default=None)
     operator_institutions = models.ManyToManyField(
         "self",
         symmetrical=False,
@@ -115,3 +116,6 @@ class AmbulanceAssignment(models.Model):
             ),
         ]
         ordering = ("-assigned_at",)
+
+
+from institutions.geocoding_models import GeocodingLookup, GeocodingQuota  # noqa: F401

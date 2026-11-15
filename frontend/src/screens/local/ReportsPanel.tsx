@@ -8,6 +8,7 @@ import { cancellationLabel } from "./queuePresentation";
 import { ReplacementLink } from "./DestinationChange";
 import { UrgenciasEmergencyCard } from "./UrgenciasEmergencyCard";
 import { HistoricalDetailShell } from "./HistoricalDetailShell";
+import { LocationPanel } from "./LocationPanel";
 
 export const readControl = "mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-white/15 bg-ink px-3 py-2";
 export const readButton = "rounded-lg border border-signal/40 px-3 py-2 text-sm text-signal-soft disabled:opacity-50";
@@ -83,6 +84,7 @@ export function ReportsPanel({ expireSession, onDeactivatePatient, patientBusy =
       <PageControls page={page} next={data.next} previous={data.previous} busy={listing.loading} onPage={(next) => { setSelected(""); setPage(next); }} />
     </>}
     {selected && <HistoricalDetailShell modal={archive} onClose={() => setSelected("")}>
+      {detail.data && <LocationPanel key={detail.data.id} id={detail.data.id} status={detail.data.status} />}
       <div className="flex items-start justify-between gap-3"><h3 className="text-xl font-bold">Detalle histórico</h3><button type="button" className={readButton} onClick={() => setSelected("")}>{archive ? "Cerrar" : "Volver al listado"}</button></div>
       <ReadStatus loading={detail.loading} error={detail.error} retry={detail.retry} />
       {archive && <div ref={onPatientFeedbackTarget} className="space-y-2" />}

@@ -163,6 +163,8 @@ class EmergencyEventsConsumer(AsyncJsonWebsocketConsumer):
             "emergency.read_confirmed",
             "emergency.preparation_recorded",
             "emergency.destination_changed",
+            "emergency.patient_context_corrected",
+            "emergency.position_recorded",
         }:
             return
 
@@ -171,6 +173,10 @@ class EmergencyEventsConsumer(AsyncJsonWebsocketConsumer):
                 "event_id": str(event["event_id"]),
                 "type": event_type,
                 "emergency_id": str(event["emergency_id"]),
-                "version": version,
+                (
+                    "position_sequence"
+                    if event_type == "emergency.position_recorded"
+                    else "version"
+                ): version,
             }
         )

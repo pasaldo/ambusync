@@ -1,5 +1,6 @@
 from django.urls import path
 
+from institutions.geocoding_views import GeocodingView
 from institutions.system_management import (
     SystemInstitutionDeactivateView,
     SystemInstitutionDetailView,
@@ -8,6 +9,7 @@ from institutions.system_management import (
 )
 
 urlpatterns = [
+    path("geocoding/", GeocodingView.as_view(), name="system-geocoding"),
     path(
         "institutions/", SystemInstitutionListCreateView.as_view(), name="system-institution-list"
     ),

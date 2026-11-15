@@ -232,6 +232,16 @@ export interface SystemInstitution {
   address: string;
   phone: string;
   email: string;
+  location?: InstitutionLocation | null;
+  location_status?: "confirmed" | "pending";
+}
+
+export interface InstitutionLocation {
+  latitude: number; longitude: number; formatted?: string; result_type?: string;
+  confidence?: number | null; attribution?: string; provider?: string; confirmed_at?: string;
+}
+export interface GeocodingResult {
+  lookup_id: string; status: string; candidates: InstitutionLocation[];
 }
 
 export interface NewSystemInstitution {
@@ -242,6 +252,7 @@ export interface NewSystemInstitution {
   email: string;
   first_username: string;
   first_email: string;
+  location_selection?: { lookup_id: string; index: number } | null;
 }
 
 async function managementMutation<T>(path: string, body: unknown, isCurrent: () => boolean): Promise<T> {
@@ -266,6 +277,23 @@ export async function completeAccountRecovery(body: { id: string; token: string;
 export const requestManagedRecovery = (id: string, isCurrent = () => true) =>
   managementMutation(`/api/v1/institutions/management/accounts/${encodeURIComponent(id)}/recovery/`, {}, isCurrent);
 
+export const geocodeInstitution = (address: string, retry: boolean, isCurrent: () => boolean) =>
+  managementMutation<GeocodingResult>("/api/v1/system/geocoding/", { address, retry }, isCurrent);
+
+export async function getPositions(id: string): Promise<import("./gps").PositionSnapshot> {
+  const data = await request<import("./gps").PositionSnapshot>(`/api/v1/emergencies/${encodeURIComponent(id)}/positions/`, { cache: "no-store" });
+  if (!data || typeof data.status !== "string" || typeof data.server_time !== "string" || !Number.isFinite(Date.parse(data.server_time)) || !("latest" in data)) throw new Error("No se confirmó la ubicación.");
+  return data;
+}
+export async function sendPosition(id: string, body: import("./gps").PositionBody, isCurrent: () => boolean): Promise<import("./gps").GpsPosition> {
+  const generation = csrfGeneration;
+  const token = await ensureCsrf();
+  if (generation !== csrfGeneration || !isCurrent()) throw new Error("La sesión cambió durante la captura.");
+  const data = await request<{ position: import("./gps").GpsPosition }>(`/api/v1/emergencies/${encodeURIComponent(id)}/positions/`, { method: "POST", headers: { "X-CSRFToken": token }, body: JSON.stringify(body) });
+  if (!data?.position || typeof data.position.id !== "string" || !Number.isFinite(data.position.sequence) || data.position.latitude !== body.latitude || data.position.longitude !== body.longitude || Date.parse(data.position.captured_at) !== Date.parse(body.captured_at)) throw new Error("Posición sin confirmar.");
+  return data.position;
+}
+
 export async function createManagedAmbulance(code: string, institutionId: string, isCurrent = () => true): Promise<ManagedAmbulance> {
   return managementMutation("/api/v1/institutions/management/ambulances/create/", { code, institution_id: institutionId }, isCurrent);
 }
@@ -287,11 +315,12 @@ export async function listSystemInstitutions(status: "all" | "active" | "inactiv
   return request(`/api/v1/system/institutions/?${search.toString()}`);
 }
 
-export async function createSystemInstitution(payload: NewSystemInstitution): Promise<SystemInstitution & {
+export async function createSystemInstitution(payload: NewSystemInstitution, isCurrent = () => true): Promise<SystemInstitution & {
   first_account: { id: string; username: string };
   activation_sent: boolean;
 }> {
   const token = await ensureCsrf();
+  if (!isCurrent()) throw new Error("La sesión o el formulario cambió.");
   return request("/api/v1/system/institutions/", {
     method: "POST",
     headers: { "X-CSRFToken": token },
@@ -300,8 +329,9 @@ export async function createSystemInstitution(payload: NewSystemInstitution): Pr
   });
 }
 
-export async function updateSystemInstitution(id: string, payload: Omit<NewSystemInstitution, "first_username" | "first_email">): Promise<SystemInstitution> {
+export async function updateSystemInstitution(id: string, payload: Omit<NewSystemInstitution, "first_username" | "first_email">, isCurrent = () => true): Promise<SystemInstitution> {
   const token = await ensureCsrf();
+  if (!isCurrent()) throw new Error("La sesión o el formulario cambió.");
   return request(`/api/v1/system/institutions/${encodeURIComponent(id)}/`, {
     method: "PATCH",
     headers: { "X-CSRFToken": token },

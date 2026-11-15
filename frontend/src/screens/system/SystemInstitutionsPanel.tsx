@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Building2, Check, Edit3, Plus, RefreshCw, Search, ShieldAlert, X } from "lucide-react";
 import {
@@ -9,6 +9,7 @@ import {
   updateSystemInstitution,
   type NewSystemInstitution,
   type SystemInstitution,
+  geocodeInstitution, type GeocodingResult,
 } from "@/lib/backend";
 
 const emptyForm: NewSystemInstitution = {
@@ -87,6 +88,11 @@ export function SystemInstitutionsPanel() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [lookup, setLookup] = useState<(GeocodingResult & { address: string }) | null>(null);
+  const [candidate, setCandidate] = useState<number | null>(null);
+  const generation = useRef(0), active = useRef(true), submitting = useRef(false);
+  useEffect(() => { active.current = true; return () => { active.current = false; generation.current++; }; }, []);
+  function resetLookup() { generation.current++; setLookup(null); setCandidate(null); }
 
   async function refresh() {
     setLoading(true);
@@ -105,6 +111,7 @@ export function SystemInstitutionsPanel() {
   }, [statusFilter]);
 
   function editInstitution(institution: SystemInstitution) {
+    resetLookup();
     setFormOpen(true);
     setEditing(institution);
     setForm({
@@ -121,6 +128,7 @@ export function SystemInstitutionsPanel() {
   }
 
   function startCreate() {
+    resetLookup();
     setFormOpen(true);
     setEditing(null);
     setForm(emptyForm);
@@ -129,6 +137,7 @@ export function SystemInstitutionsPanel() {
   }
 
   function closeForm() {
+    resetLookup();
     setFormOpen(false);
     setEditing(null);
     setError("");
@@ -137,10 +146,29 @@ export function SystemInstitutionsPanel() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
+    const token = generation.current;
+    const current = () => active.current && generation.current === token;
     setSaving(true);
     setError("");
     setMessage("");
     try {
+      let resolved = lookup;
+      if ((!editing?.location || editing.address !== form.address) && resolved?.address !== form.address) {
+        try {
+          const result = await geocodeInstitution(form.address, false, current);
+          if (!current()) return;
+          resolved = { ...result, address: form.address };
+          setLookup(resolved); setCandidate(null);
+          if (Array.isArray(result.candidates) && result.candidates.length) return;
+        } catch {
+          if (!current()) return;
+          resolved = { lookup_id: "", status: "unavailable", candidates: [], address: form.address };
+          setLookup(resolved);
+        }
+      }
+      const selection = resolved?.address === form.address && candidate !== null ? { lookup_id: resolved.lookup_id, index: candidate } : null;
       if (editing) {
         await updateSystemInstitution(editing.id, {
           name: form.name,
@@ -148,10 +176,13 @@ export function SystemInstitutionsPanel() {
           address: form.address,
           phone: form.phone,
           email: form.email,
-        });
+          ...((resolved?.address === form.address || editing.address !== form.address) ? { location_selection: selection } : {}),
+        }, current);
+        if (!current()) return;
         setMessage("Los datos de la institución se actualizaron.");
       } else {
-        const created = await createSystemInstitution({ ...form, rut: completeRut(form.rut) });
+        const created = await createSystemInstitution({ ...form, rut: completeRut(form.rut), location_selection: selection }, current);
+        if (!current()) return;
         setMessage(`Institución creada. Se envió la activación para ${created.first_account.username}.`);
         setForm(emptyForm);
         setFormOpen(false);
@@ -159,9 +190,10 @@ export function SystemInstitutionsPanel() {
       }
       await refresh();
     } catch (saveError) {
-      setError(errorText(saveError));
+      if (current()) setError(errorText(saveError));
     } finally {
-      setSaving(false);
+      submitting.current = false;
+      if (active.current) setSaving(false);
     }
   }
 
@@ -270,8 +302,26 @@ export function SystemInstitutionsPanel() {
             <span id="rut-help" className="mt-1 block text-xs text-muted-dark">{rutHint(form.rut)}</span>
           </label>
           <label className="block text-sm font-medium">Dirección
-            <input required maxLength={255} value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} className={inputClass} />
+            <input required disabled={saving} maxLength={255} value={form.address} onChange={(event) => { resetLookup(); setForm({ ...form, address: event.target.value }); }} className={inputClass} />
           </label>
+          {editing && <p className="text-sm text-muted-dark">{editing.location ? "Destino confirmado para la dirección registrada." : "Ubicación pendiente: al guardar se buscará la dirección registrada."}</p>}
+          {lookup?.address === form.address && <fieldset className="space-y-3 border-t border-white/10 pt-4">
+            <legend className="font-semibold">Confirmar ubicación del destino</legend>
+            <p className="text-xs text-muted-dark">Comprueba que corresponda al establecimiento, no solo a su ciudad. No certifica la entrada de Urgencias.</p>
+            {lookup.candidates.map((item, index) => <label key={index} className="flex min-h-11 items-start gap-3 text-sm">
+              <input className="mt-1" type="radio" name="institution-location" checked={candidate === index} onChange={() => setCandidate(index)} />
+              <span>{item.formatted} · {item.latitude}, {item.longitude}{item.confidence !== null && item.confidence !== undefined ? ` · Coincidencia ${Math.round(item.confidence * 100)}%` : ""}</span>
+            </label>)}
+            <label className="flex min-h-11 items-center gap-3 text-sm"><input type="radio" name="institution-location" checked={candidate === null} onChange={() => setCandidate(null)} />Guardar ubicación pendiente</label>
+            {!lookup.candidates.length && <p role="status" className="text-sm text-amber-100">No se pudo resolver una ubicación precisa. La institución puede guardarse sin distancia disponible.</p>}
+            {!lookup.candidates.length && <button type="button" disabled={saving} className="min-h-11 rounded-lg border border-white/15 px-3 text-sm disabled:opacity-50" onClick={() => {
+              const token = generation.current, address = form.address;
+              const current = () => active.current && generation.current === token;
+              setSaving(true);
+              void geocodeInstitution(address, true, current).then((result) => { if (current()) { setLookup({ ...result, address }); setCandidate(null); } }).catch(() => { if (current()) setError("No se pudo buscar la ubicación. Puedes guardar como pendiente."); }).finally(() => { if (active.current) setSaving(false); });
+            }}>Reintentar búsqueda de ubicación</button>}
+            <p className="text-xs text-muted-dark">Powered by <a href="https://www.geoapify.com/" className="underline" target="_blank" rel="noreferrer">Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" className="underline" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a></p>
+          </fieldset>}
           <label className="block text-sm font-medium">Teléfono (opcional)
             <input type="tel" maxLength={15} value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className={inputClass} />
           </label>

@@ -45,11 +45,13 @@ def require_system_admin(user):
 
 
 def validate_institution_fields(data, *, creating=False):
-    allowed = CREATE_FIELDS if creating else INSTITUTION_FIELDS
+    allowed = (CREATE_FIELDS if creating else INSTITUTION_FIELDS) | {"location_selection"}
     if not isinstance(data, dict) or set(data) - allowed:
         raise ValidationError({"request": "La solicitud contiene campos no admitidos."})
 
     values = {}
+    if "location_selection" in data:
+        values["location_selection"] = data["location_selection"]
     errors = {}
     name = data.get("name")
     if creating or "name" in data:
@@ -176,6 +178,8 @@ def institution_payload(institution):
         "address": institution.address,
         "phone": institution.phone,
         "email": institution.email,
+        "location": institution.location,
+        "location_status": "confirmed" if institution.location else "pending",
     }
 
 
@@ -201,6 +205,9 @@ class SystemInstitutionListCreateView(APIView):
         require_system_admin(request.user)
         values = validate_institution_fields(request.data, creating=True)
         check_institution_uniqueness(values)
+        from institutions.geocoding import confirmed_location
+
+        location = confirmed_location(values["address"], values.get("location_selection"))
         token = secrets.token_urlsafe(32)
         try:
             with transaction.atomic():
@@ -211,6 +218,7 @@ class SystemInstitutionListCreateView(APIView):
                     address=values["address"],
                     phone=values["phone"],
                     email=values["email"],
+                    location=location,
                 )
                 user = User(
                     username=values["first_username"],
@@ -278,6 +286,16 @@ class SystemInstitutionDetailView(APIView):
         check_institution_uniqueness(values, exclude_pk=institution.pk)
         try:
             with transaction.atomic():
+                institution = Institution.objects.select_for_update().get(pk=institution_id)
+                from institutions.geocoding import confirmed_location
+
+                if "location_selection" in values or (
+                    "address" in values and values["address"] != institution.address
+                ):
+                    values["location"] = confirmed_location(
+                        values.get("address", institution.address), values.get("location_selection")
+                    )
+                    update_fields.append("location")
                 for field in update_fields:
                     setattr(institution, field, values[field])
                 institution.save(update_fields=update_fields)
