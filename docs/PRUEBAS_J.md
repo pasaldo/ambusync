@@ -2,6 +2,8 @@
 
 **Alcance aprobado el15/11/2026; implementación local, aceptación manual pendiente.** Solo piloto sintético. No confundir pruebas simuladas con GPS físico o validación real de Geoapify.
 
+> **Preparación posterior autorizada y realizada el15/11/2026, sobre73b84e4:** institutions0006/emergencies0011 ya aplicadas en ambusync_dev127.0.0.1:55432; únicamenteDaphnepropio reiniciado y rutasJcargadas/protegidas(GET401sinlogin). migrate--check/showmigrations[X]/checkPASS, csrf/SPA/Mailpit200. Sin búsquedas/cuota/posiciones/coordenadasasignadas alverificar. **La APIkey sigue sin configurar** (solo se verificó presencia booleana, no se leyó ni imprimió secreto). Sustituye el pendiente de migración/reinicio de la entrega anterior: no repetir migraciones ni duplicar procesos. El responsable debe configurar privadamente GEOAPIFY_API_KEY y avisar para recargar Daphne antes de probar Geoapify. Aceptación manual pendiente.
+
 ## 1. Preparación pendiente
 
 Las migraciones nuevas **`institutions/0006` y `emergencies/0011` están generadas y probadas solo en testDB**, no aplicadas a `ambusync_dev`. No se modificaron direcciones/coordenadas existentes, ni se usó una APIkey real, se consultó Geoapify con direcciones, o se capturó GPS real.
@@ -126,7 +128,7 @@ npm run check:diagrams
 
 ## 8. Aceptación manual pendiente
 
-- [ ] Preparación operativa específica autorizada y aplicada, sin duplicar servicios.
+- [x] Preparación operativa específica autorizada y realizada: institutions0006/emergencies0011 y reinicioDaphnepropio, sin duplicar servicios.
 - [ ] APIkey configurada privadamente por responsable, consulta institucional controlada y atribución.
 - [ ] Nueva institución/candidato confirmado/pendiente y edición de existentes.
 - [ ] Primera captura opcional y no reanudar tras ocultar durante creación.
