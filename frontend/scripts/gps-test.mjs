@@ -6,9 +6,16 @@ import { mockAuthenticatedApi } from "./mock-auth-api.mjs";
 let browser;
 before(async () => { browser = await chromium.launch(); });
 after(async () => { await browser.close(); });
-async function harness(holdFirst = false, groups = ["ambulance"]) {
+async function harness(holdFirst = false, groups = ["ambulance"], virtualClock = false, notified = false) {
   const context = await browser.newContext();
   await mockAuthenticatedApi(context, { groups });
+  if (notified) await context.route("**/api/v1/emergencies/?*", (route) => route.fulfill({ json: {
+    results: [{ id: "synthetic-notified-gps", version: 1, status: "notificada",
+      patient: { identity_unknown: true, alias: "", age_value: null, age_unit: "", recorded_sex: null },
+      reason: "Notificación sintética pendiente de traslado", destination_name: "Destino sintético", ambulance_code: "SYN-01",
+      created_at: new Date().toISOString(), symptoms: [], vital_measurements: [], patient_context_corrections: [], notes: "",
+    }], next: null, count: 1,
+  } }));
   await context.route("**/api/v1/emergencies/", (route) => {
     if (route.request().method() !== "POST") return route.fallback();
     const body = route.request().postDataJSON();
@@ -20,7 +27,7 @@ async function harness(holdFirst = false, groups = ["ambulance"]) {
     } });
   });
   const posts = [];
-  const state = { fail: false, latest: null, status: "en_traslado", releaseOld: null };
+  const state = { fail: false, latest: null, status: notified ? "notificada" : "en_traslado", releaseOld: null };
   const held = new Promise((resolve) => { state.releaseOld = resolve; });
   let firstGet = true;
   await context.route("**/api/v1/emergencies/*/positions/", async (route) => {
@@ -36,6 +43,10 @@ async function harness(holdFirst = false, groups = ["ambulance"]) {
     return route.fulfill({ status: 201, json: { position: state.latest } });
   });
   const page = await context.newPage(); page.setDefaultTimeout(10000);
+  if (virtualClock) {
+    await page.clock.install();
+    await page.addInitScript(() => { window.WebSocket = class extends EventTarget { readyState = 0; close() {} }; });
+  }
   await page.addInitScript(() => {
     window.gpsWatchers = []; window.gpsCleared = [];
     Object.defineProperty(navigator, "geolocation", { configurable: true, value: {
@@ -74,13 +85,16 @@ test("GPS asks explicitly, reports distance and clears callbacks after stop", as
 });
 
 test("uncertain position suspends GPS and explicit retry retains original body", async () => {
-  const h = await harness();
+  const h = await harness(false, ["ambulance"], true);
   try {
     h.state.fail = true;
     await h.page.getByRole("button", { name: /Compartir ubicación|Iniciar GPS/ }).first().click();
     await h.page.evaluate(() => window.gpsWatchers.at(-1).success({ coords: { latitude: 0, longitude: 0, accuracy: 8 }, timestamp: Date.now() }));
     await h.page.getByText(/Posición sin confirmar/).first().waitFor();
     assert.equal(h.posts.length, 1);
+    await h.page.clock.runFor(45000);
+    assert.equal(h.posts.length, 1, "periodic acquisition must not auto-retry an uncertain write");
+    assert.equal(await h.page.evaluate(() => window.gpsWatchers.length), 1, "no fresh read may start while the uncertain write is suspended");
     h.state.fail = false;
     await h.page.getByRole("button", { name: "Reintentar posición", exact: true }).first().click();
     await h.page.getByText(/111[,.]2 km/).first().waitFor();
@@ -199,4 +213,72 @@ test("expired position read in Urgencias immediately clears the protected portal
     await h.page.getByRole("button", { name: "Iniciar sesión", exact: true }).waitFor();
     assert.equal(await h.page.getByRole("dialog", { name: "Detalle de episodio" }).count(), 0);
   } finally { await h.context.close(); }
+});
+
+test("stationary device sends a new periodic capture within thirty seconds and pause cancels renewal", async () => {
+  const h = await harness(false, ["ambulance"], true);
+  try {
+    await h.page.evaluate(() => {
+      window.periodicGpsReads = 0;
+      navigator.geolocation.getCurrentPosition = (success) => {
+        window.periodicGpsReads++;
+        success({ coords: { latitude: 0, longitude: 0, accuracy: 8 }, timestamp: Date.now() });
+      };
+    });
+    await h.page.getByRole("button", { name: "Compartir ubicación", exact: true }).first().click();
+    await h.page.evaluate(() => window.gpsWatchers.at(-1).success({ coords: { latitude: 0, longitude: 0, accuracy: 8 }, timestamp: Date.now() }));
+    await h.page.getByText(/111[,.]2 km/).first().waitFor();
+    const next = h.page.waitForResponse((r) => r.url().includes("/positions/") && r.request().method() === "POST");
+    await h.page.clock.runFor(15000);
+    await (await next).finished();
+    assert.equal(h.posts.length, 2);
+    assert.notEqual(h.posts[0].operation_id, h.posts[1].operation_id);
+    assert.equal(h.posts[1].latitude, 0);
+    const captureGap = Date.parse(h.posts[1].captured_at)-Date.parse(h.posts[0].captured_at);
+    assert.ok(captureGap > 0 && captureGap <= 30000, "a fresh device capture should arrive within thirty seconds");
+    await h.page.getByRole("button", { name: "Pausar GPS", exact: true }).first().click();
+    await h.page.clock.runFor(45000);
+    assert.equal(h.posts.length, 2);
+    assert.equal(await h.page.evaluate(() => window.periodicGpsReads), 1);
+  } finally { await h.context.close(); }
+});
+
+for (const reason of ["hidden", "arrival"]) test(`periodic renewal stops on ${reason} without a fresh device request`, async () => {
+  const h = await harness(false, ["ambulance"], true);
+  try {
+    await h.page.getByRole("button", { name: "Compartir ubicación", exact: true }).first().click();
+    if (reason === "hidden") {
+      await h.page.evaluate(() => {
+        Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+        document.dispatchEvent(new Event("visibilitychange"));
+        Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await h.page.getByText(/GPS pausado al ocultar/).first().waitFor();
+    } else {
+      h.state.status = "llegado";
+      await h.page.clock.runFor(5000);
+      await h.page.getByText(/Seguimiento detenido por estado/).first().waitFor();
+    }
+    await h.page.clock.runFor(45000);
+    assert.equal(await h.page.evaluate(() => window.gpsWatchers.length), 1);
+    assert.equal(h.posts.length, 0);
+  } finally { await h.context.close(); }
+});
+
+test("notified first capture never starts periodic acquisition while its POST is pending", async () => {
+  const h = await harness(false, ["ambulance"], true, true); let release;
+  try {
+    const held = new Promise((resolve) => { release = resolve; });
+    await h.context.route("**/api/v1/emergencies/*/positions/", async (route) => {
+      if (route.request().method() === "POST") await held;
+      return route.fallback();
+    });
+    await h.page.getByRole("button", { name: "Compartir ubicación", exact: true }).first().click();
+    const request = h.page.waitForRequest((r) => r.url().includes("/positions/") && r.method() === "POST");
+    await h.page.evaluate(() => window.gpsWatchers.at(-1).success({ coords: { latitude: 0, longitude: 0, accuracy: 8 }, timestamp: Date.now() }));
+    await request;
+    await h.page.clock.runFor(45000);
+    assert.equal(await h.page.evaluate(() => window.gpsWatchers.length), 1, "notified state allows one acquisition, not a periodic reader");
+  } finally { release?.(); await h.context.close(); }
 });

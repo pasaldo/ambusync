@@ -63,7 +63,7 @@ La posición viene del dispositivo que usa la cuenta, no de un equipo instalado/
 ## 5. J4 — seguimiento y presentación
 
 1. En episodio de la unidad, pulsar **Compartir ubicación** y aceptar permiso del navegador si corresponde.
-2. En traslado, se envían capturas nuevas como máximo cada10s desde ese panel. GPS/WS/polling no renuevan inactividad humana.
+2. En traslado visible, el watcher se complementa con una solicitud fresca cada15s (`maximumAge:0`, timeout10s), incluso sin movimiento. No se envía más de una captura cada10s; señal/permisos/temporizadores pueden impedir una muestra fresca. GPS/WS/polling no renuevan inactividad humana. Revalidación en [PRUEBAS_RENOVACION_GPS_J.md](PRUEBAS_RENOVACION_GPS_J.md).
 3. Urgencias del destino abre detalle y ve última posición autorizada, precisión disponible, captura/recepción diferenciadas, antigüedad y distancia.
 4. La distancia usa Haversine: **línea recta aproximada**, no ruta vial, recorrido acumulado ni ETA. Si no hay origen/destino confirmado válidos: **Distancia no disponible**. `(0,0)` es válido.
 5. Tras30s se advierte posición desactualizada. La antigüedad se ancla a hora servidor y reloj monotónico; cambiar reloj del receptor no rejuvenece una posición.

@@ -83,14 +83,15 @@ export function LocationPanel({ id, status, canWrite = false, expireSession }: {
     if (!window.isSecureContext || !navigator.geolocation) { setNotice("Ubicación no disponible: el dispositivo requiere HTTPS y GPS compatible. Puedes continuar sin ubicación."); return; }
     stop();
     const token = generation.current;
-    lastSent.current = 0;
+    lastSent.current = -Infinity;
     capture.current = createGpsCapture(navigator.geolocation, (sample) => {
       if (!active.current || !allowedRef.current || document.visibilityState !== "visible" || !memory.isCurrent(memoryToken) || generation.current !== token || inFlight.current || memory.gpsAttempts.has(id)) return;
-      if (Date.now()-lastSent.current < 10000) return;
-      lastSent.current = Date.now();
+      const monotonicNow = performance.now();
+      if (monotonicNow-lastSent.current < 10000) return;
+      lastSent.current = monotonicNow;
       void transmit({ ...sample, operation_id: crypto.randomUUID() }, token);
-    }, (text) => stop(text));
-    setRunning(true); setNotice("GPS activo en primer plano. Esperando una posición; no garantiza funcionamiento con pantalla bloqueada.");
+    }, (text) => stop(text), { periodic: status === "en_traslado" });
+    setRunning(true); setNotice("GPS activo en primer plano: solicita una muestra nueva cada 15 s, incluso sin movimiento. Sin señal o con pantalla bloqueada no se garantiza actualización.");
     capture.current.start();
   }
   const latest = snapshot?.latest ?? null;
