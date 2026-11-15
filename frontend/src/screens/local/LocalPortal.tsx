@@ -573,8 +573,8 @@ export function LocalPortal() {
                       <div className="flex flex-wrap items-center justify-between gap-2"><strong>{patientDisplayLabel(item.patient)}</strong><span className="rounded-full bg-white/10 px-2 py-1 text-xs">{item.status === "cancelada" && item.replaced_by_id ? cancellationLabel(item) : emergencyStatusLabel(item.status)}</span></div>
                       <p className="mt-1 text-sm text-muted-dark">{item.reason} · {item.destination_name}</p>
                       <p className="mt-1 text-sm text-muted-dark">{identityDescription(item.patient)}</p>
-                      <EmergencyMilestones emergency={item} />
                       <LocationPanel key={`${memory.token}:${item.id}`} id={item.id} status={item.status} canWrite expireSession={expireSession} />
+                      <EmergencyMilestones emergency={item} />
                       <ReplacementLink emergency={item} />
                       <DestinationChange emergency={item} destinations={destinations} busy={transitionBusy} pending={Boolean(uncertainTransitions[item.id])} onConfirm={(values, version) => runTransition(item, "change-destination", "Destino cambiado; original cancelado y reemplazo vinculado confirmado.", values, version)} />
                       {(item.status === "notificada" || item.status === "en_traslado") && <div className="mt-3 flex flex-wrap gap-2">
@@ -602,7 +602,7 @@ export function LocalPortal() {
 
                       <fieldset className="space-y-3 rounded-xl border border-white/10 p-4">
                         <legend className="px-1 text-sm font-semibold">Datos de identidad (opcionales)</legend>
-                        <UnitPatientPicker key={memory.token} patients={resources.patients} value={draft.patientId ?? ""} onChange={(id) => { const patient = resources.patients.find((item) => item.id === id); updateDraft({ patientId: patient?.id ?? "", patientVersion: patient?.version }); }} label="Paciente de la unidad" searchLabel="Buscar paciente de la unidad por alias o ID" emptyLabel="Paciente nuevo" ready={resources.ready} />
+                        <UnitPatientPicker key={memory.token} patients={resources.patients} value={draft.patientId ?? ""} onChange={(id) => { const patient = resources.patients.find((item) => item.id === id); updateDraft({ patientId: patient?.id ?? "", patientVersion: patient?.version }); }} label="Paciente de la unidad" emptyLabel="Paciente nuevo" ready={resources.ready} />
                         {draft.patientId ? <><p className="rounded-lg border border-white/10 p-3 text-sm">Identificación desde el registro seleccionado: {patientDisplayLabel(draftPatient?.patient)}. Solo se conserva identificación; no se copian antecedentes ni historial. {draftPatient?.version !== draft.patientVersion && "El registro cambió o no está disponible: revisa y selecciona nuevamente antes de enviar."}</p>{draftPatient && draftPatient.version !== draft.patientVersion && <button type="button" onClick={() => updateDraft({ patientVersion: draftPatient.version })} className="rounded-lg border border-amber-300/30 px-3 py-2 text-sm text-amber-100">Actualizar selección del paciente</button>}</> : <>
                         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.identityUnknown} onChange={(event) => updateDraft({ identityUnknown: event.target.checked, alias: event.target.checked ? "" : draft.alias })} /> Identidad desconocida</label>
                         {!draft.identityUnknown && <label className="block text-sm">Alias

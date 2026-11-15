@@ -10,6 +10,7 @@
     "/api/v1/system/geocoding/": {
       "post": {
         "operationId": "geocodeInstitutionAddress",
+        "summary": "Búsqueda explícita: un resultado previo not_configured puede resolverse al cargar la clave, sin exigir retry=true; cuota/frecuencia siguen vigentes. No se repite por arranque ni GET.",
         "security": [{ "sessionCookie": [] }],
         "description": "Solo administración global exclusiva, CSRF y no-store. Geoapify HTTPS desde backend, dirección institucional únicamente, filtro Chile/es; nunca GPS de ambulancia ni datos clínicos. Clave privada, sin redirecciones, timeout5s y respuesta máxima128KiB. Caché por dirección normalizada; cuota compartida persistente100/díaUTC por defecto, máximo3000, una salida/segundo; fallos consumen reserva. No reintento automático. retry=true permite repetir fallos tras10s; ready/not_found cacheados no se repiten. Sin clave/proveedor/no coincidencia/cuota: HTTP200 con estado explícito, permite guardar institución pendiente. No confirma coordenadas automáticamente.",
         "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }],

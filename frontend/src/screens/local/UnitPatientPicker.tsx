@@ -7,15 +7,15 @@ const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "
 
 export function UnitPatientPicker({ patients, value, onChange, label, searchLabel, emptyLabel, ready = true }: {
   patients: PatientRecord[]; value: string; onChange: (id: string) => void;
-  label: string; searchLabel: string; emptyLabel: string; ready?: boolean;
+  label: string; searchLabel?: string; emptyLabel: string; ready?: boolean;
 }) {
   const [query, setQuery] = useState("");
-  const needle = normalize(query);
+  const needle = searchLabel ? normalize(query) : "";
   const matches = patients.filter((row) => normalize(`${row.patient.alias ?? ""} ${row.id}`).includes(needle));
   const selected = patients.find((row) => row.id === value);
   const outside = Boolean(selected && !matches.some((row) => row.id === value));
   return <div className="min-w-0 space-y-2">
-    <label className="block text-sm">{searchLabel}<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} autoComplete="off" className={control} /></label>
+    {searchLabel && <label className="block text-sm">{searchLabel}<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} autoComplete="off" className={control} /></label>}
     <label className="block text-sm">{label}<select aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} className={control}>
       <option value="">{emptyLabel}</option>
       {value && !selected && <option value={value} disabled>{ready ? "Registro seleccionado no disponible" : "Registro seleccionado pendiente de consulta"}</option>}

@@ -74,3 +74,32 @@ test("a late geocoding result cannot populate a different institution form", asy
     assert.equal(await page.getByLabel("Dirección", { exact: true }).inputValue(), "");
   } finally { release?.(); await context.close(); await browser.close(); }
 });
+
+test("geocoding configuration, quota and provider errors are not mislabeled as bad addresses", async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const [status, expected] of [
+      ["not_configured", /Geoapify no está configurado/],
+      ["not_found", /No se encontró un edificio/],
+      ["quota_exceeded", /límite diario/i],
+      ["rate_limited", /Espera al menos un segundo/],
+      ["unavailable", /servicio de ubicación no respondió/i],
+      ["pending", /búsqueda sigue en curso/i],
+    ]) {
+      const context = await browser.newContext();
+      try {
+        await mockAuthenticatedApi(context, { groups: ["system_admin"] });
+        await context.route("**/api/v1/system/geocoding/", (route) => route.fulfill({ json: { lookup_id: "synthetic", status, candidates: [] } }));
+        const page = await context.newPage(); page.setDefaultTimeout(5000);
+        await page.goto(process.env.BASE_URL || "http://127.0.0.1:5174/");
+        await page.getByLabel("Usuario", { exact: true }).fill("synthetic_admin");
+        await page.getByLabel("Contraseña", { exact: true }).fill("synthetic-password");
+        await page.getByRole("button", { name: "Iniciar sesión", exact: true }).click();
+        await page.getByRole("button", { name: "Editar", exact: true }).first().click();
+        await page.getByRole("button", { name: "Guardar cambios", exact: true }).click();
+        await page.getByText(expected).first().waitFor();
+        assert.equal(await page.getByText("No se pudo resolver una ubicación precisa.", { exact: false }).count(), 0);
+      } finally { await context.close(); }
+    }
+  } finally { await browser.close(); }
+});

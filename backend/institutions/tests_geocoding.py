@@ -18,6 +18,31 @@ class GeocodingTests(TestCase):
             "/api/v1/system/geocoding/", {"address": address, **extra}, format="json"
         )
 
+    def test_previous_missing_key_does_not_poison_later_explicit_lookup_after_configuration(self):
+        from institutions.geocoding import lookup_address
+        from institutions.geocoding_models import GeocodingQuota
+
+        with override_settings(GEOAPIFY_API_KEY=""):
+            row = lookup_address("Dirección sintética previa sin clave")
+        self.assertEqual(row.status, "not_configured")
+        self.assertEqual(GeocodingQuota.objects.get(pk=1).used, 0)
+        with patch(
+            "institutions.geocoding.fetch_candidates",
+            return_value=[
+                {
+                    "latitude": -33,
+                    "longitude": -70,
+                    "formatted": "Edificio sintético confirmado",
+                    "result_type": "building",
+                    "confidence": 1,
+                }
+            ],
+        ):
+            row = lookup_address("Dirección sintética previa sin clave")
+        self.assertEqual(row.status, "ready")
+        self.assertEqual(len(row.candidates), 1)
+        self.assertEqual(GeocodingQuota.objects.get(pk=1).used, 1)
+
     def candidates(self):
         try:
             from institutions import geocoding  # noqa: F401

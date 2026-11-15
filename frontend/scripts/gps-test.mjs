@@ -56,6 +56,9 @@ test("GPS asks explicitly, reports distance and clears callbacks after stop", as
   const h = await harness();
   try {
     const start = h.page.getByRole("button", { name: /Compartir ubicación|Iniciar GPS/ }).first();
+    const startBox = await start.boundingBox();
+    const milestoneBox = await h.page.getByText("Lectura y preparación de Urgencias", { exact: true }).first().boundingBox();
+    assert.ok(startBox && milestoneBox && startBox.y < milestoneBox.y, "GPS action should be discoverable before the milestone history");
     await start.click();
     await h.page.evaluate(() => window.gpsWatchers.at(-1).success({ coords: { latitude: 0, longitude: 0, accuracy: 8 }, timestamp: Date.now() }));
     await h.page.getByText(/111[,.]2 km/).first().waitFor();

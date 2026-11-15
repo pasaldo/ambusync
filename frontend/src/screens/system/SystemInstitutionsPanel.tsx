@@ -77,6 +77,19 @@ function errorText(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la operación.";
 }
 
+function geocodingNotice(status: string) {
+  const notices: Record<string, string> = {
+    not_configured: "Geoapify no está configurado en el servidor. Configura la clave privada y reinicia Daphne; no significa que la dirección sea incorrecta.",
+    not_found: "No se encontró un edificio o establecimiento preciso para esta dirección. Revisa calle, número y comuna; no uses un enlace de Google Maps.",
+    quota_exceeded: "Se alcanzó el límite diario de búsquedas de ubicación. Puedes guardar como pendiente y volver a buscar al renovarse la cuota.",
+    rate_limited: "Espera al menos un segundo antes de volver a buscar la ubicación. Puedes guardar como pendiente.",
+    unavailable: "El servicio de ubicación no respondió o no pudo completar la consulta. No se confirmó un resultado; puedes guardar como pendiente y reintentar.",
+    pending: "La búsqueda sigue en curso. Puedes guardar como pendiente o volver a consultar explícitamente.",
+    ready: "Ubicación pendiente: no se confirmó uno de los candidatos encontrados.",
+  };
+  return notices[status] ?? "No se confirmó el resultado de la búsqueda. La ubicación puede quedar pendiente.";
+}
+
 export function SystemInstitutionsPanel() {
   const [institutions, setInstitutions] = useState<SystemInstitution[]>([]);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
@@ -179,11 +192,11 @@ export function SystemInstitutionsPanel() {
           ...((resolved?.address === form.address || editing.address !== form.address) ? { location_selection: selection } : {}),
         }, current);
         if (!current()) return;
-        setMessage("Los datos de la institución se actualizaron.");
+        setMessage(`Los datos de la institución se actualizaron.${resolved ? ` ${selection ? "Ubicación de destino confirmada." : geocodingNotice(resolved.status)}` : ""}`);
       } else {
         const created = await createSystemInstitution({ ...form, rut: completeRut(form.rut), location_selection: selection }, current);
         if (!current()) return;
-        setMessage(`Institución creada. Se envió la activación para ${created.first_account.username}.`);
+        setMessage(`Institución creada. Se envió la activación para ${created.first_account.username}. ${selection ? "Ubicación de destino confirmada." : geocodingNotice(resolved?.status ?? "unavailable")}`);
         setForm(emptyForm);
         setFormOpen(false);
         setEditing(null);
@@ -313,7 +326,7 @@ export function SystemInstitutionsPanel() {
               <span>{item.formatted} · {item.latitude}, {item.longitude}{item.confidence !== null && item.confidence !== undefined ? ` · Coincidencia ${Math.round(item.confidence * 100)}%` : ""}</span>
             </label>)}
             <label className="flex min-h-11 items-center gap-3 text-sm"><input type="radio" name="institution-location" checked={candidate === null} onChange={() => setCandidate(null)} />Guardar ubicación pendiente</label>
-            {!lookup.candidates.length && <p role="status" className="text-sm text-amber-100">No se pudo resolver una ubicación precisa. La institución puede guardarse sin distancia disponible.</p>}
+            {!lookup.candidates.length && <p role="status" className="text-sm text-amber-100">{geocodingNotice(lookup.status)} La institución puede guardarse sin distancia disponible.</p>}
             {!lookup.candidates.length && <button type="button" disabled={saving} className="min-h-11 rounded-lg border border-white/15 px-3 text-sm disabled:opacity-50" onClick={() => {
               const token = generation.current, address = form.address;
               const current = () => active.current && generation.current === token;

@@ -79,10 +79,15 @@ def lookup_address(address, retry=False):
         GeocodingQuota.objects.get_or_create(pk=1, defaults={"day": now.date()})
         quota = GeocodingQuota.objects.select_for_update().get(pk=1)
         row, created = GeocodingLookup.objects.get_or_create(pk=key, defaults={"address": address})
-        if not created and (
-            row.status in ("ready", "not_found")
-            or not retry
-            or now - row.updated_at < timedelta(seconds=10)
+        configuration_restored = row.status == "not_configured" and bool(settings.GEOAPIFY_API_KEY)
+        if (
+            not created
+            and not configuration_restored
+            and (
+                row.status in ("ready", "not_found")
+                or not retry
+                or now - row.updated_at < timedelta(seconds=10)
+            )
         ):
             return row
         if not settings.GEOAPIFY_API_KEY:

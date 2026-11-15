@@ -2,6 +2,8 @@
 
 **Alcance aprobado el15/11/2026; implementación local, aceptación manual pendiente.** Solo piloto sintético. No confundir pruebas simuladas con GPS físico o validación real de Geoapify.
 
+> **Observaciones posteriores15/11:** ver [PRUEBAS_CORRECCIONES_J.md](PRUEBAS_CORRECCIONES_J.md) para diagnóstico de clave añadida después de iniciar Daphne, caché/mensajes de geocodificación, búsqueda de pacientes solo en su apartado y prueba de distancia con coordenadas sintéticas en DevTools. La ausencia concreta del botón en el navegador del responsable sigue pendiente de revalidación; el bloque GPS se ubica antes de hitos para facilitar encontrarlo.
+
 > **Preparación posterior autorizada y realizada el15/11/2026, sobre73b84e4:** institutions0006/emergencies0011 ya aplicadas en ambusync_dev127.0.0.1:55432; únicamenteDaphnepropio reiniciado y rutasJcargadas/protegidas(GET401sinlogin). migrate--check/showmigrations[X]/checkPASS, csrf/SPA/Mailpit200. Sin búsquedas/cuota/posiciones/coordenadasasignadas alverificar. **La APIkey sigue sin configurar** (solo se verificó presencia booleana, no se leyó ni imprimió secreto). Sustituye el pendiente de migración/reinicio de la entrega anterior: no repetir migraciones ni duplicar procesos. El responsable debe configurar privadamente GEOAPIFY_API_KEY y avisar para recargar Daphne antes de probar Geoapify. Aceptación manual pendiente.
 
 ## 1. Preparación pendiente

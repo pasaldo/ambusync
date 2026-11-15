@@ -676,6 +676,8 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 
 ## 11. Condiciones para cerrar la etapa 0
 
+**Observaciones J posteriores —15/11/2026:** corregidas/verificadaslocalmente(cachetrasconfigurarclave,mensajesseparados,búsquedaúnicaenapartadopacientesyGPSanteshitos), backend310/310/frontend43unit+12J/regresionesPASS y revisiónindependientesinacciones. Daphnepropio recargado y clavepresente sin exponerla; ningún consumoexterno/GPSreal acreditado. RevalidaciónmanualJpendiente enPRUEBAS_CORRECCIONES_J; falta de botón en pantallaresponsablenoreproducida, no declararlaresuelta por tests. No cierraetapa/autorizauso clínico/push/despliegue/K–M.
+
 **Actualización operativa posterior J —15/11/2026:** autorizadas/aplicadas soloinstitutions0006/emergencies0011 en ambusync_dev127.0.0.1:55432 y reiniciadoDaphnepropio paraJ, checks/rutasprotegidasPASS. Sin APIkeyconfigurada, consultasexternas/GPSreal ni coordenadasasignadas. Sustituye pendiente de migración/reinicioJ, no configuraciónprivada/aceptaciónmanual ni cierre deetapa. Sin push/merge/despliegue/K–M.
 
 **Bloque J —alcance aprobado15/11/2026, implementación local:** GPSprimerplano con consentimiento/frescura/distanciaHaversine y parada por estado; destino desde dirección con Geoapify gratuito aprobado, confirmación humana y cuota/caché backend. Clave en poder del responsable, no recibida/configurada; sin llamadas externas de direcciones ni GPS real. Migracionesinstitutions0006/emergencies0011 solo testDB, preparación de desarrollo y aceptación manual pendientes en PRUEBAS_J. No cierra etapa0 ni autoriza uso clínico, nuevos gastos, push/merge/despliegue o inicioK–M.

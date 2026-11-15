@@ -54,25 +54,30 @@ async function harness() {
   return { context, page, patient, user, symptoms, state, panel, edit, login };
 }
 
-test("patient pickers filter locally by alias or ID without selecting or submitting", async () => {
+test("new emergency keeps reuse selector without duplicate search; catalog search stays local", async () => {
   const h = await harness();
   try {
-    const search = h.page.getByLabel("Buscar paciente de la unidad por alias o ID", { exact: true });
     const select = h.page.getByLabel("Paciente de la unidad", { exact: true });
-    await search.fill("  ALIAS SINTETICO  ");
+    await select.waitFor();
+    assert.equal(await h.page.getByLabel("Buscar paciente de la unidad por alias o ID", { exact: true }).count(), 0);
     assert.equal(await select.locator("option").count(), 2);
     assert.equal(await select.inputValue(), "");
-    await search.press("Enter");
     assert.equal(h.state.posts.length, 0);
     await select.selectOption(h.patient.id);
+    await h.panel();
+    const records = h.page.getByLabel("Registro del paciente", { exact: true });
+    const search = h.page.getByLabel("Buscar registro por alias o ID", { exact: true });
+    await search.fill("  ALIAS SINTETICO  ");
+    assert.equal(await records.locator("option").count(), 2);
+    await search.press("Enter");
+    assert.equal(h.state.posts.length, 0);
+    await records.selectOption(h.patient.id);
     await search.fill("ninguna coincidencia");
     await h.page.getByText("Sin coincidencias para esta búsqueda.", { exact: true }).waitFor();
     assert.equal(await select.inputValue(), h.patient.id);
-    assert.match(await select.locator("option:checked").textContent(), /fuera del filtro/);
+    assert.match(await records.locator("option:checked").textContent(), /fuera del filtro/);
     await search.fill(h.patient.id.slice(-8));
-    assert.doesNotMatch(await select.locator("option:checked").textContent(), /fuera del filtro/);
-    await h.panel();
-    const records = h.page.getByLabel("Registro del paciente", { exact: true });
+    assert.doesNotMatch(await records.locator("option:checked").textContent(), /fuera del filtro/);
     await h.page.getByLabel("Buscar registro por alias o ID", { exact: true }).fill(h.patient.id);
     await records.selectOption(h.patient.id);
     await h.page.getByLabel("Alias del registro", { exact: true }).fill("Borrador conservado");
@@ -87,13 +92,14 @@ test("patient search and record selection reset after scope change", async () =>
   try {
     await h.edit();
     await h.page.getByLabel("Buscar registro por alias o ID", { exact: true }).fill("sintético");
-    await h.page.getByLabel("Buscar paciente de la unidad por alias o ID", { exact: true }).fill("inicial");
+    await h.page.getByLabel("Paciente de la unidad", { exact: true }).selectOption(h.patient.id);
     h.state.expireNext = true;
     await h.page.getByRole("button", { name: "Guardar registro del paciente", exact: true }).click();
     await h.page.getByRole("button", { name: "Iniciar sesión", exact: true }).waitFor();
     h.user.ambulance.id = "unit-new-scope";
     await h.login();
-    assert.equal(await h.page.getByLabel("Buscar paciente de la unidad por alias o ID", { exact: true }).inputValue(), "");
+    assert.equal(await h.page.getByLabel("Buscar paciente de la unidad por alias o ID", { exact: true }).count(), 0);
+    assert.equal(await h.page.getByLabel("Paciente de la unidad", { exact: true }).inputValue(), "");
     await h.panel();
     assert.equal(await h.page.getByLabel("Buscar registro por alias o ID", { exact: true }).inputValue(), "");
     assert.equal(await h.page.getByLabel("Registro del paciente", { exact: true }).inputValue(), "");
