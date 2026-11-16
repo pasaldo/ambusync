@@ -20,6 +20,11 @@ Solo piloto sintético, sin despliegue ni uso clínico.
 
 ## Dónde probar
 
+**Preparación LAN posterior autorizada16/11:** Android por
+**https://192.168.100.8:8443/**, conCA temporal instalada manualmente y firewall
+restringido. Ver [PRUEBAS_HTTPS_LOCAL_K.md](PRUEBAS_HTTPS_LOCAL_K.md).
+Esta preparación no declara probada la instalación en elcelular ni apruebaK.
+
 El worker se registra **solo en build**, en contexto seguro. Vite dev5174 sirve
 para desarrollo y regresiones, no acredita instalación ni actualización K.
 
