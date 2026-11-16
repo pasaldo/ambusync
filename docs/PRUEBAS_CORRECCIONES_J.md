@@ -1,5 +1,7 @@
 # J — observaciones y correcciones de aceptación
 
+**Aceptación posterior —16/11/2026 sobre `04c1a33`:** el responsable aprobó expresamente las pruebas manuales de J, incluidas sus correcciones. Sustituye las menciones de revalidación pendiente de esta guía; no se aportaron resultados individuales, dispositivos o navegadores. Se autoriza push a `origin/feature/pilot-completion`, no merge/despliegue/uso clínico/K–M. Las incidencias automáticas/operativas del16/11 se conservan separadas y no se presentan como pruebas aprobadas; ver [PRUEBAS_J.md](PRUEBAS_J.md).
+
 **Base:** J73b84e4/preparacióne8287bf. Observaciones del responsable15/11/2026: dirección copiada de Google Maps sin ubicación, búsqueda duplicada de pacientes, distancia no probada en PC y control de compartir ubicación no encontrado. No se declaran aprobadas estas correcciones por su reporte.
 
 ## 1. Diagnóstico y cambio aplicado

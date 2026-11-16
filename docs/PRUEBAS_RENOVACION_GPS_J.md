@@ -1,5 +1,7 @@
 # J — renovación periódica de ubicación
 
+**Aceptación posterior —16/11/2026 sobre `04c1a33`:** el responsable confirmó aprobadas las pruebas manuales de J, incluida esta corrección. Sustituye el pendiente manual y las casillas históricas de esta guía, sin inventar ejecución individual, dispositivo, navegador, HTTPS o cadencia física. Persisten los límites técnicos de señal/primer plano. Push autorizado a `origin/feature/pilot-completion`, no merge/despliegue/uso clínico/K–M. Las repeticiones automáticas del16/11 fallaron por interferencia de pruebas e interrupción/indisponibilidadPG y no se cuentan como aprobadas; ver [PRUEBAS_J.md](PRUEBAS_J.md).
+
 **Observación del responsable tras65f134b:** el flujo de ubicación funciona, pero la captura no se renueva al menos cada30s. No constituye aprobación manual integral de J.
 
 ## Causa y corrección

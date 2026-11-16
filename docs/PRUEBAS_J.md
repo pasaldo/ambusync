@@ -1,6 +1,8 @@
 # Bloque J — GPS y destino desde dirección
 
-**Alcance aprobado el15/11/2026; implementación local, aceptación manual pendiente.** Solo piloto sintético. No confundir pruebas simuladas con GPS físico o validación real de Geoapify.
+**J aprobado manualmente el16/11/2026 sobre `04c1a33`, por confirmación del responsable.** Incluye sus correcciones y sustituye los pendientes manuales históricos de esta guía y las guías relacionadas. Solo piloto sintético. No confundir pruebas simuladas con GPS físico o validación real de Geoapify.
+
+El responsable reportó «pruebas manuales estan aprobadas» y autorizó push a `origin/feature/pilot-completion`; no aportó detalle individual de casos, dispositivos, navegadores, HTTPS ni métricas físicas. Los apartados siguientes conservan la historia de implementación/preparación y procedimientos, no pendientes de aceptación vigentes. Las repeticiones automáticas del16/11 no se consideran aprobadas: hubo interferencia sobre la base de pruebas y posterior interrupción/indisponibilidadPG; el último comando exacto falló por timeout antes de ejecutar casos. No hay nueva suite verde ni CI remota acreditadas. La aceptación no autoriza merge, despliegue, uso clínico ni inicioK–M.
 
 > **Observaciones posteriores15/11:** ver [PRUEBAS_CORRECCIONES_J.md](PRUEBAS_CORRECCIONES_J.md) para diagnóstico de clave añadida después de iniciar Daphne, caché/mensajes de geocodificación, búsqueda de pacientes solo en su apartado y prueba de distancia con coordenadas sintéticas en DevTools. La ausencia concreta del botón en el navegador del responsable sigue pendiente de revalidación; el bloque GPS se ubica antes de hitos para facilitar encontrarlo.
 
