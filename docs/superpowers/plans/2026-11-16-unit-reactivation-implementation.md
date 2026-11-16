@@ -20,6 +20,11 @@ Contrato/limitaciones y ajustes del plan en `docs/PRUEBAS_REACTIVACION_UNIDADES.
 Se conserva la lista original de pasos como plan aprobado; recargarDaphne8000/8001
 requiere autorización específica y la aceptación manual permanece pendiente.
 
+**Preparación posterior:** el responsable autorizó reiniciar losDaphne y se
+recargaron únicamente8000/8001 el16/11. Rutas nuevas protegidas401 comprobadas
+por ambos accesos, sin escritura real; sustituye pendiente de recarga anterior,
+no la aceptación manual.
+
 ## Global Constraints
 
 - Sin modelos, migraciones ni dependencias nuevas.

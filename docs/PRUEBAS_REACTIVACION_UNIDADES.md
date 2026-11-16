@@ -29,15 +29,22 @@ Si se pierde la respuesta, no hay éxito supuesto ni reenvío automático:
 **Actualizar administración** recupera el estado antes de permitir otra decisión.
 Una respuesta tardía tras logout/cambio de ámbito no restaura el panel anterior.
 
-## Preparación operativa pendiente
+## Preparación operativa realizada — 16/11/2026
 
 - No hay migraciones ni dependencias nuevas.
-- Los Daphne ya iniciados no recargan código automáticamente. Se requiere
-  autorización específica para reiniciar únicamente los procesos propios
-  de8000 y8001 antes de probar esta función en web/PWA con backend real.
-- Build frontend regenerado para preview local. Que HTTPS sirva el build nuevo
-  no acredita que los procesos backend antiguos tengan cargada la ruta.
+- El responsable autorizó expresamente «reinicia los daphne». Se verificó la
+  identidad de los procesos de esta copia y se reiniciaron únicamente8000/8001.
+  Listeners anteriores44968/20800 → nuevos19660/44072, ambos127.0.0.1.
+- 8000 conserva configuración local y `FRONTEND_BASE_URL=http://127.0.0.1:5174`;
+  8001 conserva `lan_settings` externo, host/origen exactos y cookiesSecure.
+- GET anónimo a la nueva ruta con UUID sintético devuelve401 por8000 y por
+  HTTPS8443 (antes404): ruta nueva cargada/protegida, sin ejecutar reactivación.
+  `me`401, SPA5174/HTTPS200 y cookieCSRFHTTPS Secure verificados; TLS validado.
+- Build frontend actual servido por previewHTTPS. PostgreSQL, Valkey, Mailpit,
+  Vite5174, preview4174 yHTTPS8443 conservan exactamente sus PID anteriores.
 - No se reactivaron unidades ni cambiaron asignaciones de desarrollo para probar.
+- No se inició sesión, migró, modificó `.env` ni repitió la suite completa por
+  este reinicio; aceptación manual web/Android continúa pendiente.
 - Antes de cerrar la PWA, resolver envíos inciertos y guardar/descartar borradores.
   Cerrar todos los clientes del sitio y reabrir con conexión; no borrar datos.
 

@@ -7,8 +7,10 @@ instituciones. Capacidad `can_reactivate` en listado y acción confirmada en
 administración web/PWA; selectores siguen excluyendo desactivadas. Backend319/319
 con TEST exclusiva, frontend9reactivación+20archivo/auditoría+30integridad+54unit
 y regresionesunidades/cuentas/tipos/buildPASS. Sin migraciones/dependencias.
-Pendiente autorización para recargar únicamenteDaphne8000/8001 y aceptación manual;
-buildfrontend no implica backend recargado. Sinpush/despliegue/L–M.
+RecargaDaphne8000/8001 posteriormente autorizada/realizada16/11: nueva ruta
+GETanónimo401por8000/HTTPS8443(antes404),me401/SPA200/CSRFsecure/TLSválido,
+otrosserviciosintactosmismosPID. Sin reactivar unidades ni modificar asignaciones;
+aceptación manual pendiente. Sinpush/despliegue/L–M.
 Guía [PRUEBAS_REACTIVACION_UNIDADES.md](PRUEBAS_REACTIVACION_UNIDADES.md).
 
 **Preparación LAN HTTPS para aceptaciónK —16/11/2026:** autorizados certificado local y puerto8443 por elresponsable(Android). Disponible `https://192.168.100.8:8443/` conCA temporal fueraGit, copia solo pública para transferenciaUSB y confianza manual enAndroid pendiente. Nuevo previewHTTPS ligado solo aIPLAN, Daphne adicional8001loopback con configuración temporal de host/CSRF/cookiesSecure y DEBUGfalse; servidores anteriores yPG/Valkey permanecenloopback. Firewall propio permitePrivateEthernetLAN/24yNode, y bloquea fueraLAN/Public/Domain para contrarrestar reglasNodeampliasprevias sin modificarlas. TLSCA/IP yGET200/me401/CSRF/WSSanónimo403 verificados desdePC, sin login ni capturarGPS. No acredita instalación/celular ni aprobaciónK. [PRUEBAS_HTTPS_LOCAL_K.md](PRUEBAS_HTTPS_LOCAL_K.md) incluye transferencia deCA, caducidad23/11 y retirada. Sin código clínico/modelos/migraciones/.env/datosdev/push/hostingpúblico.
