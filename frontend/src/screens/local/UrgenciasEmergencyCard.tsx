@@ -35,6 +35,6 @@ export function UrgenciasEmergencyCard({ emergency, archived = false, eventDate,
       <span className="mt-2 block text-xs text-muted-dark">{emergency.destination_name} · {emergency.ambulance_code} · {archived ? "Fecha del hito: " : ""}<time dateTime={date}>{new Date(date).toLocaleString(undefined, archived ? { timeZone: "America/Santiago" } : undefined)}</time></span>
       <span className="mt-1 block text-xs text-muted-dark">{emergency.read_at && emergency.read_by_id ? "Lectura confirmada" : "Lectura pendiente"} · {emergency.prepared_at && emergency.prepared_by_id ? "Preparación registrada" : "Preparación no registrada"}</span>
     </button>
-    {onMarkArrived && (emergency.status === "notificada" || emergency.status === "en_traslado") && <button type="button" onClick={(event) => { event.stopPropagation(); onMarkArrived(); }} className="absolute right-4 top-[3.75rem] inline-flex h-8 items-center gap-2 rounded-lg bg-signal px-3 text-xs font-semibold text-ink hover:brightness-110"><Activity className="h-3.5 w-3.5" />Marcar como llegado</button>}
+    {onMarkArrived && (emergency.status === "notificada" || emergency.status === "en_traslado") && <button type="button" onClick={(event) => { event.stopPropagation(); onMarkArrived(); }} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-signal px-3 py-2 text-sm font-semibold text-ink hover:brightness-110 sm:w-auto"><Activity className="h-4 w-4 shrink-0" />Marcar como llegado</button>}
   </div>;
 }

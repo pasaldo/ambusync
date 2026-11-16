@@ -31,6 +31,7 @@ export interface ManagedAmbulance {
   institution_name: string;
   enabled: boolean;
   can_deactivate: boolean;
+  can_reactivate: boolean;
 }
 
 export interface ManagedInstitution {
@@ -304,6 +305,11 @@ export async function assignManagedAccount(userId: string, ambulanceId: string |
 
 export async function deactivateManagedAmbulance(id: string, isCurrent = () => true): Promise<void> {
   return managementMutation(`/api/v1/institutions/management/ambulances/${encodeURIComponent(id)}/deactivate/`, {}, isCurrent);
+}
+
+export async function reactivateManagedAmbulance(id: string, isCurrent = () => true): Promise<void> {
+  const result = await managementMutation<unknown>(`/api/v1/institutions/management/ambulances/${encodeURIComponent(id)}/reactivate/`, {}, isCurrent);
+  if (result !== undefined) throw new Error("No se confirmó la reactivación de la unidad.");
 }
 
 export async function getAccountManagementConfig(): Promise<AccountManagementConfig> {

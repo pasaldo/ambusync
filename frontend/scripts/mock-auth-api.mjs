@@ -33,7 +33,7 @@ export function reportFixture(episodes, requestUrl) {
 export async function mockAuthenticatedApi(context, { groups = ["ambulance"], canCreateAccounts = true, includeUrgenciasQueue = false } = {}) {
   let authenticated = false;
   let emergencyListRequests = 0;
-  const demoAmbulances = [{ id: "demo-ambulance-id", code: "SYN-01", institution_id: "demo-operator-id", institution_name: "Hospital Operador Demo", enabled: true, can_deactivate: true }];
+  const demoAmbulances = [{ id: "demo-ambulance-id", code: "SYN-01", institution_id: "demo-operator-id", institution_name: "Hospital Operador Demo", enabled: true, can_deactivate: true, can_reactivate: false }];
   const managedAccounts = [
     { id: "1", username: "demo_urgencias", email: "demo.urgencias@example.test", institution_name: "Hospital Central Demo", groups: ["urgencias"], active: true, ambulance: null },
     { id: "2", username: "demo_ambulancia", email: "demo.ambulancia@example.test", institution_name: "Hospital Operador Demo", groups: ["ambulance"], active: true, ambulance: demoAmbulances[0] },
@@ -217,7 +217,7 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
     }
     if (pathname === "/api/v1/institutions/management/ambulances/create/" && method === "POST") {
       const input = route.request().postDataJSON();
-      const unit = { id: `demo-unit-${demoAmbulances.length + 1}`, code: input.code, institution_id: input.institution_id, institution_name: "Hospital Operador Demo", enabled: true, can_deactivate: true };
+      const unit = { id: `demo-unit-${demoAmbulances.length + 1}`, code: input.code, institution_id: input.institution_id, institution_name: "Hospital Operador Demo", enabled: true, can_deactivate: true, can_reactivate: false };
       demoAmbulances.push(unit);
       await route.fulfill({ status: 201, json: unit });
       return;
@@ -226,8 +226,20 @@ export async function mockAuthenticatedApi(context, { groups = ["ambulance"], ca
       const unit = demoAmbulances.find((item) => item.id === pathname.split("/").at(-3));
       if (unit) {
         unit.enabled = false;
+        unit.can_reactivate = true;
         for (const account of managedAccounts) if (account.ambulance?.id === unit.id) account.ambulance = null;
       }
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    if (/\/management\/ambulances\/[^/]+\/reactivate\/$/.test(pathname) && method === "POST") {
+      const unit = demoAmbulances.find((item) => item.id === pathname.split("/").at(-3));
+      if (!unit || (!unit.enabled && !unit.can_reactivate)) {
+        await route.fulfill({ status: 404, json: { code: "not_found", message: "Unidad no disponible." } });
+        return;
+      }
+      unit.enabled = true;
+      unit.can_reactivate = false;
       await route.fulfill({ status: 204 });
       return;
     }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { getReportDetail, getReportPage, getHistoryPage, type HistoryPage, type ReportPage, type BackendEmergency } from "@/lib/backend";
 import { useScopedRead } from "./useScopedRead";
 import { identityDescription, PatientContextHistory } from "./PatientContext";
@@ -13,6 +13,17 @@ import { LocationPanel } from "./LocationPanel";
 export const readControl = "mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-white/15 bg-ink px-3 py-2";
 export const readButton = "rounded-lg border border-signal/40 px-3 py-2 text-sm text-signal-soft disabled:opacity-50";
 export const statusNames: Record<string, string> = { notificada: "Notificada", en_traslado: "En traslado", llegado: "Llegado pendiente de cierre", cancelada: "Cancelada", cerrada: "Cerrada" };
+
+export function ClearableDateFilter({ label, clearLabel, value, onChange, min, max }: {
+  label: string; clearLabel: string; value: string; onChange: (value: string) => void; min?: string; max?: string;
+}) {
+  const id = useId();
+  return <div className="min-w-0 space-y-2 text-sm">
+    <label htmlFor={id} className="block">{label}</label>
+    <input id={id} type="date" min={min} max={max} value={value} onChange={(event) => onChange(event.target.value)} className={`${readControl} [color-scheme:dark]`} />
+    <button type="button" aria-label={clearLabel} disabled={!value} onClick={() => onChange("")} className={`${readButton} min-h-11`}>Borrar fecha</button>
+  </div>;
+}
 
 export function ReadStatus({ loading, error, retry }: { loading: boolean; error: string; retry: () => void }) {
   return <>{loading && <p role="status" className="mt-4 text-sm text-muted-dark">Consultando en servidor…</p>}{error && <div role="alert" className="mt-4 space-y-2 rounded-lg border border-amber-300/30 p-3 text-sm text-amber-100"><p>{error}</p><button type="button" className={readButton} onClick={retry}>Reintentar consulta</button></div>}</>;
@@ -50,7 +61,7 @@ export function ReportsPanel({ expireSession, onDeactivatePatient, patientBusy =
     <p className="text-sm text-muted-dark">{archive ? "Archivo del destino de Urgencias. Cerrados y cancelados por defecto; llegados mediante filtro explícito. Fechas del hito en America/Santiago." : "Consulta autorizada de episodios, no de pacientes únicos ni traslados únicos. Sin exportación ni edición histórica. Fechas de creación en America/Santiago."}</p>
     {archive ? <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); setSelected(""); setPage(1); setArchiveApplied({ ...archiveDraft }); if (JSON.stringify(archiveDraft) === JSON.stringify(archiveApplied) && page === 1) listing.retry(); }}>
       <div className="grid gap-3 sm:grid-cols-3">
-        <label className="block min-w-0 text-sm">Fecha del archivo<input type="date" max="9999-12-31" value={archiveDraft.date} onChange={(e) => setArchiveDraft((current) => ({ ...current, date: e.target.value }))} className={`${readControl} [color-scheme:dark]`} /></label>
+        <ClearableDateFilter label="Fecha del archivo" clearLabel="Borrar fecha del archivo" max="9999-12-31" value={archiveDraft.date} onChange={(date) => setArchiveDraft((current) => ({ ...current, date }))} />
         <label className="block text-sm">Unidad del archivo<select aria-label="Unidad del archivo" className={readControl} value={archiveDraft.ambulance_id} onChange={(e) => setArchiveDraft((current) => ({ ...current, ambulance_id: e.target.value }))}><option value="">Todas las unidades autorizadas</option>{data?.ambulances.map((unit) => <option key={unit.id} value={unit.id}>{unit.code}</option>)}{archiveDraft.ambulance_id && !data?.ambulances.some((unit) => unit.id === archiveDraft.ambulance_id) && <option value={archiveDraft.ambulance_id}>Unidad seleccionada</option>}</select></label>
         <label className="block text-sm">Estado del archivo<select aria-label="Estado del archivo" className={readControl} value={archiveDraft.status} onChange={(e) => setArchiveDraft((current) => ({ ...current, status: e.target.value }))}><option value="">Cerrados y cancelados</option>{["cerrada", "cancelada", "llegado"].map((status) => <option key={status} value={status}>{statusNames[status]}</option>)}</select></label>
       </div><button className={readButton}>Aplicar filtros</button>

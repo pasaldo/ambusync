@@ -14,8 +14,8 @@ function episode(index, status = "cerrada") {
     ambulance_id: "unit-h", ambulance_code: "SYN-H", created_at: "2026-11-13T12:00:00Z",
     arrived_at: "2026-11-13T12:30:00Z", symptoms: [], vital_measurements: [], patient_context_corrections: [], triage: "C2", notes: "" };
 }
-async function harness(groups = ["urgencias", "view_reports"], clock = false) {
-  const context = await browser.newContext();
+async function harness(groups = ["urgencias", "view_reports"], clock = false, mobile = false) {
+  const context = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : {});
   await mockAuthenticatedApi(context, { groups });
   const now = Date.now() / 1000;
   const user = { id: "h-reader", username: "synthetic_h", groups, institutions: [{ id: "destination-h", name: "Receptor sintético H" }], ambulance: null,
@@ -46,6 +46,77 @@ async function harness(groups = ["urgencias", "view_reports"], clock = false) {
   await page.getByRole("heading", { name: "synthetic_h" }).waitFor();
   return { context, page, state, user };
 }
+
+test("archive date can be cleared by touch without resetting other filters or applying early", async () => {
+  const h = await harness(["urgencias"], false, true);
+  try {
+    const reads = [];
+    await h.context.route("**/api/v1/emergencies/history/**", (route) => {
+      reads.push(route.request().url());
+      return route.fulfill({ json: historyFixture([episode(42)], route.request().url()) });
+    });
+    await h.page.getByRole("button", { name: "Archivo de Urgencias", exact: true }).tap();
+    await h.page.getByText("1 episodio", { exact: true }).waitFor();
+    const date = h.page.getByLabel("Fecha del archivo", { exact: true });
+    await date.fill("2026-11-13");
+    await h.page.getByLabel("Estado del archivo", { exact: true }).selectOption("cerrada");
+    await h.page.getByLabel("Unidad del archivo", { exact: true }).selectOption("unit-h");
+    let response = h.page.waitForResponse((r) => r.url().includes("day=13"));
+    await h.page.getByRole("button", { name: "Aplicar filtros", exact: true }).tap(); await response;
+    const before = reads.length;
+    await h.page.getByRole("button", { name: "Borrar fecha del archivo", exact: true }).tap();
+    assert.equal(await date.inputValue(), "");
+    assert.equal(reads.length, before, "clearing edits the draft without applying");
+    await h.page.getByText("Hay filtros editados sin aplicar.", { exact: true }).waitFor();
+    response = h.page.waitForResponse((r) => r.url().includes("/emergencies/history/") && !new URL(r.url()).searchParams.has("day"));
+    await h.page.getByRole("button", { name: "Aplicar filtros", exact: true }).tap(); await response;
+    const query = new URL(reads.at(-1)).searchParams;
+    for (const key of ["day", "month", "year"]) assert.equal(query.has(key), false);
+    assert.equal(query.get("status"), "cerrada");
+    assert.equal(query.get("ambulance_id"), "unit-h");
+    assert.equal(query.get("page"), "1");
+    assert.equal(await h.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    if (process.env.DATE_FILTER_SCREENSHOT) await h.page.screenshot({ path: process.env.DATE_FILTER_SCREENSHOT, fullPage: true });
+  } finally { await h.context.close(); }
+});
+
+test("audit date boundaries can each be cleared by touch while preserving action and object filters", async () => {
+  const h = await harness(["institution_admin"], false, true);
+  try {
+    const reads = [];
+    await h.context.route("**/api/v1/institutions/audit/**", (route) => {
+      reads.push(route.request().url());
+      return route.fulfill({ json: { count: 0, next: null, previous: null, results: [] } });
+    });
+    await h.page.getByRole("button", { name: "Auditoría administrativa", exact: true }).tap();
+    await h.page.getByText("0 eventos administrativos", { exact: true }).waitFor();
+    const from = h.page.getByLabel("Desde (fecha del evento)", { exact: true });
+    const to = h.page.getByLabel("Hasta (fecha del evento)", { exact: true });
+    await from.fill("2026-11-01"); await to.fill("2026-11-13");
+    await h.page.getByLabel("Acción administrativa", { exact: true }).selectOption("account.created");
+    await h.page.getByLabel("Tipo de objeto", { exact: true }).selectOption("account");
+    let response = h.page.waitForResponse((r) => r.url().includes("date_from=2026-11-01"));
+    await h.page.getByRole("button", { name: "Aplicar filtros de auditoría", exact: true }).tap(); await response;
+    const before = reads.length;
+    await h.page.getByRole("button", { name: "Borrar fecha inicial de auditoría", exact: true }).tap();
+    assert.equal(await from.inputValue(), "");
+    assert.equal(await to.inputValue(), "2026-11-13");
+    assert.equal(reads.length, before);
+    response = h.page.waitForResponse((r) => r.url().includes("/institutions/audit/") && !new URL(r.url()).searchParams.has("date_from"));
+    await h.page.getByRole("button", { name: "Aplicar filtros de auditoría", exact: true }).tap(); await response;
+    assert.equal(new URL(reads.at(-1)).searchParams.get("date_to"), "2026-11-13");
+    await h.page.getByRole("button", { name: "Borrar fecha final de auditoría", exact: true }).tap();
+    assert.equal(await to.inputValue(), "");
+    response = h.page.waitForResponse((r) => r.url().includes("/institutions/audit/") && !new URL(r.url()).searchParams.has("date_to"));
+    await h.page.getByRole("button", { name: "Aplicar filtros de auditoría", exact: true }).tap(); await response;
+    const query = new URL(reads.at(-1)).searchParams;
+    assert.equal(query.has("date_from"), false); assert.equal(query.has("date_to"), false);
+    assert.equal(query.get("action"), "account.created");
+    assert.equal(query.get("object_type"), "account");
+    assert.equal(query.get("page"), "1");
+    assert.equal(await h.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  } finally { await h.context.close(); }
+});
 
 test("operational urgencias retains basic archive and all pending arrivals without reports", async () => {
   const h = await harness(["urgencias"]);
@@ -275,6 +346,7 @@ test("all administrative events explain action account unit actor and keep techn
       ["account.created", "Cuenta creada", "account"], ["account.activated", "Cuenta activada", "account"],
       ["account.activation_resent", "Invitación de activación reenviada", "account"], ["account.deactivated", "Cuenta desactivada", "account"],
       ["ambulance.created", "Unidad creada", "ambulance"], ["ambulance.deactivated", "Unidad desactivada", "ambulance"],
+      ["ambulance.reactivated", "Unidad reactivada", "ambulance"],
       ["ambulance.assignment_started", "Unidad asignada a una cuenta", "ambulance_assignment"], ["ambulance.assignment_ended", "Asignación de unidad retirada", "ambulance_assignment"],
       ["institution_admin.provisioned", "Administración institucional habilitada", "account"],
       ["permission.manage_symptoms_granted", "Permiso para gestionar síntomas concedido", "account"],
@@ -308,6 +380,11 @@ test("all administrative events explain action account unit actor and keep techn
     await h.page.getByRole("button", { name: "Aplicar filtros de auditoría", exact: true }).click(); await filtered;
     await h.page.getByText("1 evento administrativo", { exact: true }).waitFor();
     assert.equal(await h.page.getByRole("heading", { name: "Cuenta creada", exact: true }).count(), 0);
+    await h.page.getByLabel("Acción administrativa", { exact: true }).selectOption("ambulance.reactivated");
+    const reactivated = h.page.waitForResponse((r) => r.url().includes("action=ambulance.reactivated"));
+    await h.page.getByRole("button", { name: "Aplicar filtros de auditoría", exact: true }).click(); await reactivated;
+    await h.page.getByRole("heading", { name: "Unidad reactivada", exact: true }).waitFor();
+    await h.page.getByText("SYN-01", { exact: true }).waitFor();
   } finally { await h.context.close(); }
 });
 

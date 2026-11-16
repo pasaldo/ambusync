@@ -1,5 +1,16 @@
 # Etapa 1 — backend local mínimo
 
+**Reactivación de unidades aprobada e implementada localmente16/11/2026:** POST
+explícito con ámbito idéntico a baja,204 idempotente, cambio de `enabled` y evento
+`ambulance.reactivated` atómicos; no recupera asignaciones/sesiones ni modifica
+instituciones. Capacidad `can_reactivate` en listado y acción confirmada en
+administración web/PWA; selectores siguen excluyendo desactivadas. Backend319/319
+con TEST exclusiva, frontend9reactivación+20archivo/auditoría+30integridad+54unit
+y regresionesunidades/cuentas/tipos/buildPASS. Sin migraciones/dependencias.
+Pendiente autorización para recargar únicamenteDaphne8000/8001 y aceptación manual;
+buildfrontend no implica backend recargado. Sinpush/despliegue/L–M.
+Guía [PRUEBAS_REACTIVACION_UNIDADES.md](PRUEBAS_REACTIVACION_UNIDADES.md).
+
 **Preparación LAN HTTPS para aceptaciónK —16/11/2026:** autorizados certificado local y puerto8443 por elresponsable(Android). Disponible `https://192.168.100.8:8443/` conCA temporal fueraGit, copia solo pública para transferenciaUSB y confianza manual enAndroid pendiente. Nuevo previewHTTPS ligado solo aIPLAN, Daphne adicional8001loopback con configuración temporal de host/CSRF/cookiesSecure y DEBUGfalse; servidores anteriores yPG/Valkey permanecenloopback. Firewall propio permitePrivateEthernetLAN/24yNode, y bloquea fueraLAN/Public/Domain para contrarrestar reglasNodeampliasprevias sin modificarlas. TLSCA/IP yGET200/me401/CSRF/WSSanónimo403 verificados desdePC, sin login ni capturarGPS. No acredita instalación/celular ni aprobaciónK. [PRUEBAS_HTTPS_LOCAL_K.md](PRUEBAS_HTTPS_LOCAL_K.md) incluye transferencia deCA, caducidad23/11 y retirada. Sin código clínico/modelos/migraciones/.env/datosdev/push/hostingpúblico.
 
 **K — implementado/verificado localmente16/11/2026, manual pendiente:** contrato y plan aprobados por el responsable. PWA con conexión, manifest/iconos locales y registro de worker solo en build; sin CacheStorage/IndexedDB de aplicación, caché protegida, colas ni replay automático. Navegación offline503/no-store genérica; API/WS fuera del worker. Aviso de versión en espera, sin skipWaiting/claim/reload: resolver pendientes y cerrar todas las ventanas antes de reabrir. Instalación opcional, zoom permitido, pantallas390/768 sintéticas. Frontend54unit+18K+16J y todas regresionesA–I/tipos/build/Mermaid3/3/PSdoblesPASS. Backend310/310128.587s enTESTbaseexclusiva porPID tras comprobarPG55432yValkeyWindows; sin reiniciarservicios/migrar desarrollo duranteK. Evidencia nueva separada de los fallos16/11, no ejecución aprobada del comando predeterminado compartido. Revisión independiente única sin críticos/importantes; menor de pruebas móviles foco/teclado/formularioinstitucional diferido. Fixture de esperaSWprematura detectado por autor y corregidoRED→GREEN,18Ktriplicado. [PRUEBAS_K.md](PRUEBAS_K.md) incluye instalaciónreal/HTTPS/manual pendientes; previewloopback4174propio preparado. Sin nuevos paquetes/backend/secretos/push/despliegue/L–M; menoresHpreviosconservados.

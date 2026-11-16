@@ -4,6 +4,46 @@
 Implementación verificada localmente; aceptación manual K pendiente.
 Solo piloto sintético, sin despliegue ni uso clínico.
 
+## Observación Android y ajuste de tarjeta — 16/11/2026
+
+El responsable reportó instalación Android satisfactoria. Retiró la observación
+del teclado por funcionar nuevamente; no se cambiaron los `window.prompt`.
+Esto no constituye aprobación integral de K.
+
+Se reprodujo el solapamiento de «Marcar como llegado» en la tarjeta de episodios
+entrantes a 320 px: el posicionamiento absoluto invadía el contenido al envolver
+el texto. La acción ahora ocupa una fila posterior al contenido, ancho completo
+en móvil y altura mínima de 44 px. No cambian permisos, transición ni reintentos.
+
+Regresión RED→GREEN con identificación larga, sin solapamiento ni desbordamiento
+a 320/390/768/1280 px; apertura de detalle conservada. Pasaron 52 pruebas de
+integridad/archivo/correcciones y 54 unitarias; tipos y build correctos, con aviso
+preexistente de bundle mayor de 500 kB. Captura sintética móvil revisada.
+No equivale a validación física Android; pendiente confirmar en el celular.
+
+Para revalidar: resolver primero cualquier envío incierto y guardar o descartar
+borradores; cerrar AmbuSync y todas las pestañas del mismo sitio, luego reabrir
+con conexión. No es necesario reinstalar ni borrar datos. Comprobar que el botón
+queda debajo de la información y no tapa triaje, estado, motivo ni signos.
+
+## Borrado de fechas en Android — 16/11/2026
+
+Por observación del responsable, Archivo de Urgencias y Auditoría administrativa
+incorporan botones explícitos «Borrar fecha»: el selector nativo no ofrecía una
+forma accesible de vaciar el valor en su Android. No se reprodujo físicamente
+el selector del dispositivo; se verificó la ausencia previa del control propio.
+Archivo permite quitar su fecha y auditoría cada extremo por separado.
+Los botones solo editan el borrador; se debe pulsar «Aplicar filtros» para
+consultar sin la fecha, conservando unidad/estado o acción/tipo de objeto.
+Vaciar un campo no borra registros ni modifica datos del servidor.
+
+Dos regresiones RED→GREEN con contexto táctil móvil390px verifican vaciado,
+ausencia de consulta automática, eliminación de parámetros de fecha y conservación
+de otros filtros. Pasaron24browser de archivo/auditoría/correcciones y54unit,
+tipos/build; aviso previo de bundle>500kB conservado y captura móvil sintética
+revisada. Build regenerado; revalidación física Android y aprobaciónK pendientes.
+Cerrar todos los clientes tras resolver envíos/borradores y reabrir con conexión.
+
 ## Qué cambia
 
 - Manifest e iconos locales de AmbuSync, apertura en `/` y modo standalone.

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { getAdministrativeAudit } from "@/lib/backend";
-import { PageControls, ReadStatus, readButton, readControl } from "./ReportsPanel";
+import { ClearableDateFilter, PageControls, ReadStatus, readButton, readControl } from "./ReportsPanel";
 import { useScopedRead } from "./useScopedRead";
 
 const actions: Record<string, string> = {
@@ -12,6 +12,7 @@ const actions: Record<string, string> = {
   "account.password_recovered": "Contraseña restablecida",
   "ambulance.created": "Unidad creada",
   "ambulance.deactivated": "Unidad desactivada",
+  "ambulance.reactivated": "Unidad reactivada",
   "ambulance.assignment_started": "Unidad asignada a una cuenta",
   "ambulance.assignment_ended": "Asignación de unidad retirada",
   "institution_admin.provisioned": "Administración institucional habilitada",
@@ -32,8 +33,8 @@ export function AdministrativeAuditPanel({ expireSession }: { expireSession: () 
     <p className="text-sm text-muted-dark">Identificación actual de las cuentas y unidades, no nombres conservados en la fecha del evento. Si una referencia no está disponible en esta institución, se indica sin reconstruirla.</p>
     <form onSubmit={(event) => { event.preventDefault(); setPage(1); setApplied({ ...draft }); if (JSON.stringify(draft) === JSON.stringify(applied) && page === 1) result.retry(); }} className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-sm">Desde (fecha del evento)<input type="date" value={draft.date_from} onChange={(e) => edit("date_from", e.target.value)} className={readControl} /></label>
-        <label className="block text-sm">Hasta (fecha del evento)<input type="date" min={draft.date_from || undefined} value={draft.date_to} onChange={(e) => edit("date_to", e.target.value)} className={readControl} /></label>
+        <ClearableDateFilter label="Desde (fecha del evento)" clearLabel="Borrar fecha inicial de auditoría" value={draft.date_from} onChange={(value) => edit("date_from", value)} />
+        <ClearableDateFilter label="Hasta (fecha del evento)" clearLabel="Borrar fecha final de auditoría" min={draft.date_from || undefined} value={draft.date_to} onChange={(value) => edit("date_to", value)} />
         <label className="block text-sm">Acción administrativa<select aria-label="Acción administrativa" value={draft.action} onChange={(e) => edit("action", e.target.value)} className={readControl}><option value="">Todas las autorizadas</option>{Object.entries(actions).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
         <label className="block text-sm">Tipo de objeto<select aria-label="Tipo de objeto" value={draft.object_type} onChange={(e) => edit("object_type", e.target.value)} className={readControl}><option value="">Todos</option><option value="account">Cuenta</option><option value="ambulance">Unidad</option><option value="ambulance_assignment">Asignación</option></select></label>
       </div><button className={readButton}>Aplicar filtros de auditoría</button>

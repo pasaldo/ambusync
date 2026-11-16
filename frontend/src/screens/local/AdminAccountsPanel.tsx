@@ -7,6 +7,7 @@ import {
   assignManagedAccount,
   deactivateManagedAccount,
   deactivateManagedAmbulance,
+  reactivateManagedAmbulance,
   getAccountManagementConfig,
   listManagedAccounts,
   listManagedAmbulances,
@@ -164,6 +165,12 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
     await mutate((current) => deactivateManagedAmbulance(unit.id, current), "Unidad desactivada; historial conservado.");
   }
 
+  async function reactivateUnit(unit: ManagedAmbulance) {
+    if (busy.current || loading || needsRefresh || !mounted.current) return;
+    if (!window.confirm(`¿Reactivar ${unit.code}? Podrá asignarse nuevamente. No se restaurarán las asignaciones anteriores. El historial se conservará.`)) return;
+    await mutate((current) => reactivateManagedAmbulance(unit.id, current), "Unidad reactivada; historial conservado. Asigna sus operadores explícitamente si corresponde.");
+  }
+
   return (
     <section className="mt-5 space-y-6">
       {needsRefresh && <div role="alert" className="space-y-2 text-sm text-amber-100"><p>No se pudo confirmar el estado actual. Actualiza y revisa los datos antes de decidir si debes repetir la acción. No se reenviará automáticamente.</p><button disabled={submitting || loading} onClick={() => void refresh()} className="rounded-lg border border-white/15 px-3 py-2">Actualizar administración</button></div>}
@@ -226,7 +233,11 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
         </form>
         <h4 className="font-semibold">Unidades administradas</h4>
         {!ambulances.length && <p className="text-sm text-muted-dark">No hay unidades disponibles.</p>}
-        {ambulances.map((unit) => <div key={unit.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 p-3 text-sm"><p className="min-w-0 break-words">{unit.code} · {unit.institution_name} · {unit.enabled ? "Habilitada" : "Desactivada"}</p>{unit.enabled && unit.can_deactivate && <button aria-label={`Desactivar ${unit.code}`} onClick={() => void deactivateUnit(unit)} className="rounded-lg border border-rose-300/20 px-3 py-2 text-rose-100">Desactivar unidad</button>}</div>)}
+        {ambulances.map((unit) => <div key={unit.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 p-3 text-sm">
+          <p className="min-w-0 break-words">{unit.code} · {unit.institution_name} · {unit.enabled ? "Habilitada" : "Desactivada"}</p>
+          {unit.enabled && unit.can_deactivate && <button type="button" aria-label={`Desactivar ${unit.code}`} onClick={() => void deactivateUnit(unit)} className="min-h-11 rounded-lg border border-rose-300/20 px-3 py-2 text-rose-100">Desactivar unidad</button>}
+          {!unit.enabled && unit.can_reactivate && <button type="button" aria-label={`Reactivar ${unit.code}`} onClick={() => void reactivateUnit(unit)} className="min-h-11 rounded-lg border border-signal/40 px-3 py-2 text-signal-soft">Reactivar unidad</button>}
+        </div>)}
       </div>}
       </>}
 

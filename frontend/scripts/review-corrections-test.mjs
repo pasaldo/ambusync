@@ -96,6 +96,30 @@ test("all fetched pages use triage/oldest order, unclassified separate; WS and f
   } finally { await context.close(); }
 });
 
+test("arrival card action stays separate from episode content at mobile and desktop widths", async () => {
+  const row = emergency(9, "Paciente sintético con identificación extensa para pantalla pequeña", "C3", "2026-11-13T12:00:00Z", "notificada");
+  const { context, page } = await harness({ rows: [row] });
+  try {
+    const action = page.getByRole("button", { name: "Marcar como llegado", exact: true });
+    const detail = page.getByRole("button", { name: /Paciente sintético con identificación extensa/ });
+    for (const width of [320, 390, 768, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      await action.scrollIntoViewIfNeeded();
+      const actionBox = await action.boundingBox();
+      const detailBox = await detail.boundingBox();
+      assert.ok(actionBox && detailBox);
+      assert.ok(actionBox.y >= detailBox.y + detailBox.height, `arrival action overlaps episode content at ${width}px`);
+      assert.ok(actionBox.height >= 44, "arrival action needs a mobile-sized touch target");
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    if (process.env.REVIEW_ARRIVAL_SCREENSHOT) await page.screenshot({ path: process.env.REVIEW_ARRIVAL_SCREENSHOT, fullPage: true });
+    await detail.click();
+    await page.getByRole("dialog", { name: "Detalle de episodio" }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Marcar como llegado a Urgencias", exact: true }).count(), 1);
+  } finally { await context.close(); }
+});
+
 test("history identifies replacement value and ID, including a missing replacement fallback", async () => {
   const row = emergency(6, "Medición sintética", "C2", "2026-11-13T12:00:00Z");
   const dates = { measured_at: "2026-11-13T12:00:00Z", recorded_at: "2026-11-13T12:00:01Z", recorded_by_id: "synthetic-author" };
