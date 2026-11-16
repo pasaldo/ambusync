@@ -1,7 +1,7 @@
 # K — PWA instalable y actualización segura
 
 **Estado:** comportamiento y plan aprobados por el responsable el16/11/2026.
-Implementación local en verificación; aceptación manual K pendiente.
+Implementación verificada localmente; aceptación manual K pendiente.
 Solo piloto sintético, sin despliegue ni uso clínico.
 
 ## Qué cambia
@@ -111,6 +111,17 @@ registro fallido y tamaños390/768px.
 - La regresión detectó una carrera `installed` antes de `registration.waiting`:
   prueba de controladorRED→GREEN, sin forzar activación. Se añadió exclusión
   API/WS de navegación directa tambiénRED→GREEN.
+- Una prueba adicional de estabilidad detectó una espera asíncrona que daba por
+  preparada la primera instalación demasiado pronto, dejando el cliente sin
+  controlar. Se corrigió solo el fixture: esperar `serviceWorker.ready` y estado
+  `activated` con predicado síncrono y exigir cliente controlado antes de actualizar.
+  Tres repeticiones consecutivas18/18 aprobadas; sin cambiar el ciclo de vida real
+  ni forzar activación para satisfacer el test.
 - Aviso previo de bundle>500kB conservado. Detector visual solo señaló el fondo
   grid heredado deindex.css, no introducido/rediseñado porK.
-- Revisión independiente del bloque pendiente. Sin nuevaCIremota, push o despliegue.
+- Revisión independiente única: sin críticos/importantes. Menor diferido:
+  ampliar cobertura móvil de foco, viewport reducido por teclado y validación
+  dentro del formulario institucional. Las comprobaciones actuales no los certifican.
+- Preview local4174 preparado: `/`, manifest, worker yCSRF200; `/auth/me/`401
+  esperado sin sesión. No se hizo login ni se capturó GPS real para esta comprobación.
+  Sin nuevaCIremota, push o despliegue.

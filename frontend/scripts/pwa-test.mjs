@@ -47,7 +47,18 @@ async function harness({ groups = ["ambulance"], init, viewport = { width: 1280,
 }
 
 async function installed(page) {
-  await page.waitForFunction(async () => !!(await navigator.serviceWorker.getRegistration())?.active, { timeout: 7000 });
+  // Keep the registration handle in this test page so waitForFunction polls a
+  // synchronous predicate, not a Promise (which can itself be treated as truthy).
+  await page.evaluate(async () => {
+    let timeout;
+    try {
+      window.pwaTestRegistration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error("worker did not become ready")), 7000); }),
+      ]);
+    } finally { clearTimeout(timeout); }
+  });
+  await page.waitForFunction(() => window.pwaTestRegistration.active?.state === "activated", undefined, { timeout: 7000 });
 }
 async function login(page) {
   await page.getByLabel("Usuario", { exact: true }).fill("synthetic_ambulance");
@@ -56,14 +67,18 @@ async function login(page) {
   await page.getByLabel(/Destino receptor/).waitFor();
 }
 async function update(h) {
+  assert.ok(await h.page.evaluate(() => !!navigator.serviceWorker.controller), "deployment test requires a client controlled by the previous worker");
   h.state.revision++;
-  await h.page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration()).update(); });
-  await h.page.waitForFunction(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting);
+  await h.page.evaluate(async () => {
+    window.pwaTestRegistration = await navigator.serviceWorker.getRegistration();
+    await window.pwaTestRegistration.update();
+  });
+  await h.page.waitForFunction(() => !!window.pwaTestRegistration.waiting);
   try { await h.page.getByText("Nueva versión disponible", { exact: true }).waitFor(); }
   catch (error) {
     console.error("PWA update diagnostic:", await h.page.evaluate(async () => {
       const r = await navigator.serviceWorker.getRegistration();
-      return { waiting: r?.waiting?.state, installing: r?.installing?.state, active: r?.active?.state, notice: document.querySelector('aside[aria-label="Aplicación y conexión"]')?.textContent };
+      return { controlled: !!navigator.serviceWorker.controller, waiting: r?.waiting?.state, installing: r?.installing?.state, active: r?.active?.state, notice: document.querySelector('aside[aria-label="Aplicación y conexión"]')?.textContent };
     }));
     throw error;
   }
