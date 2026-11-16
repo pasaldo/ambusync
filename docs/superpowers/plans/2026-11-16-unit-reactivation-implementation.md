@@ -12,6 +12,14 @@ selectores operativos restringidos a unidades habilitadas.
 
 **Spec:** `docs/superpowers/plans/2026-11-16-unit-reactivation-design.md`.
 
+**Resultado de ejecución —16/11/2026:** Task1 yTask2 completadas y verificadas.
+Backend319/319, frontendunidades/cuentas/9reactivación/20auditoría-archivo/
+30integridad/54unit/tipos/buildPASS. Revisión final del autor sin hallazgos
+críticos/importantes; no revisión independiente. Sin nuevas migraciones.
+Contrato/limitaciones y ajustes del plan en `docs/PRUEBAS_REACTIVACION_UNIDADES.md`.
+Se conserva la lista original de pasos como plan aprobado; recargarDaphne8000/8001
+requiere autorización específica y la aceptación manual permanece pendiente.
+
 ## Global Constraints
 
 - Sin modelos, migraciones ni dependencias nuevas.

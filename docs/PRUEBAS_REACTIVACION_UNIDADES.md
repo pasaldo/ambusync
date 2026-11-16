@@ -81,6 +81,8 @@ sin modificar producción para adaptarla a los fixtures; nueve escenariosGREEN.
 
 La revisión final es una auto-revisión del autor, conforme a la ejecución sin
 subagentes solicitada; no equivale a una revisión independiente ni a aceptación manual.
+No se detectaron hallazgos críticos/importantes ni menores nuevos para diferir.
+Se preservan los menoresH/K anteriores y el aviso del tamaño del bundle.
 
 ## Ajustes del plan
 
