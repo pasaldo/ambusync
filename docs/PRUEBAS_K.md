@@ -1,14 +1,23 @@
 # K — PWA instalable y actualización segura
 
-**Estado:** comportamiento y plan aprobados por el responsable el16/11/2026.
-Implementación verificada localmente; aceptación manual K pendiente.
+**Estado: K aprobado manualmente por el responsable el16/11/2026, sobre `cfb155b`.**
+Confirmó «Da por aprobado el paso K» y autorizó publicar los commits locales
+en `origin/feature/pilot-completion`, incluido este registro de aceptación.
+Sustituye los pendientes manuales K históricos de esta guía, incluidas las
+correcciones de tarjeta y borrado de fechas. La instalación Android se había
+reportado satisfactoria. No se aportó desglose por caso, modelo/versiones ni
+métricas; no se atribuyen pruebas físicas al agente ni se inventan detalles.
+Se conserva la evidencia automática local anterior, sin nuevas suites o CI
+remota por esta aprobación. Los menores documentados H/K no se consideran corregidos.
 Solo piloto sintético, sin despliegue ni uso clínico.
+No autoriza merge, despliegue público, inicio L–M ni detener servicios.
 
 ## Observación Android y ajuste de tarjeta — 16/11/2026
 
 El responsable reportó instalación Android satisfactoria. Retiró la observación
 del teclado por funcionar nuevamente; no se cambiaron los `window.prompt`.
-Esto no constituye aprobación integral de K.
+Este reporte de instalación por sí solo no constituía aprobación integral de K;
+la aceptación explícita posterior registrada al inicio sustituye ese pendiente.
 
 Se reprodujo el solapamiento de «Marcar como llegado» en la tarjeta de episodios
 entrantes a 320 px: el posicionamiento absoluto invadía el contenido al envolver
@@ -19,7 +28,8 @@ Regresión RED→GREEN con identificación larga, sin solapamiento ni desbordami
 a 320/390/768/1280 px; apertura de detalle conservada. Pasaron 52 pruebas de
 integridad/archivo/correcciones y 54 unitarias; tipos y build correctos, con aviso
 preexistente de bundle mayor de 500 kB. Captura sintética móvil revisada.
-No equivale a validación física Android; pendiente confirmar en el celular.
+No equivale a validación física Android por el agente. La aceptación posterior
+del responsable registrada al inicio sustituye el pendiente manual de K.
 
 Para revalidar: resolver primero cualquier envío incierto y guardar o descartar
 borradores; cerrar AmbuSync y todas las pestañas del mismo sitio, luego reabrir
@@ -41,7 +51,8 @@ Dos regresiones RED→GREEN con contexto táctil móvil390px verifican vaciado,
 ausencia de consulta automática, eliminación de parámetros de fecha y conservación
 de otros filtros. Pasaron24browser de archivo/auditoría/correcciones y54unit,
 tipos/build; aviso previo de bundle>500kB conservado y captura móvil sintética
-revisada. Build regenerado; revalidación física Android y aprobaciónK pendientes.
+revisada. Build regenerado; el pendiente manual de K de esta entrega queda
+sustituido por la aceptación posterior registrada al inicio.
 Cerrar todos los clientes tras resolver envíos/borradores y reabrir con conexión.
 
 ## Qué cambia
@@ -63,7 +74,8 @@ Cerrar todos los clientes tras resolver envíos/borradores y reabrir con conexi�
 **Preparación LAN posterior autorizada16/11:** Android por
 **https://192.168.100.8:8443/**, conCA temporal instalada manualmente y firewall
 restringido. Ver [PRUEBAS_HTTPS_LOCAL_K.md](PRUEBAS_HTTPS_LOCAL_K.md).
-Esta preparación no declara probada la instalación en elcelular ni apruebaK.
+La preparación técnica por sí sola no acredita instalación; posteriormente el
+responsable reportó instalación correcta y aprobó K, como consta al inicio.
 
 El worker se registra **solo en build**, en contexto seguro. Vite dev5174 sirve
 para desarrollo y regresiones, no acredita instalación ni actualización K.

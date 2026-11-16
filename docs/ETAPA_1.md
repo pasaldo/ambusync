@@ -1,5 +1,15 @@
 # Etapa 1 — backend local mínimo
 
+**K aprobado manualmente —16/11/2026, sobre `cfb155b`:** confirmación explícita
+del responsable y autorización de push de los commits locales a
+`origin/feature/pilot-completion`. Sustituye pendientes manualesK históricos,
+incluidas correcciones de tarjeta/borrado de fechas; instalaciónAndroid reportada.
+Aceptación por reporte sin casos/versiones/métricas individualizados. No se
+repitieron suites ni se acredita nuevaCIremota por esta aprobación; evidencia
+técnica anterior y menoresH/K conservados. Sin merge/despliegue/uso clínico/L–M
+ni parada de servicios. Se publican también commits de reactivación de unidades;
+su aceptación manual específica no se infiere del reporte sobre K.
+
 **Reactivación de unidades aprobada e implementada localmente16/11/2026:** POST
 explícito con ámbito idéntico a baja,204 idempotente, cambio de `enabled` y evento
 `ambulance.reactivated` atómicos; no recupera asignaciones/sesiones ni modifica

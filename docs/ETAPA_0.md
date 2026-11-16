@@ -676,6 +676,17 @@ Los acuerdos documentales se publican en la rama de revisión; no integran autom
 
 ## 11. Condiciones para cerrar la etapa 0
 
+**Aceptación manual K —16/11/2026, sobre `cfb155b`:** el responsable confirmó
+«Da por aprobado el paso K» y autorizó publicar los commits locales en
+`origin/feature/pilot-completion`. Incluye correcciones móviles de tarjeta y
+borrado de fechas y sustituye pendientes manualesK históricos; Android instalado
+correctamente por reporte previo. Sin desglose de casos/versiones/métricas ni
+pruebas físicas del agente. Evidencia técnica local previa conservada, no nuevas
+suites o CI remota por esta aprobación; menoresH/K documentados no corregidos.
+No cierra toda la etapa0 ni autoriza merge/despliegue/uso clínico/inicioL–M
+o parada de servicios. La autorización de push incluye los commits locales de
+reactivación de unidades, sin inferir aceptación manual específica de esa función.
+
 **K — inicio/plan aprobados e implementación verificada localmente16/11/2026:** PWA con conexión y actualización diferida hasta cierre de todos los clientes, sin almacenamiento clínico ni recargas forzadas; zoom/instalación opcional y offline503 genérico. Tests54unit/18K/310backend(baseTESTexclusiva)/regresionesPASS; no sustituye aceptaciónmanual de instalación/dispositivo/HTTPS pendiente enPRUEBAS_K ni acredita despliegue. Revisión independiente única sin críticos/importantes; menor cobertura móvil de foco/teclado/formularioinstitucional diferido. No cierra etapa0 ni autoriza push/merge/despliegue/uso clínico/L–M.
 
 **Aceptación manual J —16/11/2026, sobre `04c1a33`:** el responsable confirmó «pruebas manuales estan aprobadas» y autorizó marcar J aprobado y publicar los commits locales en `origin/feature/pilot-completion`. Incluye J y sus correcciones; sustituye los pendientes manuales históricos siguientes. Aceptación por reporte, sin detalle de casos, dispositivos, navegadores, HTTPS o cadencia física; no inferirlos. La evidencia automática previa del15/11 se conserva como histórica: las repeticiones del16/11 fallaron por interferencia sobre la base de pruebas y posterior interrupción/indisponibilidad de PostgreSQL; no hay nueva ejecución verde acreditada. J aprobado manualmente no implica resolver esa incidencia operativa, cerrar toda la etapa, merge, despliegue, uso clínico ni inicioK–M.

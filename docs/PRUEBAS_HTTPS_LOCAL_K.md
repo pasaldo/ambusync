@@ -4,6 +4,13 @@
 autorizó certificado local y apertura restringida de8443. No es despliegue público,
 aceptación manual deK ni inicio del hosting deL.
 
+**Actualización posterior16/11:** el responsable reportó instalaciónAndroid
+correcta y aprobó explícitamente K sobre `cfb155b`, autorizando push a
+`origin/feature/pilot-completion`. Sustituye el pendiente manualK histórico,
+no acredita pruebas físicas del agente ni despliegue público. La CA temporal,
+su caducidad y las reglas/procesos locales mantienen sus límites; no se retiran
+ni detienen automáticamente por la aprobación.
+
 ## Acceso
 
 **https://192.168.100.8:8443/**
