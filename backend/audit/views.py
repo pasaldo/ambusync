@@ -20,6 +20,7 @@ ADMIN_ACTIONS = {
     "account.password_recovered": "account",
     "ambulance.created": "ambulance",
     "ambulance.deactivated": "ambulance",
+    "ambulance.reactivated": "ambulance",
     "ambulance.assignment_started": "ambulance_assignment",
     "ambulance.assignment_ended": "ambulance_assignment",
     "institution_admin.provisioned": "account",

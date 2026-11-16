@@ -124,6 +124,8 @@ class ManagedAmbulanceListView(APIView):
                     "institution_name": item.institution.name,
                     "enabled": item.enabled,
                     "can_deactivate": can_deactivate_unit(request.user, institution, item),
+                    "can_reactivate": not item.enabled
+                    and can_deactivate_unit(request.user, institution, item),
                 }
                 for item in ambulances
             ]
@@ -465,6 +467,7 @@ class ManagedAmbulanceCreateView(APIView):
                 "institution_name": target_institution.name,
                 "enabled": ambulance.enabled,
                 "can_deactivate": True,
+                "can_reactivate": False,
             },
             status=status.HTTP_201_CREATED,
         )

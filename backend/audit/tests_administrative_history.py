@@ -96,6 +96,21 @@ class AdministrativeHistoryTests(TestCase):
         )
         self.assertNotContains(response, "token_digest")
 
+    def test_unit_reactivation_is_readable_filterable_and_institution_scoped(self):
+        event = self.event(action="ambulance.reactivated")
+        AuditEvent.objects.filter(pk=event.pk).update(
+            object_type="ambulance", object_id=str(self.unit.pk), ambulance=self.unit
+        )
+        foreign = self.event(action="ambulance.reactivated", institution=self.foreign)
+        AuditEvent.objects.filter(pk=foreign.pk).update(object_type="ambulance")
+        response = self.get("?action=ambulance.reactivated&object_type=ambulance")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["count"], 1)
+        row = response.json()["results"][0]
+        self.assertEqual(row["id"], str(event.pk))
+        self.assertEqual(row["display"]["unit"], self.unit.code)
+        self.assertIsNone(row["display"]["account"])
+
     def test_pagination_filters_and_revocation(self):
         for _ in range(28):
             self.event()

@@ -172,6 +172,7 @@ class InstitutionAccountManagementTests(TestCase):
                     "institution_name": self.operator.name,
                     "enabled": True,
                     "can_deactivate": False,
+                    "can_reactivate": False,
                 },
                 {
                     "id": str(self.other_ambulance.pk),
@@ -180,6 +181,7 @@ class InstitutionAccountManagementTests(TestCase):
                     "institution_name": self.other_operator.name,
                     "enabled": True,
                     "can_deactivate": False,
+                    "can_reactivate": False,
                 },
             ],
         )

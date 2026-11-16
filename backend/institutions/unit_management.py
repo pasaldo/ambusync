@@ -1,4 +1,4 @@
-"""Transactional assignment/withdrawal and logical unit deactivation."""
+"""Transactional assignment/withdrawal and logical unit state changes."""
 
 import uuid
 
@@ -285,5 +285,34 @@ class ManagedAmbulanceDeactivateView(APIView):
             unit.save(update_fields=["enabled"])
             audit_unit_action(
                 actor, unit, "ambulance.deactivated", "ambulance", unit.pk, correlation_id
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ManagedAmbulanceReactivateView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, ambulance_id):
+        if request.data != {}:
+            raise ValidationError(
+                {"request": "Envía un objeto vacío para confirmar la reactivación."}
+            )
+        with transaction.atomic():
+            actor, institution, _ = lock_management_users(request.user.pk)
+            unit = (
+                Ambulance.objects.select_for_update(of=("self",))
+                .filter(
+                    pk=ambulance_id, institution__in=operator_institutions_for_admin(institution)
+                )
+                .first()
+            )
+            if unit is None or not can_deactivate_unit(actor, institution, unit):
+                raise NotFound("La unidad no está disponible en tu institución.")
+            if unit.enabled:
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            unit.enabled = True
+            unit.save(update_fields=["enabled"])
+            audit_unit_action(
+                actor, unit, "ambulance.reactivated", "ambulance", unit.pk, uuid.uuid4()
             )
         return Response(status=status.HTTP_204_NO_CONTENT)

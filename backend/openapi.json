@@ -111,7 +111,7 @@
         "parameters": [
           { "$ref": "#/components/parameters/ReportDateFrom" }, { "$ref": "#/components/parameters/ReportDateTo" },
           { "$ref": "#/components/parameters/ReportPageNumber" }, { "$ref": "#/components/parameters/ReportPageSize" },
-          { "name": "action", "in": "query", "schema": { "type": "string", "enum": ["account.created", "account.activated", "account.activation_resent", "account.deactivated", "account.recovery_requested", "account.password_recovered", "ambulance.created", "ambulance.deactivated", "ambulance.assignment_started", "ambulance.assignment_ended", "institution_admin.provisioned", "permission.manage_symptoms_granted", "permission.deactivate_patients_granted", "permission.view_reports_granted"] } },
+          { "name": "action", "in": "query", "schema": { "type": "string", "enum": ["account.created", "account.activated", "account.activation_resent", "account.deactivated", "account.recovery_requested", "account.password_recovered", "ambulance.created", "ambulance.deactivated", "ambulance.reactivated", "ambulance.assignment_started", "ambulance.assignment_ended", "institution_admin.provisioned", "permission.manage_symptoms_granted", "permission.deactivate_patients_granted", "permission.view_reports_granted"] } },
           { "name": "object_type", "in": "query", "schema": { "type": "string", "enum": ["account", "ambulance", "ambulance_assignment"] } },
           { "$ref": "#/components/parameters/UserInteraction" }
         ],
@@ -331,6 +331,16 @@
         "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "ambulance_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "maxProperties": 0 } } } },
         "responses": { "204": { "description": "Unidad desactivada o ya desactivada." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/v1/institutions/management/ambulances/{ambulance_id}/reactivate/": {
+      "post": {
+        "operationId": "reactivateInstitutionAmbulance",
+        "description": "Reactivación lógica auditada con el mismo ámbito que la baja. Conserva identidad e historial sin restaurar asignaciones ni sesiones. Solo operadoras habilitadas. Repetir cuando ya está habilitada devuelve204 sin nuevo evento.",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "name": "ambulance_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "maxProperties": 0 } } } },
+        "responses": { "204": { "description": "Unidad reactivada o ya habilitada; sin recuperar operadores anteriores." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
       }
     },
     "/api/v1/system/institutions/": {
@@ -649,7 +659,7 @@
         }
       },
       "AssignmentUnit": { "type": "object", "required": ["id", "code"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" } } },
-      "ManagedAmbulance": { "type": "object", "required": ["id", "code", "institution_id", "institution_name", "enabled", "can_deactivate"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" }, "institution_id": { "type": "string", "format": "uuid" }, "institution_name": { "type": "string" }, "enabled": { "type": "boolean" }, "can_deactivate": { "type": "boolean" } } },
+      "ManagedAmbulance": { "type": "object", "required": ["id", "code", "institution_id", "institution_name", "enabled", "can_deactivate", "can_reactivate"], "properties": { "id": { "type": "string", "format": "uuid" }, "code": { "type": "string" }, "institution_id": { "type": "string", "format": "uuid" }, "institution_name": { "type": "string" }, "enabled": { "type": "boolean" }, "can_deactivate": { "type": "boolean" }, "can_reactivate": { "type": "boolean", "description": "Unidad desactivada que el actor puede administrar." } } },
       "ManagedInstitution": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" } } },
       "SystemInstitution": {
         "type": "object",

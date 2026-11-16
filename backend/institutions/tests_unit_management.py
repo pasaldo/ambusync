@@ -219,6 +219,122 @@ class UnitManagementTests(TestCase):
         self.assertEqual(self.deactivate_unit().status_code, 400)
         self.assertTrue(Ambulance.objects.get(pk=self.unit.pk).enabled)
 
+    def reactivate_unit(self, unit=None, body=None):
+        return self.client.post(
+            f"/api/v1/institutions/management/ambulances/{(unit or self.unit).pk}/reactivate/",
+            {} if body is None else body,
+            format="json",
+        )
+
+    def test_reactivation_preserves_history_without_restoring_assignments_or_sessions(self):
+        episode = self.episode("cerrada")
+        session_version = self.operator.session_version
+        self.assertEqual(self.deactivate_unit().status_code, 204)
+        self.assertEqual(self.reactivate_unit().status_code, 204)
+        self.assertEqual(self.reactivate_unit().status_code, 204)
+        self.unit.refresh_from_db()
+        self.assignment.refresh_from_db()
+        self.operator.refresh_from_db()
+        self.assertTrue(self.unit.enabled)
+        self.assertFalse(self.assignment.active)
+        self.assertIsNotNone(self.assignment.unassigned_at)
+        self.assertEqual(self.operator.session_version, session_version)
+        self.assertEqual(AmbulanceAssignment.objects.filter(ambulance=self.unit).count(), 1)
+        episode.refresh_from_db()
+        self.assertEqual(episode.ambulance_id, self.unit.pk)
+        self.assertEqual(episode.created_by_id, self.operator.pk)
+        event = AuditEvent.objects.get(action="ambulance.reactivated")
+        self.assertEqual(event.actor_id, self.admin.pk)
+        self.assertEqual(event.institution_id, self.institution.pk)
+        self.assertEqual(event.ambulance_id, self.unit.pk)
+        self.assertEqual(event.object_id, str(self.unit.pk))
+        self.assertEqual(event.object_type, "ambulance")
+        self.assertEqual(self.assign(self.unit, expected=None).status_code, 200)
+
+    def test_reactivation_of_already_enabled_unit_is_noop(self):
+        self.assertEqual(self.reactivate_unit().status_code, 204)
+        self.assertFalse(AuditEvent.objects.filter(action="ambulance.reactivated").exists())
+        self.assertTrue(AmbulanceAssignment.objects.get(pk=self.assignment.pk).active)
+
+    def test_reactivation_permissions_and_body_are_enforced(self):
+        self.assertEqual(self.deactivate_unit().status_code, 204)
+        for body in ({"enabled": True}, [], "invalid"):
+            self.assertEqual(self.reactivate_unit(body=body).status_code, 400)
+        self.client.force_authenticate(self.operator)
+        self.assertEqual(self.reactivate_unit().status_code, 403)
+        self.client.force_authenticate(None)
+        self.assertEqual(self.reactivate_unit().status_code, 401)
+        self.assertFalse(Ambulance.objects.get(pk=self.unit.pk).enabled)
+        self.assertFalse(AuditEvent.objects.filter(action="ambulance.reactivated").exists())
+
+    def test_reactivation_rejects_foreign_and_disabled_institutions(self):
+        self.foreign_unit.enabled = False
+        self.foreign_unit.save(update_fields=["enabled"])
+        self.assertEqual(self.reactivate_unit(self.foreign_unit).status_code, 404)
+        self.institution.kind = "receiver"
+        self.institution.save(update_fields=["kind"])
+        self.assertEqual(self.reactivate_unit(self.foreign_unit).status_code, 404)
+        self.institution.operator_institutions.add(self.foreign)
+        self.foreign.enabled = False
+        self.foreign.save(update_fields=["enabled"])
+        self.assertEqual(self.reactivate_unit(self.foreign_unit).status_code, 404)
+        self.assertFalse(Ambulance.objects.get(pk=self.foreign_unit.pk).enabled)
+        self.institution.enabled = False
+        self.institution.save(update_fields=["enabled"])
+        self.assertEqual(self.reactivate_unit().status_code, 403)
+        self.assertFalse(AuditEvent.objects.filter(action="ambulance.reactivated").exists())
+
+    def test_receiver_reactivation_uses_same_linked_or_creator_scope_as_deactivation(self):
+        self.institution.kind = "receiver"
+        self.institution.save(update_fields=["kind"])
+        self.foreign_unit.enabled = False
+        self.foreign_unit.save(update_fields=["enabled"])
+        self.assertEqual(self.reactivate_unit(self.foreign_unit).status_code, 404)
+        AuditEvent.objects.create(
+            actor=self.admin,
+            institution=self.foreign,
+            ambulance=self.foreign_unit,
+            action="ambulance.created",
+            object_type="ambulance",
+            object_id=str(self.foreign_unit.pk),
+            result="success",
+            correlation_id=uuid.uuid4(),
+        )
+        self.assertEqual(self.reactivate_unit(self.foreign_unit).status_code, 204)
+        self.assertEqual(self.deactivate_unit(self.foreign_unit).status_code, 204)
+        self.institution.operator_institutions.add(self.foreign)
+        self.assertEqual(self.reactivate_unit(self.foreign_unit).status_code, 204)
+
+    def test_list_exposes_reactivation_only_for_disabled_manageable_units(self):
+        self.replacement_unit.enabled = False
+        self.replacement_unit.save(update_fields=["enabled"])
+        url = "/api/v1/institutions/management/ambulances/"
+        active = self.client.get(url).json()
+        self.assertNotIn(str(self.replacement_unit.pk), {row["id"] for row in active})
+        self.assertTrue(all(row["can_reactivate"] is False for row in active))
+        all_units = self.client.get(url + "?include_disabled=true").json()
+        entry = next(row for row in all_units if row["id"] == str(self.replacement_unit.pk))
+        self.assertTrue(entry["can_reactivate"])
+        self.institution.kind = "receiver"
+        self.institution.save(update_fields=["kind"])
+        self.foreign_unit.enabled = False
+        self.foreign_unit.save(update_fields=["enabled"])
+        all_units = self.client.get(url + "?include_disabled=true").json()
+        entry = next(row for row in all_units if row["id"] == str(self.foreign_unit.pk))
+        self.assertFalse(entry["can_reactivate"])
+
+    def test_reactivation_locks_user_before_only_target_unit(self):
+        self.assertEqual(self.deactivate_unit().status_code, 204)
+        with CaptureQueriesContext(connection) as queries:
+            self.assertEqual(self.reactivate_unit().status_code, 204)
+        locks = [row["sql"] for row in queries if "FOR UPDATE" in row["sql"]]
+        # User uses FOR NO KEY UPDATE, so inspect the complete locking set.
+        all_locks = [
+            row["sql"] for row in queries if "FOR " in row["sql"] and "UPDATE" in row["sql"]
+        ]
+        self.assertIn('FROM "accounts_user"', all_locks[0])
+        self.assertIn('FOR UPDATE OF "institutions_ambulance"', locks[0])
+
     def test_combined_admin_cannot_deactivate_foreign_unit(self):
         self.assertEqual(self.deactivate_unit(self.foreign_unit).status_code, 404)
 
@@ -460,6 +576,21 @@ class UnitManagementConcurrencyTests(TransactionTestCase):
         self.assertEqual(sorted(results), [204, 400])
         self.assertEqual(
             AmbulanceAssignment.objects.filter(ambulance=self.unit, active=True).count(), 1
+        )
+
+    def test_simultaneous_reactivations_record_one_change_without_assignments(self):
+        self.replacement_unit.enabled = False
+        self.replacement_unit.save(update_fields=["enabled"])
+        url = f"/api/v1/institutions/management/ambulances/{self.replacement_unit.pk}/reactivate/"
+        results = self.race(
+            lambda: self.post(self.admin.pk, url, {}),
+            lambda: self.post(self.second_admin.pk, url, {}),
+        )
+        self.assertEqual(results, [204, 204])
+        self.assertTrue(Ambulance.objects.get(pk=self.replacement_unit.pk).enabled)
+        self.assertEqual(AuditEvent.objects.filter(action="ambulance.reactivated").count(), 1)
+        self.assertFalse(
+            AmbulanceAssignment.objects.filter(ambulance=self.replacement_unit).exists()
         )
 
     def test_episode_creation_racing_with_withdrawal_preserves_continuity(self):
