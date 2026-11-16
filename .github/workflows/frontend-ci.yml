@@ -164,6 +164,10 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      - name: Test PWA against isolated built application
+        working-directory: frontend
+        run: npm run test:pwa
+
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest
