@@ -43,7 +43,14 @@ export function registerPwa(onChange: (state: PwaState) => void): () => void {
     emit();
   };
   const watchInstalling = () => {
-    if (registration?.installing) listen(registration.installing, "statechange", updateState);
+    const worker = registration?.installing;
+    if (worker) listen(worker, "statechange", () => {
+      // "installed" may precede visibility of registration.waiting in this task.
+      if (worker.state === "installed" && registration?.active) {
+        state.updateAvailable = true;
+        emit();
+      } else updateState();
+    });
     updateState();
   };
   emit();

@@ -9,6 +9,7 @@ import { LocalPortal } from "@/screens/local/LocalPortal";
 import { SystemAdminPortal } from "@/screens/system/SystemAdminPortal";
 import { getCurrentUser } from "@/lib/backend";
 import { PortalMemoryProvider } from "@/screens/local/portalMemory";
+import { PwaStatus } from "@/components/PwaStatus";
 
 function AuthenticatedDemo({ children }: { children: ReactNode }) {
   const [access, setAccess] = useState<"checking" | "allowed" | "system" | "login">("checking");
@@ -50,7 +51,7 @@ function ResetRecoveryEntry() {
 
 export default function App() {
   return (
-    <PortalMemoryProvider><Routes>
+    <PortalMemoryProvider><PwaStatus /><Routes>
       <Route path="/" element={<LoginScreen />} />
       <Route path="/activar-cuenta" element={<ActivateAccountScreen />} />
       <Route path="/recuperar-cuenta" element={<RequestRecoveryScreen />} />
