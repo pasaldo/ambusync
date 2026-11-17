@@ -1,13 +1,15 @@
 # Etapa 1 — backend local mínimo
 
-**L autorizado e implementado localmente, integración/revisión final en curso
+**L preparado/verificado localmente; remoto/aceptación pendientes
 —17/11/2026:** plan y modalidad inlineTDD+una revisión independiente aprobados.
-Tareas1–5 verificadas: perfilHTTP/SPA/salud, BrevoHTTPS/cuotaoperativa persistente,
+Seis tareas verificadas: perfilHTTP/SPA/salud, BrevoHTTPS/cuotaoperativa persistente,
 activaciónfragmento/querylegado, imagenDocker y arranqueprotegido, wrapperbackup
 localcifrado con dobles. Docker instalado posteriormente por autorización explícita;
 imagen y smoke sintéticoHTTPS/WSS/reinicio verificados, no infraestructuraRender.
-Fullbackend357tests:356PASS/1symlinkWindows omitido,131.565s; symlinkLinuxPASS.
-Check/makemigrations/Ruff128/OpenAPI/pip-auditPASS. Migrationaccounts0006soloTEST
+Revisión independiente: un importante de routinglibpq, corregido RED→GREEN por
+autor, sin segunda revisión. Fullbackend362tests:361PASS/1symlinkWindows omitido,
+152.623s; symlinkLinuxPASS. Frontend17suites/build/Mermaid/auditoría y smokeDocker
+postcorrecciónPASS. Check/makemigrations/Ruff129/OpenAPI/pip-auditPASS. Migrationaccounts0006soloTEST
 y contenedorPGsintético, no desarrollo. Ver [PRUEBAS_L](PRUEBAS_L.md) y
 [DESPLIEGUE_L](DESPLIEGUE_L.md). Sin correoexterno/backuprestore real/push/deploy;
 R2costo$0, remoto y aceptaciónL pendientes. Sustituye estado histórico de diseño

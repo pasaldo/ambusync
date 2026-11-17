@@ -3,11 +3,14 @@
 import os
 import re
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
+from config.database_guard import reject_ambient_libpq, validate_connection_settings
+
 os.environ["AMBUSYNC_LOAD_DOTENV"] = "false"
+reject_ambient_libpq()
 
 
 def required(name):
@@ -30,6 +33,11 @@ if len(required("DJANGO_SECRET_KEY")) < 50:
 try:
     _origin = urlsplit(required("FRONTEND_BASE_URL"))
     _db = urlsplit(required("DATABASE_URL"))
+    _db_options = parse_qsl(_db.query, keep_blank_values=True, strict_parsing=True)
+    if any(
+        name not in {"sslmode", "sslrootcert"} or not value for name, value in _db_options
+    ) or len({name for name, _value in _db_options}) != len(_db_options):
+        invalid()
     _kv = urlsplit(required("VALKEY_URL"))
     _smoke = os.environ.get("AMBUSYNC_LOCAL_SMOKE") == "1"
     _expected_host = required("AMBUSYNC_EXPECTED_DATABASE_HOST")
@@ -110,6 +118,7 @@ X_FRAME_OPTIONS = "DENY"
 MIDDLEWARE = list(MIDDLEWARE)
 MIDDLEWARE.insert(1, "config.health.HealthProbeMiddleware")
 DATABASES["default"]["OPTIONS"]["connect_timeout"] = 3
+validate_connection_settings(DATABASES["default"])
 _sslmode = DATABASES["default"]["OPTIONS"].get("sslmode")
 if _network == "external" and _sslmode != "verify-full":
     invalid()

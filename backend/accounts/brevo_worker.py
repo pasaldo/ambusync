@@ -15,6 +15,10 @@ def configure_budget_database(database, limit):
     from django.conf import settings
     from django.db import connection
 
+    from config.database_guard import validate_connection_settings
+
+    validate_connection_settings(database)
+
     if not isinstance(database, dict) or database.get("ENGINE") != "django.db.backends.postgresql":
         raise ValueError
     if not database.get("NAME") or not database.get("HOST"):

@@ -12,6 +12,22 @@ SHA = "a" * 40
 
 
 class DeploymentStartTests(SimpleTestCase):
+    def test_new_ambient_route_or_service_override_is_refused_before_any_connection(self):
+        from config.deployment_start import verify_database
+
+        for name in ("PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE"):
+            with (
+                self.subTest(variable=name),
+                patch.dict(os.environ, {name: "synthetic-untrusted-override"}),
+                patch(
+                    "config.deployment_start.connection.ensure_connection",
+                    side_effect=AssertionError("Network reached"),
+                ) as connect,
+                self.assertRaises(RuntimeError),
+            ):
+                verify_database()
+            connect.assert_not_called()
+
     def test_unapproved_pending_migrations_never_apply_or_listen(self):
         from config.deployment_start import prepare_database
 

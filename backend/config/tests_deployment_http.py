@@ -208,6 +208,52 @@ print(json.dumps({
         changes["DATABASE_URL"] = changes["DATABASE_URL"].replace("require", "verify-full")
         result = self.profile(changes)
         self.assertEqual(result.returncode, 0, result.stderr[-500:])
+        changes["DATABASE_URL"] += "&sslrootcert=%2Fsynthetic%2Fpublic-ca.crt"
+        self.assertEqual(self.profile(changes).returncode, 0)
+
+    def test_routing_overrides_are_rejected_during_profile_import_before_connecting(self):
+        base = "postgresql://synthetic:unused@dpg-synthetic-a/synthetic_l?sslmode=require"
+        for query in (
+            "&hostaddr=203.0.113.17",
+            "&service=foreign",
+            "&servicefile=foreign",
+            "&options=-c%20search_path%3Dforeign",
+            "&sslmode=disable",
+            "&host=foreign",
+            "&port=5433",
+        ):
+            with self.subTest(query=query):
+                self.assertNotEqual(self.profile({"DATABASE_URL": base + query}).returncode, 0)
+
+    def test_ambient_libpq_configuration_is_not_allowed_to_route_parent_differently_from_mail_child(
+        self,
+    ):
+        for name in (
+            "PGHOSTADDR",
+            "PGSERVICE",
+            "PGSERVICEFILE",
+            "PGSYSCONFDIR",
+            "PGHOST",
+            "PGPORT",
+            "PGSSLMODE",
+            "PGSSLROOTCERT",
+        ):
+            with self.subTest(variable=name):
+                self.assertNotEqual(
+                    self.profile({name: "synthetic-untrusted-override"}).returncode, 0
+                )
+
+    def test_local_smoke_does_not_allow_hostaddr_to_contact_a_public_destination(self):
+        changes = {
+            "FRONTEND_BASE_URL": "https://localhost",
+            "AMBUSYNC_LOCAL_SMOKE": "1",
+            "AMBUSYNC_DATABASE_NETWORK": "smoke",
+            "AMBUSYNC_EXPECTED_DATABASE_HOST": "localhost",
+            "AMBUSYNC_EXPECTED_VALKEY_HOST": "localhost",
+            "VALKEY_URL": "redis://localhost:6379/0",
+            "DATABASE_URL": "postgresql://synthetic:unused@localhost/synthetic_l?sslmode=disable&hostaddr=203.0.113.17",
+        }
+        self.assertNotEqual(self.profile(changes).returncode, 0)
 
     def test_invalid_origins_hosts_or_smoke_public_bypass_are_rejected(self):
         for changes in (

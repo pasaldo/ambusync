@@ -13,11 +13,14 @@ from django.core.mail.backends.base import BaseEmailBackend
 from django.core.validators import validate_email
 from django.db import connection
 
+from config.database_guard import validate_connection_settings
+
 _slots = BoundedSemaphore(2)
 
 
 def effective_database():
     configured = connection.settings_dict
+    validate_connection_settings(configured)
     if configured["ENGINE"] != "django.db.backends.postgresql":
         raise OSError("Mail budget requires PostgreSQL.")
     result = {

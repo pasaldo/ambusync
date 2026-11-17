@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -21,6 +22,42 @@ MAIL_SETTINGS = {
 
 @override_settings(**MAIL_SETTINGS)
 class BrevoBackendTests(SimpleTestCase):
+    def setUp(self):
+        # A mock failure must never render credentials from development settings.
+        configured = {
+            **connection.settings_dict,
+            "NAME": "synthetic_l",
+            "HOST": "127.0.0.1",
+            "USER": "synthetic",
+            "PASSWORD": "synthetic-only",
+        }
+        context = patch.object(connection, "settings_dict", configured)
+        context.start()
+        self.addCleanup(context.stop)
+
+    def test_ambient_route_or_option_override_cannot_send_worker_to_a_different_database(self):
+        from accounts.mail_backend import BrevoEmailBackend
+
+        for name in ("PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE"):
+            with (
+                self.subTest(variable=name),
+                patch.dict(os.environ, {name: "synthetic-untrusted-override"}),
+                patch("accounts.mail_backend.run_brevo_worker") as worker,
+                self.assertRaises(OSError),
+            ):
+                BrevoEmailBackend().send_messages([self.message()])
+            worker.assert_not_called()
+
+        configured = dict(connection.settings_dict)
+        configured["OPTIONS"] = {**configured.get("OPTIONS", {}), "hostaddr": "203.0.113.17"}
+        with (
+            patch.object(connection, "settings_dict", configured),
+            patch("accounts.mail_backend.run_brevo_worker") as worker,
+            self.assertRaises(OSError),
+        ):
+            BrevoEmailBackend().send_messages([self.message()])
+        worker.assert_not_called()
+
     def message(self, **extra):
         return EmailMessage(
             "Synthetic activation",

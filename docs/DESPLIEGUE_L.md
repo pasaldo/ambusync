@@ -55,6 +55,12 @@ Configurar solo por canal privado, nunca chat/Git/logs:
 
 No configurar `AMBUSYNC_LOCAL_SMOKE=1` en remoto: admite solo origen loopback y
 hosts de pruebas. No es bypass público. No se carga `.env` de desarrollo.
+El perfil rechaza variables de entorno `PG*` no vacías y opciones de routing/
+servicio libpq (`hostaddr`, `service`, etc.) antes de conectar. La URL solo admite
+`sslmode` y `sslrootcert` explícitos, sin duplicados; timeout se fija en código.
+Usar `sslrootcert` en la URL si hace falta CA pública, no `PGSSLROOTCERT`.
+La misma guardia se ejecuta antes del arranque y al preparar la conexión del
+worker de correo, sin alterar el perfil de desarrollo/SMTP.
 PGinterno exige host privado exacto y `sslmode=require`: cifrado, **no**
 autenticación de identidad del servidor autofirmado. PGexterno requiere host
 público exacto y `verify-full`/CA confiable; nunca degradar si falla.

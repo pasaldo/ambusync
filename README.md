@@ -1,8 +1,9 @@
 # AmbuSync
 
 **L — preparación local, sin despliegue:** imagen no-root y arranque protegido,
-BrevoHTTPS/cuota persistente y copia local cifrada con guardias. Integración/
-revisión final en curso; operaciones remotas y aceptaciónL pendientes.
+BrevoHTTPS/cuota persistente y copia local cifrada con guardias. Seis tareas
+verificadas, revisión independiente realizada y hallazgo corregido con TDD;
+operaciones remotas y aceptaciónL pendientes.
 Ver [pruebasL](docs/PRUEBAS_L.md) y [runbookL](docs/DESPLIEGUE_L.md).
 Solo datos sintéticos, costo estricto$0.
 

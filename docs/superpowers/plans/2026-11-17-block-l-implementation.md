@@ -21,8 +21,10 @@ se someten a aprobación con el plan; no son condiciones contractuales del prove
 ## Global Constraints
 
 **Actualización17/11/2026:** responsable aprobó plan y modalidad inlineTDD+una
-revisión independientefinal. Tareas1–5 implementadas/verificadas localmente;
-integración/regresión/revisiónfinal en curso. Docker instalado posteriormente
+revisión independientefinal. Seis tareas implementadas/verificadas localmente;
+revisión independiente detectó un importante de routinglibpq, corregido RED→GREEN
+por autor con fullbackend362tests361PASS/1omisiónWindows y frontend/smoke posterioresPASS.
+No segunda revisión. Docker instalado posteriormente
 con autorización explícita; bloqueo de herramienta inicial superado, sin ampliar
 autorizaciones remotas. Estado/evidencia vigente en `docs/PRUEBAS_L.md`.
 

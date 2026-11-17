@@ -8,7 +8,9 @@ infraestructura externa. Ver [PRUEBAS_L](PRUEBAS_L.md),
 Usar `uv run --directory backend python scripts/test_isolated.py --noinput`:
 DBTESTexclusiva; nunca migrar desarrollo para ensayarL. Backup nuevo se prueba
 con dobles y no automatizaR2. Workflowimagen solo manual/sin deploy, sin autorizar
-push/dispatch/gastos. Integración/revisiónfinal todavía en curso.
+push/dispatch/gastos. Seis tareas verificadas y revisión independiente realizada:
+hallazgo de routinglibpq corregido RED→GREEN,362tests361PASS/1omisiónWindows;
+frontend completo y smokeDocker posterioresPASS, sin segunda revisión.
 
 Esta guía describe el estado actual del repositorio, cómo preparar frontend/backend y cómo revisar cambios. La SPA es un prototipo con **datos sintéticos**; no está autorizado para atención clínica real. La integración Channels/WebSocket con Daphne y Valkey (rama `feature/websocket-integration`) se integró en `main` el 11/11/2026; no está desplegada. El responsable reportó una prueba manual satisfactoria PC-celular. Consulta [ETAPA_1.md](ETAPA_1.md) para dependencias, preparación de Valkey, arranque de servicios y prueba LAN.
 

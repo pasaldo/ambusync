@@ -12,11 +12,14 @@ from django.conf import settings
 from django.core.management import call_command
 from django.db import connection
 
+from config.database_guard import validate_connection_settings
+
 BUILD_SHA_FILE = Path(__file__).resolve().parent.parent / "build-sha"
 MIGRATION_LOCK = 481731923
 
 
 def verify_database():
+    validate_connection_settings(connection.settings_dict)
     connection.ensure_connection()
     expected_host = settings.AMBUSYNC_EXPECTED_DATABASE_HOST
     expected_name = settings.AMBUSYNC_EXPECTED_DATABASE_NAME
