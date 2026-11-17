@@ -16,12 +16,19 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 
+from config.frontend import frontend_asset, frontend_entry
 from emergencies.patient_records import PatientListView, PatientUpdateView
 from institutions.symptom_views import SymptomDeactivateView, SymptomListCreateView
 
 urlpatterns = [
+    re_path(
+        r"^(?:local|sistema|ambulancia|urgencias|activar-cuenta|recuperar-cuenta|restablecer-cuenta)?/?$",
+        frontend_entry,
+    ),
+    path("index.html", frontend_entry),
+    re_path(r"^(?P<asset_path>(?:assets|icons)/.+|sw\.js|manifest\.webmanifest)$", frontend_asset),
     path("api/v1/reports/", include("reports.urls")),
     path("api/v1/patients/", PatientListView.as_view(), name="patients"),
     path(
