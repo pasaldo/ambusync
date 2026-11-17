@@ -8,6 +8,7 @@ from urllib.parse import parse_qsl, urlsplit
 from django.core.exceptions import ImproperlyConfigured
 
 from config.database_guard import reject_ambient_libpq, validate_connection_settings
+from config.test_mailbox import mailpit_settings, validate_mail_mode
 
 os.environ["AMBUSYNC_LOAD_DOTENV"] = "false"
 reject_ambient_libpq()
@@ -142,6 +143,9 @@ try:
 except ValueError:
     invalid()
 DEFAULT_FROM_EMAIL = f"AmbuSync <{BREVO_SENDER_EMAIL}>" if BREVO_SENDER_EMAIL else ""
+AMBUSYNC_MAIL_MODE = validate_mail_mode(os.environ)
+if AMBUSYNC_MAIL_MODE == "mailpit":
+    globals().update(mailpit_settings())
 
 # No request object, query, exception string or stack enters deployment diagnostics.
 # Domain audit events remain in the database, unaffected by this logging profile.
