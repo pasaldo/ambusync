@@ -8,7 +8,7 @@ import { chromium } from "playwright";
 import { mockAuthenticatedApi } from "./mock-auth-api.mjs";
 
 const dist = fileURLToPath(new URL("../dist/", import.meta.url));
-const shots = fileURLToPath(new URL("../../.superpowers/sdd/2026-11-16-block-k-implementation/", import.meta.url));
+const shots = process.env.AMBUSYNC_TEST_ARTIFACTS || fileURLToPath(new URL("../../.superpowers/sdd/2026-11-16-block-k-implementation/", import.meta.url));
 let browser;
 before(async () => { browser = await chromium.launch(); await mkdir(shots, { recursive: true }); });
 after(async () => { await browser?.close(); });

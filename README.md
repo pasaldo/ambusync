@@ -1,5 +1,11 @@
 # AmbuSync
 
+**L — preparación local, sin despliegue:** imagen no-root y arranque protegido,
+BrevoHTTPS/cuota persistente y copia local cifrada con guardias. Integración/
+revisión final en curso; operaciones remotas y aceptaciónL pendientes.
+Ver [pruebasL](docs/PRUEBAS_L.md) y [runbookL](docs/DESPLIEGUE_L.md).
+Solo datos sintéticos, costo estricto$0.
+
 ## Continuidad del proyecto — Nota 3
 
 Repositorio de trabajo independiente: **[pasaldo/ambusync](https://github.com/pasaldo/ambusync)** (privado).
@@ -18,7 +24,8 @@ El desarrollo local continúa en `feature/pilot-completion` desde `main` `4091db
 [ejecución CI del 11/11](https://github.com/pasaldo/ambusync/actions/runs/43010182166) aprobó
 backend, frontend y secretos. El [plan aprobado](docs/superpowers/plans/2026-11-12-pilot-completion.md)
 separa integridad/sesiones, flujos pendientes, PWA, preparación Render y aceptación final.
-La PWA y el despliegue siguen pendientes; no hay servicio clínico ni entorno publicado.
+La PWA K fue aprobada posteriormente; el despliegue sigue pendiente. No hay
+servicio clínico ni entorno L publicado.
 Los avances locales y límites del bloque A se registran en [ETAPA_1](docs/ETAPA_1.md).
 
 > Transmite la información clínica del paciente desde la **ambulancia** al **servicio de

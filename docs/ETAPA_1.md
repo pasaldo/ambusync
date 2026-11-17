@@ -1,5 +1,36 @@
 # Etapa 1 — backend local mínimo
 
+**L autorizado e implementado localmente, integración/revisión final en curso
+—17/11/2026:** plan y modalidad inlineTDD+una revisión independiente aprobados.
+Tareas1–5 verificadas: perfilHTTP/SPA/salud, BrevoHTTPS/cuotaoperativa persistente,
+activaciónfragmento/querylegado, imagenDocker y arranqueprotegido, wrapperbackup
+localcifrado con dobles. Docker instalado posteriormente por autorización explícita;
+imagen y smoke sintéticoHTTPS/WSS/reinicio verificados, no infraestructuraRender.
+Fullbackend357tests:356PASS/1symlinkWindows omitido,131.565s; symlinkLinuxPASS.
+Check/makemigrations/Ruff128/OpenAPI/pip-auditPASS. Migrationaccounts0006soloTEST
+y contenedorPGsintético, no desarrollo. Ver [PRUEBAS_L](PRUEBAS_L.md) y
+[DESPLIEGUE_L](DESPLIEGUE_L.md). Sin correoexterno/backuprestore real/push/deploy;
+R2costo$0, remoto y aceptaciónL pendientes. Sustituye estado histórico de diseño
+siguiente; no modifica aprobacionesA–K ni autorizaM/uso clínico.
+
+**DiseñoL en curso —16/11/2026:** responsable autoriza diseñarL, exige costo$0
+y confirma no disponer de dominio propio. Borrador
+[block-l-design](superpowers/plans/2026-11-16-block-l-design.md): origen único
+onrender.com, RenderFree y correoHTTPS sin comprar dominio. BrevoFree aprobado
+como candidato para activación/recuperación; cuenta existente, cuota300/día y
+remitente personalAmbuSync **Verificado** por reporte17/11, con avisosDKIM/DMARC.
+Sin inspección del agente, clave recibida ni envío/prueba de entrega; habilitación
+transaccional real pendiente de prueba controlada autorizada. Límites de
+caducidadDB/suspensión y control de costosR2 explícitos; no garantía de continuidad
+ni gasto$0 por mera etiquetaFree. Criterio de respaldo aprobado17/11: copia cifrada
+local adicional, Restic/R2 conservado pero sin nueva automatización hasta verificar
+consumo/controles de costo; si no se asegura$0, ese requisitoL queda pendiente.
+Diseño integral aprobado17/11 por elresponsable. Plan de implementación local
+[block-l-implementation](superpowers/plans/2026-11-17-block-l-implementation.md)
+preparado para revisión, seis tareas conTDD ypuertas separadas deoperaciónremota.
+Docker no detectadoenPATH; imagen requiere herramienta antes de acreditarse.
+Sin implementación/alta/envíoreal/backuprestore/despliegue/pushL.
+
 **K aprobado manualmente —16/11/2026, sobre `cfb155b`:** confirmación explícita
 del responsable y autorización de push de los commits locales a
 `origin/feature/pilot-completion`. Sustituye pendientes manualesK históricos,

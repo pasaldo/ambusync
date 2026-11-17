@@ -19,6 +19,9 @@ jobs:
       - name: Test restore guards with local doubles (no network or database)
         shell: powershell
         run: ./ops/backups/tests/restore-postgres.tests.ps1
+      - name: Test deployment backup guards with local doubles
+        shell: powershell
+        run: ./ops/backups/tests/backup-deployment.tests.ps1
 
   backend:
     name: Backend checks
@@ -74,7 +77,7 @@ jobs:
           uv run --directory backend python manage.py migrate --noinput
 
       - name: Run backend tests
-        run: uv run --directory backend python manage.py test
+        run: uv run --directory backend python scripts/test_isolated.py --noinput
 
       - name: Lint and audit dependencies
         run: |
@@ -147,6 +150,7 @@ jobs:
 
           BASE_URL=http://127.0.0.1:5173 npm run test:sync
           BASE_URL=http://127.0.0.1:5173 npm run test:accounts
+          BASE_URL=http://127.0.0.1:5173 npm run test:activation-links
           BASE_URL=http://127.0.0.1:5173 npm run test:units
           BASE_URL=http://127.0.0.1:5173 npm run test:episode-updates
           BASE_URL=http://127.0.0.1:5173 npm run test:review-corrections

@@ -14,11 +14,17 @@ PostgreSQL, Redis-compatible/Valkey, Docker yPowerShell/Restic.
 
 **Spec:** `docs/superpowers/plans/2026-11-16-block-l-design.md`, aprobado17/11/2026.
 
-**Estado:** plan para revisión; sin implementación. Cada tarea exige RED→GREEN.
+**Estado inicial:** plan para revisión; sin implementación. Cada tarea exige RED→GREEN.
 Los valores técnicos de este plan, incluidos los márgenes locales de correo,
 se someten a aprobación con el plan; no son condiciones contractuales del proveedor.
 
 ## Global Constraints
+
+**Actualización17/11/2026:** responsable aprobó plan y modalidad inlineTDD+una
+revisión independientefinal. Tareas1–5 implementadas/verificadas localmente;
+integración/regresión/revisiónfinal en curso. Docker instalado posteriormente
+con autorización explícita; bloqueo de herramienta inicial superado, sin ampliar
+autorizaciones remotas. Estado/evidencia vigente en `docs/PRUEBAS_L.md`.
 
 - Costo estrictamente$0, sin dominio propio, tarjetas, planes/addons pagados.
 - Solo datos sintéticos; ninguna conexión de pruebas a proveedores, cuentas oDB remotos.

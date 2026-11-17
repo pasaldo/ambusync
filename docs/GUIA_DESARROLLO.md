@@ -1,5 +1,15 @@
 # Guía de desarrollo y contribución
 
+## Preparación L — local, remoto pendiente
+
+Diseño/plan aprobados; imagen real y arranque verificados en DockerLinux sin
+infraestructura externa. Ver [PRUEBAS_L](PRUEBAS_L.md),
+[DESPLIEGUE_L](DESPLIEGUE_L.md) y [ops/deploy](../ops/deploy/README.md).
+Usar `uv run --directory backend python scripts/test_isolated.py --noinput`:
+DBTESTexclusiva; nunca migrar desarrollo para ensayarL. Backup nuevo se prueba
+con dobles y no automatizaR2. Workflowimagen solo manual/sin deploy, sin autorizar
+push/dispatch/gastos. Integración/revisiónfinal todavía en curso.
+
 Esta guía describe el estado actual del repositorio, cómo preparar frontend/backend y cómo revisar cambios. La SPA es un prototipo con **datos sintéticos**; no está autorizado para atención clínica real. La integración Channels/WebSocket con Daphne y Valkey (rama `feature/websocket-integration`) se integró en `main` el 11/11/2026; no está desplegada. El responsable reportó una prueba manual satisfactoria PC-celular. Consulta [ETAPA_1.md](ETAPA_1.md) para dependencias, preparación de Valkey, arranque de servicios y prueba LAN.
 
 Para la versión local `feature/pilot-completion`, el [bloque B: arranque y pruebas manuales](PRUEBAS_B.md) detalla las terminales/puertos de esta copia y cómo probar retiro, reasignación, continuidad, baja de unidades y resultados inciertos. `npm run test:units` ejecuta sus regresiones browser con transporte sintético; está incluido en CI, pero B no se ha publicado ni tiene CI remoto acreditado.
