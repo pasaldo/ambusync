@@ -1,0 +1,94 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+	log {
+		output discard
+	}
+}
+
+:{$PORT:10000} {
+	@inbox path /buzon-pruebas /buzon-pruebas/*
+	route @inbox {
+		header {
+			Cache-Control "no-store"
+			Referrer-Policy "no-referrer"
+			X-Robots-Tag "noindex, nofollow, noarchive"
+			X-Content-Type-Options "nosniff"
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+			defer
+		}
+		basic_auth {
+			operador {$AMBUSYNC_TEST_MAILBOX_PASSWORD_HASH}
+		}
+		request_body {
+			max_size 64KB
+		}
+		@foreignWrite {
+			method PUT DELETE
+			not header Origin {$AMBUSYNC_PUBLIC_ORIGIN}
+		}
+		respond @foreignWrite 403
+		@foreignSocket {
+			header Upgrade websocket
+			not header Origin {$AMBUSYNC_PUBLIC_ORIGIN}
+		}
+		respond @foreignSocket 403
+		@slash path /buzon-pruebas
+		redir @slash /buzon-pruebas/ 308
+		@read {
+			method GET HEAD
+			path /buzon-pruebas/ /buzon-pruebas/search /buzon-pruebas/dist/* /buzon-pruebas/favicon.ico /buzon-pruebas/favicon.svg /buzon-pruebas/mailpit.svg /buzon-pruebas/notification.png /buzon-pruebas/api/events /buzon-pruebas/api/licenses /buzon-pruebas/api/v1/info /buzon-pruebas/api/v1/webui /buzon-pruebas/api/v1/messages /buzon-pruebas/api/v1/search /buzon-pruebas/api/v1/tags
+		}
+		reverse_proxy @read 127.0.0.1:8025 {
+			header_up -Authorization
+			header_up -Cookie
+			header_up Host 127.0.0.1:8025
+			header_up Origin http://127.0.0.1:8025
+			header_down -Set-Cookie
+			header_down -Content-Security-Policy
+		}
+		@message {
+			method GET HEAD
+			path_regexp message ^/buzon-pruebas/(api/v1/message/[A-Za-z0-9]+(/(headers|raw))?|view/[A-Za-z0-9]+(\.(html|txt))?)$
+		}
+		reverse_proxy @message 127.0.0.1:8025 {
+			header_up -Authorization
+			header_up -Cookie
+			header_up Host 127.0.0.1:8025
+			header_up Origin http://127.0.0.1:8025
+			header_down -Set-Cookie
+			header_down -Content-Security-Policy
+		}
+		@write {
+			method PUT DELETE
+			path /buzon-pruebas/api/v1/messages
+		}
+		reverse_proxy @write 127.0.0.1:8025 {
+			header_up -Authorization
+			header_up -Cookie
+			header_up Host 127.0.0.1:8025
+			header_up Origin http://127.0.0.1:8025
+			header_down -Set-Cookie
+			header_down -Content-Security-Policy
+		}
+		@deleteSearch {
+			method DELETE
+			path /buzon-pruebas/api/v1/search
+		}
+		reverse_proxy @deleteSearch 127.0.0.1:8025 {
+			header_up -Authorization
+			header_up -Cookie
+			header_up Host 127.0.0.1:8025
+			header_up Origin http://127.0.0.1:8025
+			header_down -Set-Cookie
+			header_down -Content-Security-Policy
+		}
+		respond 404
+	}
+	# This listener is HTTP behind Render's trusted TLS ingress. Never accept
+	# a caller-controlled forwarded scheme; the configured origin is HTTPS-only.
+	reverse_proxy 127.0.0.1:8000 {
+		header_up X-Forwarded-Proto https
+	}
+}

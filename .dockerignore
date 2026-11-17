@@ -5,6 +5,10 @@
 !frontend/**
 !backend/
 !backend/**
+!ops/
+!ops/deploy/
+!ops/deploy/mailbox/
+!ops/deploy/mailbox/Caddyfile
 **/.env
 **/.env.*
 **/.venv

@@ -65,7 +65,7 @@ try {
   // Copy tracked source and this task's uncommitted entrypoint into a disposable
   // context. Never expose this workstation's real .env or development mounts.
   const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0");
-  for (const file of [...files.filter((f) => /^(frontend|backend)\//.test(f)), "Dockerfile", ".dockerignore", "backend/config/deployment_start.py"]) {
+  for (const file of [...files.filter((f) => /^(frontend|backend)\//.test(f)), "Dockerfile", ".dockerignore", "backend/config/deployment_start.py", "ops/deploy/mailbox/Caddyfile"]) {
     const destination = join(scratch, file);
     mkdirSync(dirname(destination), { recursive: true });
     copyFileSync(join(root, file), destination);

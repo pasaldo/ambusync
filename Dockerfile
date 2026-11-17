@@ -8,6 +8,8 @@ COPY frontend/ ./
 RUN npm run build
 
 FROM ghcr.io/astral-sh/uv:0.11.26@sha256:3d868e555f8f1dbc324afa005066cd11e1053fc4743b9808ca8025283e65efa5 AS uv
+FROM axllent/mailpit:v1.34.0@sha256:5040a9c533087d25dcb8f2ac748f45c9be5f7bc1d9fe5b860afb9597a2471d57 AS mailpit
+FROM caddy:2.11.9@sha256:fc9cbc100585871d18d4e451cca7021785c90a7006087427ae5ceb3e4efe6424 AS mailbox-proxy
 FROM python:3.14.10-slim-bookworm@sha256:3fe1a0b6c2d6b2ebb572906cdabeca75aeb558c0c17db5ffefbcf8094871c32b AS dependencies
 COPY --from=uv /uv /usr/local/bin/uv
 WORKDIR /app
@@ -20,6 +22,9 @@ RUN groupadd --gid 10001 ambusync && useradd --uid 10001 --gid 10001 --no-create
     && python -m pip uninstall --yes pip
 WORKDIR /app
 COPY --from=dependencies /app/.venv /app/.venv
+COPY --from=mailpit /mailpit /usr/local/bin/mailpit
+COPY --from=mailbox-proxy /usr/bin/caddy /usr/local/bin/caddy
+COPY ops/deploy/mailbox/Caddyfile /app/mailbox/Caddyfile
 COPY backend/ /app/
 COPY --from=frontend /frontend/dist /app/frontend-dist
 ARG AMBUSYNC_BUILD_SHA

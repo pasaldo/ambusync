@@ -1,0 +1,20 @@
+{
+  "verified_on": "2026-11-17",
+  "platform": "linux/amd64",
+  "mailpit": {
+    "version": "1.34.0",
+    "image": "axllent/mailpit:v1.34.0@sha256:5040a9c533087d25dcb8f2ac748f45c9be5f7bc1d9fe5b860afb9597a2471d57",
+    "source": "https://github.com/axllent/mailpit/tree/v1.34.0",
+    "license": "MIT",
+    "routes_source": "https://github.com/axllent/mailpit/blob/v1.34.0/server/server.go",
+    "allowed_get": ["webroot", "search", "dist/*", "favicon.ico", "favicon.svg", "mailpit.svg", "notification.png", "api/events", "api/licenses", "api/v1/info", "api/v1/webui", "api/v1/messages", "api/v1/search", "api/v1/tags", "api/v1/message/{alphanumericID}", "api/v1/message/{alphanumericID}/headers", "api/v1/message/{alphanumericID}/raw", "view/{alphanumericID}", "view/{alphanumericID}.html", "view/{alphanumericID}.txt"],
+    "allowed_mutations": {"PUT": ["api/v1/messages"], "DELETE": ["api/v1/messages", "api/v1/search"]},
+    "denied": ["send", "release", "proxy", "link-check", "html-check", "sa-check", "rspamd-check", "chaos", "metrics", "unlisted API routes"]
+  },
+  "caddy": {
+    "version": "2.11.9",
+    "image": "caddy:2.11.9@sha256:fc9cbc100585871d18d4e451cca7021785c90a7006087427ae5ceb3e4efe6424",
+    "source": "https://github.com/caddyserver/caddy/tree/v2.11.9",
+    "license": "Apache-2.0"
+  }
+}
