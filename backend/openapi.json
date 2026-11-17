@@ -411,6 +411,24 @@
         }
       }
     },
+    "/api/v1/system/institutions/{institution_id}/resend-first-activation/": {
+      "post": {
+        "operationId": "resendSystemFirstActivation",
+        "description": "Solo system_admin exclusivo. Reenvía únicamente la invitación pendiente del primer administrador identificado por auditoría; nunca cambia correo, roles ni contraseña. Captura local en modo mailpit. Token anterior invalidado solo si el envío/captura confirma éxito; límite persistente 60s.",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/CsrfToken" }, { "$ref": "#/components/parameters/SystemInstitutionId" }, { "$ref": "#/components/parameters/UserInteraction" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false } } } },
+        "responses": {
+          "204": { "description": "Activación reenviada/capturada sin crear cuentas ni conceder permisos." },
+          "400": { "description": "Cuerpo no vacío o inválido." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "description": "Institución o invitación inicial no disponible/activada/deshabilitada." },
+          "429": { "description": "Todavía no han transcurrido 60 segundos desde la última emisión." },
+          "503": { "description": "No se confirmó envío/captura; invitación y auditoría nuevas revertidas." }
+        }
+      }
+    },
     "/api/v1/emergencies/": {
       "get": {
         "operationId": "listEmergencies",
@@ -663,7 +681,7 @@
       "ManagedInstitution": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" } } },
       "SystemInstitution": {
         "type": "object",
-        "required": ["id", "name", "kind", "enabled", "rut", "address", "phone", "email"],
+        "required": ["id", "name", "kind", "enabled", "rut", "address", "phone", "email", "can_resend_first_activation", "mail_delivery_mode"],
         "properties": {
           "id": { "type": "string", "format": "uuid" },
           "name": { "type": "string", "maxLength": 160 },
@@ -674,7 +692,9 @@
           "phone": { "type": "string", "maxLength": 15 },
           "email": { "type": "string", "format": "email", "maxLength": 254 },
           "location": { "anyOf": [{ "$ref": "#/components/schemas/InstitutionLocation" }, { "type": "null" }] },
-          "location_status": { "enum": ["confirmed", "pending"] }
+          "location_status": { "enum": ["confirmed", "pending"] },
+          "can_resend_first_activation": { "type": "boolean", "description": "Primer administrador aún pendiente, institución habilitada y cooldown cumplido." },
+          "mail_delivery_mode": { "type": "string", "enum": ["brevo", "mailpit"], "description": "mailpit significa captura privada de prueba, no entrega externa." }
         }
       },
       "SystemInstitutionCreate": {

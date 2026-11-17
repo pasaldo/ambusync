@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as pause } from "node:timers/promises";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const id = `ambusync-mailbox-tests-${process.pid}-${Date.now()}`;
+const database = `ambusync_l_mailbox_${process.pid}`;
 const owned = [];
 function docker(args) {
   const r = spawnSync("docker", args, { encoding: "utf8", timeout: 120000, stdio: ["pipe", "pipe", "pipe"] });
@@ -12,7 +13,7 @@ function docker(args) {
 }
 try {
   for (const [name, image, port, extra] of [
-    ["pg", "postgres:17-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536", 5432, ["-e", "POSTGRES_USER=synthetic", "-e", "POSTGRES_PASSWORD=synthetic", "-e", "POSTGRES_DB=synthetic_mailbox"]],
+    ["pg", "postgres:17-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536", 5432, ["-e", "POSTGRES_USER=synthetic", "-e", "POSTGRES_PASSWORD=synthetic", "-e", `POSTGRES_DB=${database}`]],
     ["kv", "valkey/valkey:8-alpine@sha256:2602ace2be6569bc2bbb06f873776516ab9089821525be34f4305c67eb9db02a", 6379, []],
   ]) {
     docker(["run", "-d", "--name", `${id}-${name}`, "--label", `ambusync.test=${id}`, "-p", `127.0.0.1::${port}`, ...extra, image]);
@@ -29,7 +30,7 @@ try {
   const kv = docker(["port", `${id}-kv`, "6379/tcp"]).split(":").at(-1);
   const env = { ...process.env, AMBUSYNC_LOAD_DOTENV: "false",
     DJANGO_SETTINGS_MODULE: "config.settings", DJANGO_SECRET_KEY: "synthetic-test-secret-not-used-for-real-sessions-".repeat(2),
-    DATABASE_URL: `postgresql://synthetic:synthetic@127.0.0.1:${pg}/synthetic_mailbox?connect_timeout=3`,
+    DATABASE_URL: `postgresql://synthetic:synthetic@127.0.0.1:${pg}/${database}?connect_timeout=3`,
     VALKEY_URL: `redis://127.0.0.1:${kv}/0`, FRONTEND_BASE_URL: "http://localhost:5173",
   };
   for (const key of Object.keys(env)) if (key.toUpperCase().startsWith("PG")) delete env[key];

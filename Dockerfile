@@ -24,6 +24,7 @@ WORKDIR /app
 COPY --from=dependencies /app/.venv /app/.venv
 COPY --from=mailpit /mailpit /usr/local/bin/mailpit
 COPY --from=mailbox-proxy /usr/bin/caddy /usr/local/bin/caddy
+RUN python -c "import os; [os.removexattr(p, 'security.capability') for p in ('/usr/local/bin/caddy', '/usr/local/bin/mailpit') if 'security.capability' in os.listxattr(p)]"
 COPY ops/deploy/mailbox/Caddyfile /app/mailbox/Caddyfile
 COPY backend/ /app/
 COPY --from=frontend /frontend/dist /app/frontend-dist
