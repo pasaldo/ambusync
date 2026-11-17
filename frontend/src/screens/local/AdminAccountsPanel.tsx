@@ -31,6 +31,7 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
   const [ambulances, setAmbulances] = useState<ManagedAmbulance[]>([]);
   const [operatorInstitutions, setOperatorInstitutions] = useState<ManagedInstitution[]>([]);
   const [canCreateAccounts, setCanCreateAccounts] = useState(false);
+  const [mailMode, setMailMode] = useState<"brevo" | "mailpit">("brevo");
   const [delegableGroups, setDelegableGroups] = useState<string[]>([]);
   const [resolvedInstitutionName, setResolvedInstitutionName] = useState(institutionName);
   const [username, setUsername] = useState("");
@@ -68,6 +69,7 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
       setResolvedInstitutionName(config.institution_name);
       setOperatorInstitutions(config.operator_institutions);
       setCanCreateAccounts(config.can_create_accounts);
+      setMailMode(config.mail_delivery_mode === "mailpit" ? "mailpit" : "brevo");
       setOperatorInstitutionId((id) => id || config.operator_institutions[0]?.id || "");
       setUnitInstitutionId((id) => id || config.operator_institutions[0]?.id || "");
       setNeedsRefresh(false);
@@ -125,7 +127,9 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
         email: email.trim(),
         groups,
         ...(groups.includes("ambulance") ? { ambulance_id: ambulanceId, institution_id: operatorInstitutionId } : {}),
-      }, current), "Cuenta creada. Se envió un enlace de activación de un solo uso al correo de prueba configurado.", () => {
+      }, current), mailMode === "mailpit"
+        ? "Cuenta creada. Activación capturada en el buzón de pruebas; no se envió un correo real."
+        : "Cuenta creada. Se envió un enlace de activación de un solo uso al correo de prueba configurado.", () => {
       setUsername("");
       setEmail("");
       setGroups([]);
@@ -141,7 +145,9 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
   }
 
   async function resendActivation(account: ManagedAccount) {
-    await mutate((current) => resendManagedActivation(account.id, current), "Se envió un nuevo enlace de activación; los enlaces anteriores dejaron de ser válidos.");
+    await mutate((current) => resendManagedActivation(account.id, current), mailMode === "mailpit"
+      ? "Nueva activación capturada en el buzón de pruebas; los enlaces anteriores dejaron de ser válidos."
+      : "Se envió un nuevo enlace de activación; los enlaces anteriores dejaron de ser válidos.");
   }
 
   async function handleCreateUnit(event: FormEvent<HTMLFormElement>) {
@@ -156,8 +162,12 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
   }
 
   async function requestRecovery(account: ManagedAccount) {
-    if (!window.confirm(`¿Solicitar recuperación de ${account.username} al correo registrado? No recibirás su contraseña ni un enlace. Si perdió el correo, debe intervenir soporte técnico.`)) return;
-    await mutate((current) => requestManagedRecovery(account.id, current), "Recuperación solicitada. Si la cuenta está disponible, recibirá instrucciones en su correo registrado; no se garantiza la entrega.");
+    if (!window.confirm(mailMode === "mailpit"
+      ? `¿Solicitar recuperación de ${account.username} en el buzón de pruebas? El operador técnico podrá consultar el mensaje. No recibirás su contraseña ni un enlace en este panel.`
+      : `¿Solicitar recuperación de ${account.username} al correo registrado? No recibirás su contraseña ni un enlace. Si perdió el correo, debe intervenir soporte técnico.`)) return;
+    await mutate((current) => requestManagedRecovery(account.id, current), mailMode === "mailpit"
+      ? "Recuperación solicitada. Si la cuenta está disponible, el operador podrá consultar las instrucciones en el buzón de pruebas; no se enviarán correos reales. La solicitud no garantiza la captura."
+      : "Recuperación solicitada. Si la cuenta está disponible, recibirá instrucciones en su correo registrado; no se garantiza la entrega.");
   }
 
   async function deactivateUnit(unit: ManagedAmbulance) {
@@ -180,6 +190,7 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
         <h2 className="mt-1 text-lg font-bold">Cuentas de {resolvedInstitutionName || "tu establecimiento"}</h2>
         <p className="mt-1 text-sm text-muted-dark">La creación de cuentas está reservada a la administración de Urgencias. Los operadores se vinculan a una institución operadora habilitada.</p>
       </div>
+      {mailMode === "mailpit" && <p className="text-sm text-muted-dark">Modo buzón de pruebas: no se envían correos reales. El operador técnico consulta los mensajes capturados; pueden perderse al reiniciar el servicio.</p>}
 
       {!canCreateAccounts && <p role="status" className="rounded-lg border border-amber-300/20 bg-amber-300/10 p-3 text-sm text-amber-100">Este perfil de administración no puede crear cuentas. La función está reservada al perfil administrativo de Urgencias.</p>}
 
@@ -221,7 +232,7 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
           </label>
           </>
         )}
-        <p className="text-xs leading-relaxed text-muted-dark">La cuenta queda pendiente hasta que la persona abra el correo local y establezca su propia contraseña. El enlace vence en 24 horas. No se envían contraseñas.</p>
+        <p className="text-xs leading-relaxed text-muted-dark">La cuenta queda pendiente hasta que la persona abra el enlace de activación y establezca su propia contraseña. El enlace vence en 24 horas. No se envían contraseñas.</p>
         <button disabled={submitting || groups.length === 0 || (groups.includes("ambulance") && !ambulanceId)} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-signal px-4 text-sm font-bold text-ink disabled:opacity-50"><UserPlus className="h-4 w-4" />{submitting ? "Creando…" : "Crear y enviar activación"}</button>
       </form>}
       {activePanel === "units" && <div className="space-y-4">
@@ -269,7 +280,7 @@ export function AdminAccountsPanel({ currentUserId, institutionName }: { current
       </fieldset>
       {message && <p role="status" className="rounded-lg bg-white/5 p-3 text-sm text-muted-dark">{message}</p>}
       {error && <p role="alert" className="rounded-lg border border-rose-300/20 bg-rose-300/10 p-3 text-sm text-rose-100">{error}</p>}
-      <p className="text-xs leading-relaxed text-muted-dark">Entorno de prueba local; utiliza solo datos sintéticos. No usar para gestión clínica real.</p>
+      <p className="text-xs leading-relaxed text-muted-dark">Entorno de prueba; utiliza solo datos sintéticos. No usar para gestión clínica real.</p>
     </section>
   );
 }

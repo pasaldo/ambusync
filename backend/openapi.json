@@ -738,7 +738,7 @@
           }
         ]
       },
-      "AccountManagementConfig": { "type": "object", "required": ["institution_name", "delegable_groups", "operator_institutions", "can_create_accounts"], "properties": { "institution_name": { "type": "string" }, "delegable_groups": { "type": "array", "items": { "type": "string", "enum": ["ambulance", "urgencias"] } }, "operator_institutions": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedInstitution" } }, "can_create_accounts": { "type": "boolean" } } },
+      "AccountManagementConfig": { "type": "object", "required": ["institution_name", "delegable_groups", "operator_institutions", "can_create_accounts", "mail_delivery_mode"], "properties": { "institution_name": { "type": "string" }, "delegable_groups": { "type": "array", "items": { "type": "string", "enum": ["ambulance", "urgencias"] } }, "operator_institutions": { "type": "array", "items": { "$ref": "#/components/schemas/ManagedInstitution" } }, "can_create_accounts": { "type": "boolean" }, "mail_delivery_mode": { "type": "string", "enum": ["brevo", "mailpit"], "description": "mailpit captura mensajes de prueba y no entrega correo real." } } },
       "ManagedAccountCreate": {
         "type": "object",
         "required": ["username", "email", "groups"],

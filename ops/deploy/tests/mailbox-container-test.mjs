@@ -17,7 +17,7 @@ const scratch = mkdtempSync(join(process.env.LOCALAPPDATA, "Temp/opencode/captur
 const image = `${id}:test`;
 const sha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
 const owned = [], networks = [], secrets = [];
-let browser, proxy, target;
+let browser, proxy, target, inboxUiMs;
 function docker(args, input, timeout = 120000) {
   const result = spawnSync("docker", args, {
     cwd: root, input, encoding: "utf8", timeout, maxBuffer: 32e6, stdio: ["pipe", "pipe", "pipe"],
@@ -221,12 +221,22 @@ with patch('accounts.management.commands.create_system_admin.getpass',return_val
     }, 60);
   }
   await createInstitution("Hospital Sintetico Uno", "76.125.185-6", "synthetic-first");
+  const inboxPage = await inbox.newPage();
+  inboxPage.setDefaultTimeout(60000);
+  const inboxStart = performance.now();
+  await inboxPage.goto(origin + "/buzon-pruebas/", { timeout: 60000 });
+  await inboxPage.getByText("Activa tu cuenta de AmbuSync", { exact: true }).first().click();
+  await inboxPage.getByText(/Define tu contraseña personal dentro/).first().waitFor();
+  inboxUiMs = Math.round(performance.now() - inboxStart);
+  await inboxPage.close();
   const activation = await linkFor("Activa tu cuenta de AmbuSync", "/activar-cuenta");
   const body = { ...activation, password: userPassword, password_confirmation: userPassword };
   assert.equal((await post(user, "/api/v1/auth/activate/", body)).status(), 200);
   assert.equal((await user.request.get(origin + "/api/v1/auth/me/")).status(), 401);
   assert.equal((await post(user, "/api/v1/auth/activate/", body)).status(), 400);
   assert.equal((await post(user, "/api/v1/auth/login/", { username: "synthetic-first", password: userPassword })).status(), 200);
+  const managementConfig = await (await user.request.get(origin + "/api/v1/institutions/management/config/")).json();
+  assert.equal(managementConfig.mail_delivery_mode, "mailpit");
   const cookies = await user.cookies();
   assert.ok(cookies.some(c => c.name === "sessionid" && c.secure && c.httpOnly));
   assert.ok(cookies.some(c => c.name === "csrftoken" && c.secure));
@@ -284,7 +294,8 @@ for p in pathlib.Path('/proc').iterdir():
   for (const secret of secrets) assert.ok(!logs.includes(secret), "Runtime log exposed private test material");
   console.log(JSON.stringify({ status: "PASS", captureActivationLogin: true, recoverySingleUseNoAutoLogin: true,
     ephemeralInboxPersistentAccounts: true, explicitResend: true, privateInboxIndependent: true,
-    httpsCsrfSessionWss: true, noExternalRoute: true, gracefulStopAndChildFailure: true, samples: stats }));
+    httpsCsrfSessionWss: true, noExternalRoute: true, gracefulStopAndChildFailure: true,
+    constrainedInboxUi: true, inboxUiMs, samples: stats }));
 } catch (error) {
   if (owned.includes(`${id}-app`)) console.error("Capture test app state:",
     docker(["inspect", "--format", "{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}", `${id}-app`]));

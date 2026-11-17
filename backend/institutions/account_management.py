@@ -158,6 +158,10 @@ class AccountManagementConfigView(APIView):
                 "delegable_groups": delegable_groups,
                 "operator_institutions": operator_institutions,
                 "can_create_accounts": can_create_accounts,
+                "mail_delivery_mode": (
+                    "mailpit" if getattr(settings, "AMBUSYNC_MAIL_MODE", "brevo") == "mailpit"
+                    else "brevo"
+                ),
             }
         )
 

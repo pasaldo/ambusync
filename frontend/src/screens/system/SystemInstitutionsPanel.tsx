@@ -106,17 +106,23 @@ export function SystemInstitutionsPanel() {
   const [lookup, setLookup] = useState<(GeocodingResult & { address: string }) | null>(null);
   const [candidate, setCandidate] = useState<number | null>(null);
   const generation = useRef(0), active = useRef(true), submitting = useRef(false);
+  const resendLifetime = useRef(0);
   const resendPending = useRef(new Set<string>());
+  const resendUncertain = useRef(new Set<string>());
   const [resending, setResending] = useState<Set<string>>(new Set());
   const [uncertainResends, setUncertainResends] = useState<Set<string>>(new Set());
-  useEffect(() => { active.current = true; return () => { active.current = false; generation.current++; }; }, []);
+  useEffect(() => { active.current = true; return () => { active.current = false; generation.current++; resendLifetime.current++; }; }, []);
   function resetLookup() { generation.current++; setLookup(null); setCandidate(null); }
 
   async function refresh(explicit = false) {
+    const reconcile = explicit ? new Set(resendUncertain.current) : new Set<string>();
     setLoading(true);
     try {
       setInstitutions(await listSystemInstitutions(statusFilter, query.trim()));
-      if (explicit) setUncertainResends(new Set());
+      if (explicit) {
+        for (const id of reconcile) resendUncertain.current.delete(id);
+        setUncertainResends(new Set(resendUncertain.current));
+      }
       setError("");
     } catch (loadError) {
       setError(errorText(loadError));
@@ -217,13 +223,13 @@ export function SystemInstitutionsPanel() {
   }
 
   async function resendFirstActivation(institution: SystemInstitution) {
-    if (resendPending.current.has(institution.id) || uncertainResends.has(institution.id)) return;
+    if (resendPending.current.has(institution.id) || resendUncertain.current.has(institution.id)) return;
     if (!window.confirm("¿Reenviar la primera activación? El enlace anterior dejará de ser válido.")) return;
     resendPending.current.add(institution.id);
     setResending(new Set(resendPending.current));
     setError(""); setMessage("");
-    const token = generation.current;
-    const current = () => active.current && generation.current === token;
+    const lifetime = resendLifetime.current;
+    const current = () => active.current && resendLifetime.current === lifetime;
     try {
       await resendSystemFirstActivation(institution.id, current);
       if (!current()) return;
@@ -233,7 +239,8 @@ export function SystemInstitutionsPanel() {
       await refresh();
     } catch (failure) {
       if (current()) {
-        setUncertainResends(previous => new Set(previous).add(institution.id));
+        resendUncertain.current.add(institution.id);
+        setUncertainResends(new Set(resendUncertain.current));
         setError(`${errorText(failure)} Actualiza las instituciones con Buscar antes de decidir otro intento. No se reenviará automáticamente.`);
       }
     } finally {
@@ -321,6 +328,7 @@ export function SystemInstitutionsPanel() {
                   {institution.can_resend_first_activation === true && <button
                     type="button"
                     disabled={resending.has(institution.id) || uncertainResends.has(institution.id)}
+                    aria-describedby={uncertainResends.has(institution.id) ? `first-activation-${institution.id}` : undefined}
                     onClick={() => void resendFirstActivation(institution)}
                     className="min-h-11 rounded-lg border border-white/15 px-2.5 text-xs hover:border-signal disabled:opacity-50"
                   >{resending.has(institution.id) ? "Reenviando…" : "Reenviar primera activación"}</button>}
@@ -330,6 +338,9 @@ export function SystemInstitutionsPanel() {
                   </button>
                 </div>
               </div>
+              {uncertainResends.has(institution.id) && <p id={`first-activation-${institution.id}`} className="mt-3 text-sm text-amber-100">
+                Reenvío sin confirmar. Actualiza las instituciones con Buscar.
+              </p>}
             </article>
           ))}
         </div>

@@ -55,6 +55,7 @@ export interface AccountManagementConfig {
   delegable_groups: string[];
   operator_institutions: ManagedInstitution[];
   can_create_accounts: boolean;
+  mail_delivery_mode?: "brevo" | "mailpit";
 }
 
 export interface VitalMeasurement {
