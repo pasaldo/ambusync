@@ -1,6 +1,8 @@
 """Explicit capture-only deployment mode. Never configure an external SMTP target."""
 
 import re
+import socket
+import urllib.request
 from collections.abc import Mapping
 
 _BCRYPT = re.compile(r"\$2[aby]\$(?:12|13|14|15|16)\$[./A-Za-z0-9]{53}", re.ASCII)
@@ -35,3 +37,14 @@ def mailpit_settings() -> dict:
         "EMAIL_HOST_PASSWORD": "",
         "DEFAULT_FROM_EMAIL": "AmbuSync Pruebas <ambusync@example.invalid>",
     }
+
+
+def capture_services_ready() -> bool:
+    try:
+        with socket.create_connection(("127.0.0.1", 1025), timeout=0.3):
+            pass
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open("http://127.0.0.1:8025/buzon-pruebas/readyz", timeout=0.3) as response:
+            return response.status == 200
+    except Exception:  # noqa: BLE001 -- readiness never discloses private service details.
+        return False

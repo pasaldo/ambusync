@@ -1,5 +1,6 @@
 """Minimal deployment probes, deliberately before session/authentication middleware."""
 
+from django.conf import settings
 from django.db import connection, transaction
 from django.http import HttpResponseNotAllowed, JsonResponse
 
@@ -19,6 +20,11 @@ def live(request):
 
 def ready(request):
     try:
+        if getattr(settings, "AMBUSYNC_MAIL_MODE", "brevo") == "mailpit":
+            from config.test_mailbox import capture_services_ready
+
+            if not capture_services_ready():
+                return probe_response(request, "unavailable", 503)
         with transaction.atomic(), connection.cursor() as cursor:
             cursor.execute("SELECT current_setting('statement_timeout')")
             previous = cursor.fetchone()[0]

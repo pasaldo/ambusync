@@ -86,6 +86,12 @@ def main():
         django.setup()
         prepare_database(build_sha, os.environ.get("AMBUSYNC_MIGRATION_APPROVAL_SHA", ""))
         connection.close()
+        from django.conf import settings
+
+        if getattr(settings, "AMBUSYNC_MAIL_MODE", "brevo") == "mailpit":
+            from config.deployment_processes import run_deployment_processes
+
+            return run_deployment_processes(port, "mailpit")
         os.execv(
             sys.executable,
             [
