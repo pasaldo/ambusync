@@ -38,6 +38,17 @@ no incluye otros archivos no relacionados ni otros repositorios. Publicación y
 conexión en curso, aún sin acreditarlas. Sin crear servicios, desplegar, aplicar
 migraciones remotas, añadir pagos o acceder/configurar secretos por inferencia.
 
+**Resultado verificado17/11:** push normal (sinforce) completado y `ls-remote`
+coincidió con HEAD `78c9b7a0209bc87da46240318088e1869cd4ba0c` en la rama autorizada.
+Incluyó siete commitsL y registro de verificación/autorización; sin merge ni PR.
+Usuario completó instalaciónGitHubApp. Render ahora lista `pasaldo/ambusync`;
+agente abrió la configuración de la instalación y comprobó **Only select
+repositories**, **Selected1repository**, `pasaldo/ambusync`, con Allrepositories
+desmarcado. No se cambió el alcance ni se accedió a otros repositorios.
+ConexiónGitProvider verificada; no confundirla con un MCPRender configurado.
+Sigue pendiente autorización específica para crear datastoresFree y posteriormente
+configurar/crear WebService y primerdeploy. No recursos/secretos/migraciones creados.
+
 ## Puertas de costo y continuidad
 
 Antes de cada operación remota, pedir autorización y comprobar condiciones reales
