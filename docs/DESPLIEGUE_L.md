@@ -1,9 +1,42 @@
 # L — runbook sintético, despliegue todavía no ejecutado
 
-**Estado17/11/2026:** preparación local en integración. No existe despliegue L
+**Estado17/11/2026:** preparación local verificada. No existe despliegue L
 acreditado, entrega externa de correo ni aceptación L. La aprobación del plan y
 de Docker no autoriza cuentas/recursos, secretos, migraciones remotas, correos,
 backups/restores reales, push, dispatch ni M. Solo datos sintéticos, costo **$0**.
+
+## Verificación Render de solo lectura —17/11/2026
+
+Responsable autorizó comprobar Render sin crear recursos ni modificar pagos.
+Acceso humano completado; agente inspeccionó el dashboard, no secretos/APIkeys.
+En el workspace actual «My Workspace» se observó:
+
+- Plan **Hobby**, **sin tarjeta**, sin cargos pendientes; factura anterior$0.
+- Sin servicios creados. Uso incluido:0/750horasFree,0/5GBbandwidth,
+  0/500minpipeline,0/25servicios.
+- BuildPipelineStarter:500minincluidos y **límite mensual de gasto$0**.
+- FormularioPG ofreceFree$0, pero el default es compute$6+storage$4.50=$10.50/mes.
+- FormularioKeyValue ofreceFree$0/25MB/50conexiones/sinpersistencia, pero default$10/mes.
+- No se seleccionó/confirmó ningún plan ni se pulsóCreate. Formularios abandonados;
+  navegador dejado enBilling, reconfirmando Hobby/sintarjeta/sincargos/0servicios.
+- WebServiceGitProvider muestra «No repositories found»: loginGitHub no equivale
+  a autorizar acceso del GitHubApp al repo privado. Conexión pendiente y separada.
+- Banner anuncia mantenimiento17/11a23:00GMT−3 (18/11a02:00UTC).
+
+DocumentaciónFree consultada17/11: Web/PG/KeyValue soportados; PG1GB/30d y web
+idle15min. Sin método de pago, excesos de bandwidth suspendenFree y excesos de
+pipeline bloquean nuevos builds; no es garantía de disponibilidad. La fecha de
+caducidadPG solo se registra al crear realmente la base, aún no creada.
+No se instaló plugin/MCP ni se modificó OpenCode: la guíaRender muestra formato
+distinto al nativoV2; esta comprobación se hizo por navegador autorizado.
+No autoriza push, accesoGitHubApp, creación, secretos, migraciones o primerdeploy.
+
+**Autorización posterior17/11:** responsable autorizó publicar los commits locales
+en `origin/feature/pilot-completion` y conectar Render **únicamente** al repositorio
+`pasaldo/ambusync`. Incluye el registro documental de la verificación/autorización;
+no incluye otros archivos no relacionados ni otros repositorios. Publicación y
+conexión en curso, aún sin acreditarlas. Sin crear servicios, desplegar, aplicar
+migraciones remotas, añadir pagos o acceder/configurar secretos por inferencia.
 
 ## Puertas de costo y continuidad
 
