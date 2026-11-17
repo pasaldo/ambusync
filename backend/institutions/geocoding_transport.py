@@ -78,14 +78,14 @@ def fetch_bytes(address, api_key):
         "https://api.geoapify.com/v1/geocode/search?" + query,
         headers={"Accept": "application/json", "User-Agent": "AmbuSync-synthetic-pilot"},
     )
-    with urllib.request.build_opener(NoRedirect()).open(request, timeout=5) as response:
+    with urllib.request.build_opener(NoRedirect()).open(request, timeout=10) as response:
         raw = response.read(131073)
         if len(raw) > 131072:
             raise ValueError("Provider response too large")
         return raw
 
 
-def run_worker(script, payload, timeout=5):
+def run_worker(script, payload, timeout=10):
     # subprocess.run kills and waits for its child on timeout. A slow header/body cannot
     # tie up a Django worker beyond the overall deadline (plus process cleanup).
     try:
