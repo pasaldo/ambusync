@@ -668,12 +668,13 @@ verificados, entrega real de correo, HTTPS/WSS/dispositivos, backup/restore y
 rollback ensayados, requisito externo resuelto y aceptación explícita.
 Ninguna suite local cierra L ni autoriza M/uso clínico.
 
-## Cambios frontend —17/11, sin desplegar
+## Despliegue frontend —17/11, verificado
 
-Usuario solicitó cambiar etiquetas de "backend local" a "backend en Render" y
-remover la opción "Abrir simulador demo" de los paneles de urgencias y
-ambulancia. Cambios solo en frontend, sin consultas a Geoapify, sin nuevos
-servicios, sin cambio de cuota.
+Usuario autorizó crear commits y desplegar versión con etiquetas de backend en
+Render y sin botón de simulador demo. Push sin force:
+origin/feature/pilot-completion e077b78→b807218289a3c49420db30ee3c14e447696b370d;
+ls-remote coincide. Environment SHA ya actualizado previamente a
+b807218289a3c49420db30ee3c14e447696b370d; Save only confirmado.
 
 Archivos modificados:
 - `frontend/src/screens/local/LocalPortal.tsx`: mensaje de error conexión,
@@ -684,6 +685,8 @@ Archivos modificados:
   página de demostración.
 - `frontend/src/lib/backend.ts`: mensaje genérico de error de solicitud.
 
-Verificación: `npm run lint` (tsc --noEmit) pasa, tests de buzón 7/7 pasan.
-Cambios locales sin commit/push/deploy. Se requiere autorización separada para
-commitear, publicar y desplegar.
+Manual Deploy specific commit, SHA b807218 seleccionado:
+`dep-dbubvsuk1f9s739qd9tg`. Render **Deploy succeeded|Live** verificado.
+HTTPS con CA real: live/ready200JSONok, raíz200, authme401,
+csrf200cookieSecureLax, buzón raíz+APImensajes401Basic. No se realizó nueva
+consulta a Geoapify. No cerrar L.
