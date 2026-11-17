@@ -128,5 +128,18 @@ Usuario autorizó preparar el aumento del worker timeout de geocodificación de
 de cuota, sin nuevo servicio ni add-on. RED→GREEN: pruebas de timeout offline
 pasan con el nuevo valor. Suite completa pendiente de Docker para verificar
 antes de publicar. No se desplegó ni se hará sin autorización separada. El ajuste
-no garantiza por sí solo que la dirección original falle menos; solo da más
+no garantiza por sí solo que toda dirección funcione; solo da más
 tiempo al worker.
+
+## Verificación posterior al despliegue —17/11, autorizada
+
+Usuario autorizó una consulta controlada desdeRender con la dirección que previamente
+fallaba. GETauthme200 confirmado antes de continuar. Una sola consulta geocoding
+con esa dirección respondió HTTP200/statusready/1 candidato en6020ms (6.02s),
+dentro del nuevo timeout de 10s. Sin seleccionar coordenadas, modificar ni guardar
+instituciones. No se devolvieron claves/cookies/direcciones/coordenadas en salida
+diagnóstica. Este resultado acredita que el timeout de 10s permite completar esa
+consulta desdeRender; no implica que todas las direcciones funcionen ni que no haya
+otras causas de fallo en casos distintos. Posteriormente el responsable reportó
+pruebas manuales con distintas direcciones largas, todas exitosas; eso es
+aceptación por reporte del usuario, no verificación ejecutada por el agente.

@@ -502,16 +502,28 @@ datos de institución; sin otra consulta, cambios de configuración o despliegue
 Éxito de este caso, no causa histórica aclarada ni garantía sobredirección
 original/falloscacheados. Ver `docs/DIAGNOSTICO_GEOAPIFY.md`.
 
-### Ajuste de timeout de geocodificación preparado localmente —17/11
+### Despliegue de ajuste de timeout —17/11, verificado
 
-Usuario autorizó preparar el aumento de 5s a 10s del timeout del worker de
-geocodificación. Cambio solo en `backend/institutions/geocoding_transport.py`
-y nueva prueba `backend/institutions/tests_geocoding_timeout.py`; sin reintentos,
-sin cambio de cuota, sin nuevo servicio. RED→GREENlocal: 4/4 pruebas geocoding
-offline, Ruff/check/OpenAPI/diffcheckPASS. Suite completa de398tests requiere
-Docker (no disponible ahora) antes de publicar. Cambios locales sincommit/push/
-deploy. Se requiere autorización separada para commitear, publicar y desplegar.
-No afecta Mailpit, buzón de pruebas ni credenciales existentes.
+Usuario autorizó desplegar e077b78 en Render. Push ya realizado antes:
+origin/feature/pilot-completion 270d421→e077b7811ce35cd52c88089a29cae2252ab4a82b;
+ls-remote coincide. Environment SHA ya actualizado previamente. Manual Deploy
+specific commit, SHA e077b78 seleccionado: `dep-dbubfst6e07s73f443dg`.
+Render **Deploy succeeded|Live** verificado. HTTPS con CA real:
+live/ready200JSONok, raíz200, authme401, csrf200cookieSecureLax,
+buzón raíz+APImensajes401Basic. No se realizó nueva consulta aGeoapify.
+El ajuste de timeout 5s→10s está activo en producción, sin reintentos ni
+cambio de cuota.
+
+Consulta de verificación autorizada posterior: GETme200 confirmado antes de
+continuar. Una sola consulta geocoding con la dirección que previamente fallaba
+respondió HTTP200/statusready/1candidato en6020ms (6.02s), dentro del nuevo
+timeout de 10s. Sin seleccionar coordenadas, modificar ni guardar instituciones.
+No se devolvieron claves/cookies/direcciones/coordenadas. Este resultado acredita
+que el timeout de 10s permite completar esa consulta desdeRender; no implica que
+todas las direcciones funcionen ni que no haya otras causas de fallo.
+Posteriormente el responsable reportó pruebas manuales con distintas direcciones
+largas, todas exitosas; aceptación por reporte del usuario, no verificación
+ejecutada por el agente. No cerrarL.
 
 ## Puertas de costo y continuidad
 
@@ -655,3 +667,23 @@ Costo$0 acreditado, configuración/migración/aprovisionamiento autorizados y
 verificados, entrega real de correo, HTTPS/WSS/dispositivos, backup/restore y
 rollback ensayados, requisito externo resuelto y aceptación explícita.
 Ninguna suite local cierra L ni autoriza M/uso clínico.
+
+## Cambios frontend —17/11, sin desplegar
+
+Usuario solicitó cambiar etiquetas de "backend local" a "backend en Render" y
+remover la opción "Abrir simulador demo" de los paneles de urgencias y
+ambulancia. Cambios solo en frontend, sin consultas a Geoapify, sin nuevos
+servicios, sin cambio de cuota.
+
+Archivos modificados:
+- `frontend/src/screens/local/LocalPortal.tsx`: mensaje de error conexión,
+  mensaje éxito episodio, etiqueta de estado, remoción de botón simulador demo,
+  pie de página de demostración.
+- `frontend/src/screens/local/AdminAccountsPanel.tsx`: mensaje de error conexión.
+- `frontend/src/screens/LoginScreen.tsx`: mensaje de error conexión, pie de
+  página de demostración.
+- `frontend/src/lib/backend.ts`: mensaje genérico de error de solicitud.
+
+Verificación: `npm run lint` (tsc --noEmit) pasa, tests de buzón 7/7 pasan.
+Cambios locales sin commit/push/deploy. Se requiere autorización separada para
+commitear, publicar y desplegar.
