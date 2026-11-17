@@ -47,4 +47,18 @@ class AccountActivation(models.Model):
         indexes = [models.Index(fields=("expires_at",), name="account_activation_exp_idx")]
 
 
+class OutboundMailBudget(models.Model):
+    """One operational counter. No recipients, message bodies or secret material."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    day = models.DateField()
+    used = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(id=1), name="outbound_mail_singleton"),
+            models.CheckConstraint(condition=Q(used__lte=100), name="outbound_mail_maximum"),
+        ]
+
+
 from accounts.recovery_models import IdentityRecoveryCase, PasswordRecovery, RecoveryContact  # noqa: F401

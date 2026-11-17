@@ -117,3 +117,19 @@ if _network == "internal" and _sslmode not in ("require", "verify-full"):
     invalid()
 if _network == "smoke" and _sslmode not in ("disable", "require", "verify-full"):
     invalid()
+
+EMAIL_BACKEND = "accounts.mail_backend.BrevoEmailBackend"
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
+BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "")
+BREVO_ALLOWED_RECIPIENTS = [
+    value.strip()
+    for value in os.environ.get("BREVO_ALLOWED_RECIPIENTS", "").split(",")
+    if value.strip()
+]
+try:
+    BREVO_DAILY_LIMIT = int(os.environ.get("BREVO_DAILY_LIMIT", "100"))
+    if not 1 <= BREVO_DAILY_LIMIT <= 100:
+        invalid()
+except ValueError:
+    invalid()
+DEFAULT_FROM_EMAIL = f"AmbuSync <{BREVO_SENDER_EMAIL}>" if BREVO_SENDER_EMAIL else ""
