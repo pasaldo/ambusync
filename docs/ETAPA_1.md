@@ -4,9 +4,11 @@
 Caddyprivado enmismaimagen,no-root/loopback,sinenvíosexternos,capturasefímeras;
 modoBrevo predeterminado conservado. Reenvíoprimeradmininstitucionalpendiente
 desde system_admin,sincambiarcorreos/grants;UI muestra falloactivaciónconfields{}.
-Backend386:385PASS/1skipWindows;frontend18scriptsPASS;imagenreal captura/
-activación/login/recuperación/reinicio/reenvío/seguridad PASS. Revisiónindependiente
-final ypromociónremota aún pendientes. Noarranque serviciosdev ni cambiosRender.
+Backend388:387PASS/1skipWindows;frontend18scriptsPASS;imagenreal captura/
+activación/login/recuperación/reinicio/reenvío/seguridad/UIbajo512MiB0.1CPU PASS.
+Una revisiónindependiente final realizada;importantescorregidosporautorTDD,
+menorfixturehostilcanariodiferido. Promociónremota pendiente, sinarranquedevagente
+ni cambiosRender;PGlocalreaparecidoajeno preservado.
 Ver [evidencia](PRUEBAS_BUZON_PRUEBAS.md).
 
 **Primer despliegue sintético Render verificado —17/11/2026:** sitio

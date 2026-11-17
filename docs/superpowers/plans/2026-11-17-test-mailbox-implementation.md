@@ -1,6 +1,6 @@
 # Buzón de pruebas privado Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Propuesta inlineTDD y una revisión independiente final; pendiente confirmación del responsable. No delegar tareas sin autorización.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Modalidad inlineTDD y una revisión independiente final aprobada por el responsable. No delegar tareas de implementación.
 
 **Goal:** Capturar activaciones/recuperaciones con Mailpit real, privado y efímero en el WebServiceFree existente, sin envíos reales.
 
@@ -10,10 +10,17 @@
 
 **Spec:** [Diseño](2026-11-17-test-mailbox-design.md).
 
+**Estado de ejecución17/11:** tareas1–5 completas localmente. Tarea6:
+documentación/revisiónindependiente/correccionesTDD verificadas; publicación,
+credencialreal,configuraciónRender/deploy yaceptaciónmanual siguen bloqueadas
+por sus puertas explícitas, no son autorizadas por completar el plan local.
+Evidencia: [pruebas](../../PRUEBAS_BUZON_PRUEBAS.md) y
+[revisión](../../REVISION_BUZON_PRUEBAS.md).
+
 ## Global Constraints
 
 - Solo sintéticos; costo$0; sin segundo servicio, dominio, disco ni upgrade.
-- Diseño aprobado; **plan/implementación/publicación/Render pendientes**.
+- Diseño/plan aprobados; implementación local verificada; **publicación/Render pendientes**.
 - No arrancar servicioslocales previos. Pruebas con dobles o contenedores
   temporales aislados y puertos libres, autorizados al aprobar ejecución.
 - No tocar `.env`, datosdev, cuentas remotas,Geoapify ni secretosBrevo.
@@ -211,6 +218,6 @@ ReviewFocus vinculado a tareas. Las rutas auxiliares/versiones deMailpit se fija
 por manifiesto verificableTask2antesdeproxy; no se adivinan. No se promete entrega,
 diagnósticoGeoapify ni validaciónRender desde suiteslocales.
 
-**Pendiente decisión del responsable:** confirmar detallesdelplan y ejecución
-inlineTDD con una revisiónfinal, autorizando soloentornotemporalaislado de pruebas;
-servicioslocalesprevios/Render permanecen sin cambios hasta sus puertas.
+**Handoff:** ejecuciónlocalinlineTDD+unarevisiónfinalautorizada y realizada.
+Pendiente decisión del responsable para publicación/configuraciónprivada/deploy;
+sin cambiosRender ni conexión/arranque de losservicioslocalesprevios por esta ejecución.

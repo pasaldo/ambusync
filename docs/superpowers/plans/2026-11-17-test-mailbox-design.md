@@ -7,6 +7,11 @@ pruebas, aceptó perder mensajes al reiniciar Render y aprobó el diseño funcio
 el17/11/2026. Esto autoriza preparar el plan, no implementarlo/publicarlo/desplegarlo.
 Los detalles técnicos siguientes concretan esa propuesta para revisión del plan.
 
+Posteriormente aprobó el plan y la ejecucióninlineTDD con una revisiónfinal:
+implementación verificada localmente, sin publicación ni deploy. Ver
+[evidencia](../../PRUEBAS_BUZON_PRUEBAS.md) y
+[revisión](../../REVISION_BUZON_PRUEBAS.md).
+
 No afirmar resuelto el503: se confirmó `activation_delivery_unavailable`, pero
 no su causa interna completa. AllowlistBrevo fue corregida y el503 persistió.
 Geoapify y el mensaje de error oculto son problemas distintos; no diagnosticar

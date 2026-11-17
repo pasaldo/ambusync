@@ -2,7 +2,9 @@
 
 ## Estado17/11/2026
 
-Diseño y plan aprobados; implementación local inlineTDD. **No desplegado enRender**.
+Diseño y plan aprobados; implementación local inlineTDD verificada y una revisión
+independiente final realizada, con correcciones del autorRED→GREEN.
+**No publicado ni desplegado enRender**.
 Mailpit real en la imagen, no correo real entregado. Solo datos sintéticos.
 Captura privada bajo`/buzon-pruebas/`, credencialoperador independiente deDjango.
 La persona que conoce esa credencial puede leer/usar los enlaces de todas las
@@ -19,17 +21,17 @@ Plan: [test-mailbox-implementation](superpowers/plans/2026-11-17-test-mailbox-im
 | ProxyCaddy y Mailpit reales enredinternal |SMTPcaptura,UIPlaywright,listar/abrir/marcar/borrar PASS |
 | Acceso privado |401sincredencial/inválida,inclusoAPI/estáticos/WS; sesiónsystem_admin no basta |
 | FronteraAPI |send/release/proxy/linkcheck/HTMLcheck/chaos/metrics denegados; mutaciones/WSorigenajeno403 |
-| Cuentas/reenvío |22PASS nuevos+gestiónexistente;3carreras:doblereenvío/activación/desactivación |
-| UIcorrecciones |3PASS,503confields{}visible,ubicaciónunavailable noimpidePOSTconnullselection,incertidumbresinreintento |
+| Cuentas/reenvío |24PASS nuevos+gestiónexistente/contratocapturainstitucional;3carreras:doblereenvío/activación/desactivación |
+| UIcorrecciones |7PASS,503confields{}visible,ubicaciónunavailable noimpidePOSTconnullselection,incertidumbre conservada alEditar/Nueva/Cerrar,copyinstitucionalcaptura |
 | Frontend completo |18scriptsdepruebasPASS,incluyendo nuevo test:mailbox; tipos/buildPASS |
-| Backend completo |386tests:385PASS/1skipWindows-symlink,112.114s enPGTESTcontenedor |
+| Backend completo |388tests:387PASS/1skipWindows-symlink,124.486s enPGTESTcontenedor trasfixes |
 | ImagenBrevo existente |gatemigraciones/HTTPS-CSRF-sesión-WSS/reinicio/pérdidaKeyValue/symlinkLinuxPASS |
 | ImagenMailpit final |activación→login,recuperaciónunuso/sinautologin,recrear→buzónvacío/cuentasintactas,reenvíoinicialPASS |
 | Ciclodevida |stopSIGTERMexit0; muertehijoMailpit→unidadexit1, sin appparcial; todosno-root |
-| Recursos |límiteDocker512MiB/0.1CPU;muestras161.8/199.1/164.3MiB,CPUinstantánea0.11/0.15/0.09% |
+| Recursos |límiteDocker512MiB/0.1CPU;muestrasfinales179.3/220.6/163.9MiB,CPUinstantánea0.10/0.13/0.10%;UIrealabreymuestra mensajeen3231ms |
 | Checks |Ruff/check/OpenAPI/pip-audit/npm-audit/Mermaid3/PSbackup-restoredoblesPASS |
 | Modelo |makemigrations--check--dry-run:nochanges; warning historiaDB enport1sintético(no conexióndev) |
-| Visual |capturas320/390/1280sintéticas;320/1280revisadas,sindesbordamiento;detector[] |
+| Visual |capturas320/390/1280sintéticas;sistema320/1280yadministracióninstitucional320/1280revisados,sindesbordamiento;detector[] |
 
 CPUinstantánea no midepicos ni simula toda la plataformaRender; no promesa de
 rendimiento/disponibilidad con0.1CPU. Mailpit aplica limpieza periódica:100mensajes/
@@ -107,7 +109,14 @@ ilimitado; mantienelímites ycaducidadRenderFree.
 
 ## Pendientes
 
-Una revisiónindependientefinal yeventualesfixesTDD;autorizaciónpush yconfigprivada/
-deploySHAexacto;BasicAuthrealcreadaporoperador;smokeremotosinauthyaceptaciónmanual.
+Autorizaciónpush yconfigprivada/deploySHAexacto;BasicAuthrealcreadaporoperador;
+smokeremotosinauthyaceptaciónmanual.
 Geoapify siguependiente. No se enviócorreoexterno ni se modificóRender durante
 implementación. No cerrarL/M ni afirmar entregarealBrevo.
+
+Revisión: [hallazgos, decisiones y límites](REVISION_BUZON_PRUEBAS.md).
+I1incertidumbre al cambiarformulario corregido;M1copyinstitucionalseelevóa
+importante yse corrigiómediantecontrato explícito. Sin segunda revisión.
+Código final local`8bcc145`;smokeimagen repetido sobreesecódigoPASS, sin promoción.
+MenorM2diferido:fixturecontenidohostilconcanarioDNS/HTTP/browser;redinternal/CSP/
+APIsdenegadas acreditancontención, noausencia deintentosdefetchconegresoRender.

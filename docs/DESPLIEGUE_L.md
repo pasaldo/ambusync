@@ -345,6 +345,24 @@ preservado,sinconexiónniarranqueagente. Otrospuertoslocalespreviosvacíos y
 0contenedorespropiosrestantes alcomprobar09:30. Noafirmartodoslosservicioslocales
 apagados despuésdeeserearranqueexterno.NoRender/push/envíoreal.
 
+Una revisiónindependientefinalreadonly sobrec07faec..f60f596 no identificócríticos;
+I1importante(incertidumbre perdida alEditar/Nueva/Cerrar) corregidoRED→GREEN;
+M1copyinstitucional reevaluadoimportante ycorregido2backend+1UIRED→GREEN.
+M2menorfixturecontenidohostilcanario diferido. Sin segundarevisión.
+Posterior:388backend387PASS/1Windows-skip124.486s,7buzónUI y18scriptsfrontend
+completosPASS,tipos/build/Ruff/check/OpenAPI/detector[]PASS.
+Smokeimagenlimites512MiB/0.1CPUincluye ahoraUIrealMailpitmensaje3302ms;
+muestras175.6/215.9/163.1MiB. ImagenBrevo/symlinkLinuxposterioresPASS.
+Ver `docs/REVISION_BUZON_PRUEBAS.md` para decisiones yclasesnoevaluadas.
+Pendiente permiso publicarcommits/configurarhashprivado/mode/SHA/deployexacto y
+smoke/aceptaciónremota;ningunocubiertoporejecuciónlocal.Noenvíosreales.
+
+Correcciones finales encommitlocal`8bcc1454c05b41e4399412b5e479e4d705766546`;
+smokeimagen repetido sobreesecódigoPASS: UI3231ms/muestras179.3/220.6/163.9MiB,
+sin nuevospendientesimportantesidentificadosporrevisión. Pruebasdeautordespués
+defixes, sinsegunda revisiónindependiente. No afirmar ausenciaabsolutadefallos,
+entregaBrevo, aceptaciónremota ni disponibilidadRender por estasmuestras.
+
 ## Puertas de costo y continuidad
 
 Antes de cada operación remota, pedir autorización y comprobar condiciones reales
