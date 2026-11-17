@@ -363,6 +363,113 @@ sin nuevospendientesimportantesidentificadosporrevisión. Pruebasdeautordespués
 defixes, sinsegunda revisiónindependiente. No afirmar ausenciaabsolutadefallos,
 entregaBrevo, aceptaciónremota ni disponibilidadRender por estasmuestras.
 
+### Publicación y preparación privada autorizadas —17/11, en curso
+
+Responsable autorizó publicarcommits/configuraraccesoprivado/desplegarnuevaversión.
+Originverificadoexactopasaldo/ambusync,sincredencialesensalida;ramafeature/
+pilot-completion,HEAD866898671c6bc034f968bb0a92e1fc51dd5da000,8commits desdec07faec.
+AutodeployOff/Free/healthready revalidados enRender antesdepush.
+Pushsinforce c07faec→8668986 confirmado yls-remote coincideSHAcompleto.
+Sinmerge/PR/segundoservicio/planes/envíoreal.
+
+DraftEnvironment delservicioexistente prepara AMBUSYNC_MAIL_MODEmailpit,
+buildSHA/aprobación8668986 ycampoAMBUSYNC_TEST_MAILBOX_PASSWORD_HASH vacío,
+sin guardar. Se abrió consola privada fueraGit para20caracteresmínimo/
+72bytesUTF8máximo/confirmación;Dockerlocalnpipeexacto/imagenCaddypinned/
+pullnever/networknone/logdrivernone genera bcrypt12 porstdin.
+TrasconsentimientoCOPIAR,solo hash alportapapeles,ningúnpassword/hash aarchivos/
+argv/chat/resultados. OperadorpégaloenRender sin guardar ycierraconsola.
+Helperprobado conguardiasTTY/longitud/Unicodeconfirmación+hashsintético, sin
+exponerhash;primera pruebaUnicode se corrigió aescapeASCII porencodingshell.
+Resultado realpendiente(jobsh_1e9a1f32b001Hqma92mLph7nNf),sin afirmarcredencial
+configurada/guardado/deploy. No sondear/repetirconsolaautomáticamente.
+
+### Reanudación privada y despliegue Mailpit —17/11, en curso
+
+Tras reinicio, responsable confirmó que no había copiado el hash. Autorizó
+reabrir únicamente Docker Desktop; motor Linux29.9.3 disponible. Consola privada
+reabierta: resultado sanitizado `hash_copied=true`, bcrypt12, usuario `operador`,
+sin revelar contraseña/hash. Render contenía hash sintácticamente válido.
+Los SHA existentes seguían en c07faec; se actualizaron ambos a
+`866898671c6bc034f968bb0a92e1fc51dd5da000` mediante controles del formulario,
+verificando coincidencia antes de guardar. El modo mailpit también verificado.
+Save only confirmado por aviso «Updated environment variables for this web service».
+Sin modificar otras variables.
+
+Free/autodeployOff/healthready revalidados. Manual Deploy→specific commit,
+SHA completo y fila8668986 seleccionados; deploy
+`dep-dbua8brrjlhs73a302dg` observado **Building**, todavía no Live verificado.
+Sin repetir push, crear servicios, enviar correo real ni iniciar servicios
+locales anteriores. Credencial de acceso autenticado/aceptación remota pendientes.
+
+Resultado posterior: Render **Deploy succeeded|Live**, duración1m29s, mismo
+deploy `dep-dbua8brrjlhs73a302dg` y commit8668986. HTTPS con CA del sistema:
+live/ready200JSONstatusok, raíz/manifest/sw/icon192200, authme401JSON,
+API desconocida404sinSPA, CSRF200cookieSecure/SameSiteLax. Buzón raíz y
+API mensajes401con desafíoBasic, sin credenciales. Sin leer mensajes/tokens,
+login de agente, pruebas de correo ni nuevas cuentas. Icon comprobado en
+`/icons/icon-192.png`.
+Autenticación real del operador y captura/activación por responsable todavía
+pendientes. No nueva verificaciónBilling, WSS autenticado/dispositivos,
+reinicio/frío o backup/restore por este smoke. No cerrarL/M.
+
+Confirmación posterior del responsable17/11: activación con datos de prueba
+completada correctamente y mensaje recibido enMailpit. Aceptación por reporte,
+sin atribuir al agente lectura de mensajes ni ejecución de la activación.
+Sustituye pendiente manual de ese flujo, no aceptación integralL.
+Responsable reporta geocodificación con aviso `unavailable`. Revisión estática:
+ese estado agrupa cualquier excepción del workerHTTPS, rechazoHTTP, deadline5s
+o respuesta inválida; no permite identificar causa ni afirmar claveausente.
+El supervisor Mailpit conserva GEOAPIFY_API_KEY en entornoDaphne; solo la retira
+deMailpit/Caddy. Sin consulta nueva aGeoapify, inspecciónprivadaclave, cambios o
+redeploy por este reporte. Diagnóstico remoto específico pendiente autorización.
+
+### Diagnóstico Geoapify autorizado —17/11, solo lectura y una consulta
+
+Responsable autorizó revisión privada y una consulta controlada. Clave presente
+en configuraciónRender, sin espacios alrededor ni saltos de línea; valor no
+devuelto a herramientas/chat/archivos. Una consulta desde el navegador del
+operador aGeoapify, con dirección pública institucional chilena, respondió
+HTTP200 en2449ms, cinco resultados y cinco candidatos admisibles según reglas
+depaís/tipo/coordenadas. La clave funciona en esa consulta; esto no acredita
+salidaHTTPS del contenedorRender ni su rendimiento.
+
+Lectura de solicitudes anteriores del propio responsable, sin repetirlas:
+endpointgeocoding200 con estado `unavailable`; tres duraciones5515/5405/5273ms.
+Otra233ms compatible con retorno cacheado. Sin copiar direcciones/candidatos/
+cabeceras/cookies/tokens. Coincidencia temporal con deadlineworker5s sugiere
+agotamiento del plazo enRender, pero no distingue DNS/TLS/conexión/lectura/
+CPU/arranque. Worker descarta detalles y servidor agrupa excepciones; faltan
+categorías sanitizadas para identificar causa exacta. Sin nueva consulta,
+cambios de clave/código/configuración, push o redeploy. No afirmar fallo
+definitivo del proveedor ni resolver aumentando timeout por conjetura.
+
+### Diagnóstico seguro preparado localmente —17/11
+
+Responsable aprobó diseño/plan y ejecucióninline sin subagentes. Errorworker
+ahora categorizado con allowlist, sin mensajes/URL/clave/dirección en diagnóstico.
+POSTsystem/geocoding añade campo opcional solo anteunavailable y solo bajo
+los permisos existentes system_admin; motivo efímero, no migración/persistencia.
+Cache muestra cached_unavailable sin consulta nueva ni gasto de cuota.
+Se mantienen deadline5s/TLS/sinredirect/128KiB y reintento manual.
+RED→GREENtransporte/API/sobrehostil; full398backend397PASS/1Windows-skip113.829s,
+23frontendGPS/geocoding/MailpitPASS, Ruff/check/OpenAPI/diffcheckPASS.
+Auto-revisión del autor, no independiente; cambios locales sincommit/push/deploy,
+sin consulta nueva al proveedor. Evidencia `docs/DIAGNOSTICO_GEOAPIFY.md`.
+Esto prepara observabilidad, no acredita solución deGeoapify enRender.
+
+### Promoción del diagnóstico autorizada —17/11, en curso
+
+Responsable autorizó commits/publicación ramaactual/despliegue diagnóstico.
+Originhttpsgithub.com/pasaldo/ambusync y rama feature/pilot-completion verificados;
+HEADremoto8668986 antes de nuevo push. RenderFree/autodeployOff/healthready y
+origen-rama revalidados. Nueva suite398=397PASS/1Windows-skip118.429s.
+Código localcommit2104950906c97038484a9470f7a719b0b6a06b79, documentación
+de evidencia y autorización se incluirá en mismo lote. No merge/PR/forcepush,
+envío de correo ni nueva consultaGeoapify autorizados por esta promoción.
+Actualizar solo buildSHA/aprobación al HEADcompleto que se publique; preservar
+Mailpit, hash de buzón y resto de variables. Manualdeployspecificcommit.
+
 ## Puertas de costo y continuidad
 
 Antes de cada operación remota, pedir autorización y comprobar condiciones reales
