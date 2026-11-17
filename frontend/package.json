@@ -29,6 +29,7 @@
     "test:gps": "node --test scripts/gps-test.mjs scripts/geocoding-test.mjs",
     "test:pwa": "npm run build && node --test scripts/pwa.test.mjs scripts/pwa-test.mjs",
     "test:system-admin": "node scripts/system-admin-test.mjs",
+    "test:mailbox": "node scripts/with-test-server.mjs --test --test-timeout=20000 scripts/test-mailbox-test.mjs",
     "test:local-websocket": "node scripts/local-websocket-test.mjs",
     "test:local-integrity": "node --test scripts/local-integrity-test.mjs"
   },

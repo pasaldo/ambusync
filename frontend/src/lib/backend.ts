@@ -235,6 +235,8 @@ export interface SystemInstitution {
   email: string;
   location?: InstitutionLocation | null;
   location_status?: "confirmed" | "pending";
+  can_resend_first_activation?: boolean;
+  mail_delivery_mode?: "brevo" | "mailpit";
 }
 
 export interface InstitutionLocation {
@@ -408,6 +410,13 @@ export async function listEmergencies(): Promise<BackendEmergency[]> {
 
 export function isUncertainWrite(error: unknown): boolean {
   return !(error instanceof BackendApiError) || error.status >= 500 || error.status === 408;
+}
+
+export async function resendSystemFirstActivation(id: string, isCurrent = () => true): Promise<void> {
+  const result = await managementMutation<unknown>(
+    `/api/v1/system/institutions/${encodeURIComponent(id)}/resend-first-activation/`, {}, isCurrent,
+  );
+  if (result !== undefined) throw new Error("No se confirmó el reenvío de la activación.");
 }
 
 async function listResourcePages<T>(path: string): Promise<T[]> {

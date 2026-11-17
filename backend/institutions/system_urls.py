@@ -1,6 +1,7 @@
 from django.urls import path
 
 from institutions.geocoding_views import GeocodingView
+from institutions.system_activation import SystemFirstActivationView
 from institutions.system_management import (
     SystemInstitutionDeactivateView,
     SystemInstitutionDetailView,
@@ -9,6 +10,11 @@ from institutions.system_management import (
 )
 
 urlpatterns = [
+    path(
+        "institutions/<uuid:institution_id>/resend-first-activation/",
+        SystemFirstActivationView.as_view(),
+        name="system-first-activation",
+    ),
     path("geocoding/", GeocodingView.as_view(), name="system-geocoding"),
     path(
         "institutions/", SystemInstitutionListCreateView.as_view(), name="system-institution-list"

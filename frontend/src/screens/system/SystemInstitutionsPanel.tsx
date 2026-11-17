@@ -10,6 +10,7 @@ import {
   type NewSystemInstitution,
   type SystemInstitution,
   geocodeInstitution, type GeocodingResult,
+  resendSystemFirstActivation,
 } from "@/lib/backend";
 
 const emptyForm: NewSystemInstitution = {
@@ -72,7 +73,8 @@ function rutHint(value: string) {
 
 function errorText(error: unknown) {
   if (error instanceof BackendApiError && error.fields) {
-    return Object.values(error.fields).flatMap((value) => Array.isArray(value) ? value : [value]).join(" ");
+    const fields = Object.values(error.fields).flatMap((value) => Array.isArray(value) ? value : [value]).join(" ").trim();
+    if (fields) return fields;
   }
   return error instanceof Error ? error.message : "No se pudo completar la operación.";
 }
@@ -104,13 +106,17 @@ export function SystemInstitutionsPanel() {
   const [lookup, setLookup] = useState<(GeocodingResult & { address: string }) | null>(null);
   const [candidate, setCandidate] = useState<number | null>(null);
   const generation = useRef(0), active = useRef(true), submitting = useRef(false);
+  const resendPending = useRef(new Set<string>());
+  const [resending, setResending] = useState<Set<string>>(new Set());
+  const [uncertainResends, setUncertainResends] = useState<Set<string>>(new Set());
   useEffect(() => { active.current = true; return () => { active.current = false; generation.current++; }; }, []);
   function resetLookup() { generation.current++; setLookup(null); setCandidate(null); }
 
-  async function refresh() {
+  async function refresh(explicit = false) {
     setLoading(true);
     try {
       setInstitutions(await listSystemInstitutions(statusFilter, query.trim()));
+      if (explicit) setUncertainResends(new Set());
       setError("");
     } catch (loadError) {
       setError(errorText(loadError));
@@ -196,7 +202,7 @@ export function SystemInstitutionsPanel() {
       } else {
         const created = await createSystemInstitution({ ...form, rut: completeRut(form.rut), location_selection: selection }, current);
         if (!current()) return;
-        setMessage(`Institución creada. Se envió la activación para ${created.first_account.username}. ${selection ? "Ubicación de destino confirmada." : geocodingNotice(resolved?.status ?? "unavailable")}`);
+        setMessage(`Institución creada. ${created.mail_delivery_mode === "mailpit" ? "Activación capturada en el buzón de pruebas" : "Se envió la activación"} para ${created.first_account.username}. ${selection ? "Ubicación de destino confirmada." : geocodingNotice(resolved?.status ?? "unavailable")}`);
         setForm(emptyForm);
         setFormOpen(false);
         setEditing(null);
@@ -207,6 +213,32 @@ export function SystemInstitutionsPanel() {
     } finally {
       submitting.current = false;
       if (active.current) setSaving(false);
+    }
+  }
+
+  async function resendFirstActivation(institution: SystemInstitution) {
+    if (resendPending.current.has(institution.id) || uncertainResends.has(institution.id)) return;
+    if (!window.confirm("¿Reenviar la primera activación? El enlace anterior dejará de ser válido.")) return;
+    resendPending.current.add(institution.id);
+    setResending(new Set(resendPending.current));
+    setError(""); setMessage("");
+    const token = generation.current;
+    const current = () => active.current && generation.current === token;
+    try {
+      await resendSystemFirstActivation(institution.id, current);
+      if (!current()) return;
+      setMessage(institution.mail_delivery_mode === "mailpit"
+        ? "Primera activación capturada en el buzón de pruebas."
+        : "Se envió la primera activación al correo registrado.");
+      await refresh();
+    } catch (failure) {
+      if (current()) {
+        setUncertainResends(previous => new Set(previous).add(institution.id));
+        setError(`${errorText(failure)} Actualiza las instituciones con Buscar antes de decidir otro intento. No se reenviará automáticamente.`);
+      }
+    } finally {
+      resendPending.current.delete(institution.id);
+      if (active.current) setResending(new Set(resendPending.current));
     }
   }
 
@@ -226,6 +258,12 @@ export function SystemInstitutionsPanel() {
   return (
     <div className={`grid items-start gap-6 ${formOpen ? "lg:grid-cols-[minmax(0,1.1fr)_minmax(380px,0.9fr)]" : "grid-cols-1"}`}>
       {message ? <p role="status" className="col-span-full rounded-lg border border-signal/20 bg-signal/10 p-3 text-sm text-signal">{message}</p> : null}
+      {!formOpen && error ? <p role="alert" className="col-span-full rounded-lg border border-rose-300/20 bg-rose-300/10 p-3 text-sm text-rose-100">{error}</p> : null}
+      {institutions.some(item => item.mail_delivery_mode === "mailpit") && <p className="col-span-full text-sm text-muted-dark">
+        Modo buzón de pruebas: no se envían correos reales. Los mensajes son temporales y pueden perderse al reiniciar.
+        {" "}<a href="/buzon-pruebas/" target="_blank" rel="noopener noreferrer" className="text-signal underline">Abrir buzón privado</a>.
+        {" "}Requiere la credencial independiente del operador, que puede ver todos los enlaces sintéticos.
+      </p>}
       <motion.section layout className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -254,7 +292,7 @@ export function SystemInstitutionsPanel() {
               <option value="inactive">Inactivas</option>
             </select>
           </label>
-          <button type="button" onClick={() => void refresh()} aria-label="Buscar instituciones" className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/15 px-3 text-sm hover:border-signal">
+          <button type="button" onClick={() => void refresh(true)} aria-label="Buscar instituciones" className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/15 px-3 text-sm hover:border-signal">
             <RefreshCw className="h-4 w-4" /> Buscar
           </button>
         </div>
@@ -276,10 +314,16 @@ export function SystemInstitutionsPanel() {
                   <p className="mt-2 pl-6 text-xs text-muted-dark">RUT {institution.rut || "Pendiente"} · {institution.email || "Correo pendiente"}</p>
                   <p className="mt-1 pl-6 text-xs text-muted-dark">{institution.address || "Dirección pendiente"}</p>
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex max-w-full flex-wrap gap-2">
                   <button type="button" onClick={() => editInstitution(institution)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/15 px-2.5 text-xs hover:border-signal">
                     <Edit3 className="h-3.5 w-3.5" /> Editar
                   </button>
+                  {institution.can_resend_first_activation === true && <button
+                    type="button"
+                    disabled={resending.has(institution.id) || uncertainResends.has(institution.id)}
+                    onClick={() => void resendFirstActivation(institution)}
+                    className="min-h-11 rounded-lg border border-white/15 px-2.5 text-xs hover:border-signal disabled:opacity-50"
+                  >{resending.has(institution.id) ? "Reenviando…" : "Reenviar primera activación"}</button>}
                   <button type="button" onClick={() => void toggleInstitution(institution)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/15 px-2.5 text-xs hover:border-signal">
                     {institution.enabled ? <ShieldAlert className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
                     {institution.enabled ? "Desactivar" : "Reactivar"}
@@ -344,7 +388,7 @@ export function SystemInstitutionsPanel() {
           {!editing ? (
             <div className="border-t border-white/10 pt-4">
               <h3 className="font-semibold">Primera cuenta de Urgencias</h3>
-              <p className="mt-1 text-xs text-muted-dark">La contraseña se define desde el enlace de activación enviado por correo.</p>
+              <p className="mt-1 text-xs text-muted-dark">La contraseña se define desde el enlace de activación. En modo buzón, el operador consulta el mensaje capturado; no se entrega a un correo real.</p>
               <label className="mt-3 block text-sm font-medium">Nombre de usuario
                 <input required maxLength={150} autoComplete="off" value={form.first_username} onChange={(event) => setForm({ ...form, first_username: event.target.value })} className={inputClass} />
               </label>

@@ -169,6 +169,8 @@ def audit_system_action(actor, institution, action, object_id=None, *, object_ty
 
 
 def institution_payload(institution):
+    from institutions.system_activation import can_resend_first_activation, mail_delivery_mode
+
     return {
         "id": str(institution.pk),
         "name": institution.name,
@@ -180,6 +182,8 @@ def institution_payload(institution):
         "email": institution.email,
         "location": institution.location,
         "location_status": "confirmed" if institution.location else "pending",
+        "can_resend_first_activation": can_resend_first_activation(institution),
+        "mail_delivery_mode": mail_delivery_mode(),
     }
 
 
