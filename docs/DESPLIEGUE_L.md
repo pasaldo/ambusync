@@ -690,3 +690,33 @@ Manual Deploy specific commit, SHA b807218 seleccionado:
 HTTPS con CA real: live/ready200JSONok, raíz200, authme401,
 csrf200cookieSecureLax, buzón raíz+APImensajes401Basic. No se realizó nueva
 consulta a Geoapify. No cerrar L.
+
+## Correcciones de CI en main —17/11
+
+El responsable reportó tres fallos en los CI de `main`. Diagnóstico y corrección
+en un único commit `0e27918bfc199ffa15313b21a007e66b64ebbc77`; push
+`30103de`→`0e27918` a `origin/main`, `ls-remote` coincide.
+
+- **Backend:** `ruff format --check .` reformateaba 7 archivos
+  (`config/deployment_processes.py`, `config/tests_test_mailbox.py`,
+  `institutions/account_management.py`, `institutions/geocoding_transport.py`,
+  `institutions/system_activation.py`, `institutions/tests_geocoding_diagnostics.py`,
+  `institutions/tests_system_activation.py`). `ruff format .` los alineó; no
+  cambia lógica. Verificado `ruff format --check .` (137 archivos) y
+  `ruff check .`.
+- **Isolated restore wrapper:** `ops/backups/tests/restore-postgres.tests.ps1`
+  imprimía `PASS` pero terminaba con exit 1. Causa: los dobles simulan códigos
+  de salida con `$global:LASTEXITCODE`; el caso de fallo de retención lo dejaba
+  en 1 y PowerShell lo devolvía como exit code del script. Corrección:
+  restablecer `$global:LASTEXITCODE = 0` al final. Verificado `PASS` con exit 0.
+- **Frontend:** `npm audit` reportaba 11 high por `picomatch`
+  (GHSA-fc5q-39xc-vjpf / CVE-2026-112366). El advisory declara
+  "Patched versions: None"; no existe fix. Se aplicó la opción A:
+  `npm audit --audit-level=critical` en `.github/workflows/frontend-ci.yml`, con
+  comentario explicativo. No se aplicó el downgrade breaking a `vite@6.2.7`.
+  Verificado `npm audit --audit-level=critical` con exit 0.
+
+`backup-deployment.tests.ps1` ya terminaba en exit 0; no requirió cambio.
+La suite completa de 398 tests de backend requiere Docker/PostgreSQL, no
+disponible durante esta corrección; los módulos reformateados que no usan DB
+pasan. El Frontend CI se dispara por el push; no se sondea. No se desplegó.
