@@ -20,7 +20,7 @@ function errorMessage(error: unknown) {
     if (error.status === 429) return "Demasiados intentos. Espera antes de volver a intentarlo.";
     return error.message;
   }
-  return "No se pudo conectar con el backend local. Comprueba que Django esté activo.";
+  return "No se pudo conectar con el backend en Render. Comprueba que el servicio esté activo.";
 }
 
 export function LoginScreen() {
@@ -143,7 +143,7 @@ export function LoginScreen() {
 
         <p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-muted-dark">
           <Activity className="h-3.5 w-3.5 shrink-0 text-signal" />
-          Acceso local de demostración. No usar para atención clínica ni ingresar información de personas reales.
+          Acceso en Render. No usar para atención clínica ni ingresar información de personas reales.
         </p>
       </motion.main>
     </div>

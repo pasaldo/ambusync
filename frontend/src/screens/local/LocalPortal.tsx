@@ -46,7 +46,7 @@ function displayError(error: unknown): string {
     if (error.fields) return Object.values(error.fields).flatMap((item) => Array.isArray(item) ? item : [item]).join(" ");
     return error.message;
   }
-  return "No se pudo conectar con el backend local. Comprueba que Django esté activo.";
+  return "No se pudo conectar con el backend en Render. Comprueba que el servicio esté activo.";
 }
 
 function isUnauthenticated(error: unknown): boolean {
@@ -378,7 +378,7 @@ export function LocalPortal() {
       setEmergencies((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       memory.draft = emptyDraft();
       setDraft(memory.draft);
-      setMessage("Episodio guardado en el backend local.");
+      setMessage("Episodio guardado en el backend de Render.");
       void resources.refresh();
     } catch (submitError) {
       if (!memory.isCurrent(token)) return;
@@ -495,17 +495,8 @@ export function LocalPortal() {
     <main className="grid-monitor min-h-[100dvh] bg-ink px-4 py-6 text-white sm:px-6">
       <div className="mx-auto w-full max-w-4xl">
         <header className="mb-5 flex items-center justify-between gap-3">
-          {(canAmbulance || canUrgencias) && (
-            <button
-              onClick={() => navigate(role === "urgencias" && canUrgencias ? "/urgencias" : "/ambulancia")}
-              className="inline-flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-dark hover:bg-white/5"
-            >
-              {role === "urgencias" && canUrgencias ? <HeartPulse className="h-4 w-4" /> : <Ambulance className="h-4 w-4" />}
-              Abrir simulador demo
-            </button>
-          )}
           <span className="inline-flex items-center gap-2 rounded-full border border-signal/30 bg-signal/10 px-3 py-1.5 text-xs font-semibold text-signal-soft">
-            <Server className="h-3.5 w-3.5" /> Backend local
+            <Server className="h-3.5 w-3.5" /> Backend en Render
           </span>
         </header>
 
@@ -700,7 +691,7 @@ export function LocalPortal() {
           {error && <p role="alert" className="mt-4 rounded-lg border border-rose-300/20 bg-rose-300/10 p-3 text-sm text-rose-100">{error}</p>}
           {operationError && <p role="alert" className="mt-4 rounded-lg border border-rose-300/20 bg-rose-300/10 p-3 text-sm text-rose-100">{operationError}</p>}
         </section>
-        <p className="mx-auto mt-4 max-w-3xl text-center text-xs leading-relaxed text-muted-dark">Entorno de demostración local: no usar para atención clínica ni introducir información de personas reales. No expone servicios a la red y no persiste respuestas del backend en localStorage.</p>
+        <p className="mx-auto mt-4 max-w-3xl text-center text-xs leading-relaxed text-muted-dark">Entorno de demostración en Render: no usar para atención clínica ni introducir información de personas reales. Los datos se persisten en el servidor remoto.</p>
       </div>
     </main>
   );

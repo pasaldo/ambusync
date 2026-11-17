@@ -23,7 +23,7 @@ function errorText(error: unknown) {
     const fields = Object.values(error.fields ?? {}).flatMap((value) => Array.isArray(value) ? value : [value]);
     return fields.length ? fields.join(" ") : error.message;
   }
-  return "No se pudo conectar con el backend local.";
+  return "No se pudo conectar con el backend en Render.";
 }
 
 export function AdminAccountsPanel({ currentUserId, institutionName }: { currentUserId: string; institutionName: string }) {

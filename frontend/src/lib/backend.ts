@@ -167,7 +167,7 @@ async function request<T>(
       throw new Error("No se pudo confirmar el resultado de la solicitud.");
     }
     throw new BackendApiError(
-      error.message ?? "No se pudo completar la solicitud al backend local.",
+      error.message ?? "No se pudo completar la solicitud al backend en Render.",
       response.status,
       error.code,
       error.fields,
