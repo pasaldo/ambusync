@@ -133,3 +133,21 @@ try:
 except ValueError:
     invalid()
 DEFAULT_FROM_EMAIL = f"AmbuSync <{BREVO_SENDER_EMAIL}>" if BREVO_SENDER_EMAIL else ""
+
+# No request object, query, exception string or stack enters deployment diagnostics.
+# Domain audit events remain in the database, unaffected by this logging profile.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"private_request": {"()": "config.log_filters.RedactRequestLog"}},
+    "handlers": {
+        "safe_console": {
+            "class": "logging.StreamHandler",
+            "filters": ["private_request"],
+        },
+    },
+    "loggers": {
+        name: {"handlers": ["safe_console"], "level": "WARNING", "propagate": False}
+        for name in ("django", "daphne", "django.request", "django.server")
+    },
+}

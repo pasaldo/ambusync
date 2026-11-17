@@ -380,10 +380,11 @@ export async function activateAccount(payload: {
   password: string;
   password_confirmation: string;
 }): Promise<void> {
-  await request("/api/v1/auth/activate/", {
+  const response = await request<{ activated?: unknown }>("/api/v1/auth/activate/", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  if (response?.activated !== true) throw new Error("Invalid activation acknowledgement.");
 }
 
 export async function listDestinations(): Promise<Destination[]> {

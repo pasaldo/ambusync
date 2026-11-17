@@ -60,8 +60,8 @@ class InstitutionAccountManagementTests(TestCase):
         activation = AccountActivation.objects.get(user=user)
         message = email_message or mail.outbox[-1]
         # The activation URL appears in the message body; locate it without logging the token.
-        activation_url = next(part for part in message.body.split() if "/activar-cuenta?" in part)
-        query = parse_qs(urlparse(activation_url).query)
+        activation_url = next(part for part in message.body.split() if "/activar-cuenta#" in part)
+        query = parse_qs(urlparse(activation_url).fragment)
         return {
             "uid": str(user.pk),
             "token": query["token"][0],

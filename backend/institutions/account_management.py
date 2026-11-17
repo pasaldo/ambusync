@@ -74,7 +74,7 @@ def operator_institutions_for_admin(institution):
 
 def send_activation_email(user, raw_token, *, institution_name=None):
     query = urlencode({"uid": user.pk, "token": raw_token})
-    activation_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/activar-cuenta?{query}"
+    activation_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/activar-cuenta#{query}"
     institution_message = (
         f" para {institution_name}" if institution_name else " para tu establecimiento"
     )

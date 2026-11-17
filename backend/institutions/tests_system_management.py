@@ -74,8 +74,8 @@ class SystemInstitutionManagementTests(TestCase):
         activation = AccountActivation.objects.get(user=user)
         token = parse_qs(
             urlparse(
-                next(part for part in mail.outbox[0].body.split() if "/activar-cuenta?" in part)
-            ).query
+                next(part for part in mail.outbox[0].body.split() if "/activar-cuenta#" in part)
+            ).fragment
         )["token"][0]
         self.assertEqual(activation.token_digest, hashlib.sha256(token.encode()).hexdigest())
         self.assertEqual(
@@ -321,9 +321,9 @@ class SystemInstitutionManagementTests(TestCase):
         self.assertEqual(response.status_code, 201, response.content)
         user = User.objects.get(username="synthetic-first-urgencias")
         activation_url = next(
-            part for part in mail.outbox[-1].body.split() if "/activar-cuenta?" in part
+            part for part in mail.outbox[-1].body.split() if "/activar-cuenta#" in part
         )
-        query = parse_qs(urlparse(activation_url).query)
+        query = parse_qs(urlparse(activation_url).fragment)
         activate = APIClient().post(
             "/api/v1/auth/activate/",
             {

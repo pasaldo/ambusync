@@ -31,7 +31,7 @@ try {
     throw new Error("La cuenta no quedó pendiente o sin el permiso/unidad solicitados");
   }
 
-  await page.goto(`${BASE}/activar-cuenta?uid=synthetic-user-id&token=synthetic-one-time-token`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/activar-cuenta#uid=synthetic-user-id&token=synthetic-one-time-token`, { waitUntil: "networkidle" });
   await page.getByLabel("Contraseña (mínimo 15 caracteres)").fill("Synthetic-Activation-Password-26!");
   await page.getByLabel("Repite la contraseña").fill("Synthetic-Activation-Password-26!");
   await page.getByRole("button", { name: "Definir contraseña y activar" }).click();
