@@ -3,7 +3,65 @@
 `backup-postgres.ps1` genera un `pg_dump` temporal de la base local, lo entrega a Restic
 para cifrado/deduplicación y lo sube al repositorio configurado en Cloudflare R2.
 
-## Requisitos
+## Estado L y nueva copia local adicional
+
+**No ejecutar copias reales por la aprobación de implementación.** R2 se conserva,
+pero no se habilitan nuevas subidas automáticas hasta comprobar consumo y control
+de costo estrictamente $0. Si ese control no se acredita, el requisito externo de
+L continúa pendiente; una copia local adicional no lo sustituye.
+
+`backup-deployment.ps1` prepara una copia cifrada a un repositorio Restic **local**
+previamente inicializado con autorización separada, fuera de Git y de carpetas
+temporales. No inicializa repositorios, no programa tareas y no ejecuta `forget`
+ni `prune`. Rechaza repositorios `s3:`, URL, UNC, relativos y rutas con enlaces.
+
+Requiere `psql`, `pg_dump` y Restic en PATH; Windows y un volumen local disponible.
+Configurar privadamente en el entorno del proceso, fuera de Git y sin chat/logs:
+
+- `AMBUSYNC_DEPLOYMENT_DATABASE_URL`: URL externa del origen sintético aprobado,
+  con `sslmode=verify-full`. **No** reutiliza ni carga `backend/.env`.
+- `AMBUSYNC_DEPLOYMENT_SSLROOTCERT`: archivo público de CA confiable para ese
+  servidor. No aceptar a ciegas el certificado presentado por la conexión.
+- `RESTIC_REPOSITORY`: ruta absoluta local ya inicializada.
+- `RESTIC_PASSWORD`: clave de cifrado, bajo custodia separada del repositorio.
+
+Tras autorización específica para respaldar ese origen:
+
+```powershell
+./ops/backups/backup-deployment.ps1 `
+  -ConfirmSyntheticSource `
+  -ExpectedSourceHost <host-publico-exacto-aprobado> `
+  -ExpectedSourceDatabase <base-sintetica-aprobada>
+```
+
+Los valores esperados no son secretos; no pasar URL ni contraseñas como argumentos.
+El wrapper crea servicio/passfile únicos con ACL restringida al usuario/SYSTEM.
+libpq autentica el certificado y su hostname mediante `verify-full`; una consulta
+de solo lectura comprueba la base efectiva y TLS1.2/1.3 de esa sesión antes de
+`pg_dump`. No degrada TLS ni usa el host interno autofirmado.
+Solo dump custom y metadata no sensible entran en Restic; archivos de conexión
+quedan fuera del payload. Exige `restic check --read-data` antes del éxito, restaura
+el entorno del proceso y elimina únicamente su carpeta temporal propia.
+La copia local contiene datos clínicos sintéticos cifrados; el dump temporal está
+en claro bajo ACL privada y debe residir en un equipo/volumen protegido.
+
+La inicialización real (`restic init`), copia separada de la clave, política de
+24 snapshots horarios/14 diarios, programación y borrado requieren autorización.
+No se han ejecutado por preparar estos scripts. Restore conserva las guardias C:
+loopback, base reservada distinta y reaplicación obligatoria de retención.
+
+Pruebas sin procesos externos, red ni copias reales:
+
+```powershell
+powershell -NoProfile -File ops/backups/tests/backup-deployment.tests.ps1
+powershell -NoProfile -File ops/backups/tests/restore-postgres.tests.ps1
+```
+
+Los dobles no acreditan entrega de backups, restore, RPO/RTO ni costos R2 reales.
+
+## Wrapper local/R2 anterior — no automatizar nuevas subidas en L
+
+### Requisitos
 
 - PostgreSQL local activo y `pg_dump` disponible en `PATH`.
 - `DATABASE_URL` apuntando exclusivamente a la base sintética.
@@ -11,8 +69,10 @@ para cifrado/deduplicación y lo sube al repositorio configurado en Cloudflare R
   `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY`.
 - Bucket R2 privado y API key limitada al bucket de copias.
 
-El script nunca recibe secretos desde argumentos ni los imprime. No agregues tokens, dumps,
-repositorios Restic ni archivos `.env` al repositorio Git.
+El wrapper anterior acepta `-DatabaseUrl` y pasa la URL a `pg_dump` como argumento;
+no usarlo para el nuevo origen remoto. El wrapper L anterior en esta página usa
+servicio/passfile para evitarlo. No agregues tokens, dumps, repositorios Restic
+ni archivos `.env` al repositorio Git.
 
 ## Ejecución
 
