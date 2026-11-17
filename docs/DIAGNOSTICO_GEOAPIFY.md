@@ -99,3 +99,34 @@ suite completa repetida antes de publicación:398tests/397PASS/1Windows-skip,
 118.429s. ServicioRenderFree/autodeployOff/healthready/repo-rama correctos
 revalidados. Publicación/deploy en curso, sin consulta nueva autorizada ni
 causaGeoapify identificada por el diagnóstico todavía.
+
+Posteriormente publicado270d421694b8080ceaf69704579da638b034718d y desplegado
+enRender: deploydep-dbuav8cipgvc73e2j1pg **Deploy succeeded|Live** verificado.
+Healthlive/ready200 y API/buzónprotegidos confirmados; sin consulta nueva aGeoapify.
+La categoría del fallo remoto todavía requiere una consulta controlada autorizada.
+
+## Consulta remota autorizada posterior —17/11
+
+Responsable autorizó una consulta controlada desdeRender. Dos intentos previos
+recibieron401 por sesión ausente en navegadorintegrado: no alcanzaron lookup ni
+proveedor. Responsable inició sesión en pestaña integrada; GETauthme200
+confirmado antes de continuar. Una sola consulta geocoding autorizada con
+dirección pública institucional respondióHTTP200/statusready/cinco candidatos
+en3323ms. Sin seleccionar coordenadas, modificar ni guardar instituciones.
+No se devolvieron claves/cookies/direcciones/coordenadas en salida diagnóstica.
+
+Este resultado acredita éxito de esa consulta desde backendRender y no genera
+código de fallo. No explica la causa histórica deunavailable ni acredita que
+otra dirección funcione o que los fallos cacheados hayan cambiado. No repetir
+automáticamente, borrarcache o aumentar timeout por esta evidencia. La clave,
+el TLS y el límite5s existentes pudieron completar este caso.
+
+## Ajuste de timeout preparado localmente —17/11, sin desplegar
+
+Usuario autorizó preparar el aumento del worker timeout de geocodificación de
+5s a 10s. Cambio solo en código local, sin reintentos automáticos, sin cambio
+de cuota, sin nuevo servicio ni add-on. RED→GREEN: pruebas de timeout offline
+pasan con el nuevo valor. Suite completa pendiente de Docker para verificar
+antes de publicar. No se desplegó ni se hará sin autorización separada. El ajuste
+no garantiza por sí solo que la dirección original falle menos; solo da más
+tiempo al worker.

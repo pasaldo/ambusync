@@ -470,6 +470,49 @@ envío de correo ni nueva consultaGeoapify autorizados por esta promoción.
 Actualizar solo buildSHA/aprobación al HEADcompleto que se publique; preservar
 Mailpit, hash de buzón y resto de variables. Manualdeployspecificcommit.
 
+### Publicación y arranque diagnóstico —17/11, en curso
+
+Commits2104950(código)+270d421(documentación) publicados sinforce:
+origin/feature/pilot-completion8668986→
+`270d421694b8080ceaf69704579da638b034718d`; ls-remote coincide.
+No se incluyó scratch ni planWebSocketajeno.
+Environmentactualizados únicamente AMBUSYNC_BUILD_SHA/
+AMBUSYNC_MIGRATION_APPROVAL_SHA alSHAcompleto270d421, coincidencia verificada;
+Saveonly confirmado por avisoRender y retorno alectura. Mailpit/hash/otras
+variables conservados sinmostrar ni modificar. Una evaluación del borrador
+agotó espera con pestaña alfondoyestadoincierto: se inspeccionó antes decontinuar,
+sin repetirSave/deploy. AmbosSHAcontrastados antes delúnicoSave.
+Manualdeployspecificcommit, selecciónSHAcompleto270d421:
+`dep-dbuav8cipgvc73e2j1pg` observadoBuilding. NoLiveafirmado todavía.
+Sin nueva consultaGeoapify; autorización de querycontroladaposterior pendiente.
+
+Resultado posterior: mismo deploy `dep-dbuav8cipgvc73e2j1pg` y SHA270d421,
+Render **Deploy succeeded|Live** verificados. SmokeHTTPSconCAreal:
+live/ready200JSONok, raíz200, authme401, API desconocida404sinSPA,
+CSRF200/cookieSecureLax, buzónraíz+APImensajes401Basic.
+No se realizó POSTgeocoding, loginagente ni lectura de mensajes. Esto acredita
+despliegue y salud básica, no diagnóstico real deGeoapify, GPSfísico o cierreL.
+Registrosposterioreslocales, sin push adicional porinferenciadeestaevidencia.
+
+ConsultaGeoapify posterior autorizada: intentosprevios401 por sesiónausente
+enpestañaintegrada, sin ejecutarlookup/proveedor. Tras loginhumanointegrado,
+GETme200 y una consulta única con direcciónpúblicainstitucional desdebackend:
+HTTP200/statusready/5candidatos/3323ms. Sin seleccionarubicación ni guardar
+datos de institución; sin otra consulta, cambios de configuración o despliegue.
+Éxito de este caso, no causa histórica aclarada ni garantía sobredirección
+original/falloscacheados. Ver `docs/DIAGNOSTICO_GEOAPIFY.md`.
+
+### Ajuste de timeout de geocodificación preparado localmente —17/11
+
+Usuario autorizó preparar el aumento de 5s a 10s del timeout del worker de
+geocodificación. Cambio solo en `backend/institutions/geocoding_transport.py`
+y nueva prueba `backend/institutions/tests_geocoding_timeout.py`; sin reintentos,
+sin cambio de cuota, sin nuevo servicio. RED→GREENlocal: 4/4 pruebas geocoding
+offline, Ruff/check/OpenAPI/diffcheckPASS. Suite completa de398tests requiere
+Docker (no disponible ahora) antes de publicar. Cambios locales sincommit/push/
+deploy. Se requiere autorización separada para commitear, publicar y desplegar.
+No afecta Mailpit, buzón de pruebas ni credenciales existentes.
+
 ## Puertas de costo y continuidad
 
 Antes de cada operación remota, pedir autorización y comprobar condiciones reales
