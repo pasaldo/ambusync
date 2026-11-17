@@ -1,4 +1,4 @@
-// Genera capturas de las vistas actuales conectadas al backend local simulado.
+// Genera capturas de las vistas actuales conectadas al backend en Render simulado.
 // Uso: con el dev server corriendo en http://localhost:5173 → npm run shots
 import { chromium } from "playwright";
 import { mockAuthenticatedApi } from "./mock-auth-api.mjs";
@@ -23,7 +23,7 @@ async function loginLocal(page, username) {
   await page.getByLabel("Usuario").fill(username);
   await page.getByLabel("Contraseña").fill("local-test-password");
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
-  await page.getByText("Backend local").waitFor({ state: "visible" });
+  await page.getByText("Backend en Render").waitFor({ state: "visible" });
 }
 
 try {

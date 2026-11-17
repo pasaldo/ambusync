@@ -22,7 +22,7 @@ try {
   if (await er.getByRole("button", { name: "Urgencias", exact: true }).count()) {
     throw new Error("La cuenta de ambulancia mostró un módulo no autorizado");
   }
-  await er.getByRole("button", { name: "Abrir simulador demo" }).click();
+  await er.goto(`${BASE}/ambulancia`, { waitUntil: "networkidle" });
   await er.locator("button.group").first().waitFor({ state: "visible" });
   const ambulance = er;
 
