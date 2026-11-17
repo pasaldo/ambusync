@@ -19,11 +19,12 @@ class GeocodingView(NoStoreResourceView):
         ):
             raise ValidationError("Revisa la solicitud de ubicación.")
         row = lookup_address(request.data.get("address"), request.data.get("retry", False))
-        return Response(
-            {
-                "lookup_id": row.pk,
-                "status": row.status,
-                "candidates": row.candidates,
-                "attribution": ATTRIBUTION,
-            }
-        )
+        payload = {
+            "lookup_id": row.pk,
+            "status": row.status,
+            "candidates": row.candidates,
+            "attribution": ATTRIBUTION,
+        }
+        if row.status == "unavailable":
+            payload["diagnostic"] = getattr(row, "_diagnostic", {"code": "cached_unavailable"})
+        return Response(payload)

@@ -11,7 +11,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from institutions.geocoding_models import GeocodingLookup, GeocodingQuota
-from institutions.geocoding_transport import fetch_json
+from institutions.geocoding_transport import GeocodingTransportError, fetch_json
 
 ATTRIBUTION = "Powered by Geoapify · © OpenStreetMap contributors"
 
@@ -109,15 +109,23 @@ def lookup_address(address, retry=False):
         quota.save()
         row.status = "pending"
         row.save()
+    diagnostic = None
     try:
         candidates = fetch_candidates(address)
         status = "ready" if candidates else "not_found"
+    except GeocodingTransportError as error:
+        candidates, status = [], "unavailable"
+        diagnostic = error.diagnostic()
     except Exception:  # noqa: BLE001 -- provider exceptions may contain apiKey in URL; never log/echo them.
         candidates, status = [], "unavailable"
+        diagnostic = {"code": "worker_failure"}
     GeocodingLookup.objects.filter(pk=key).update(
         candidates=candidates, status=status, updated_at=timezone.now()
     )
     row.refresh_from_db()
+    if diagnostic is not None:
+        # Request-local only: do not persist error data or overwrite candidate storage.
+        row._diagnostic = diagnostic
     return row
 
 

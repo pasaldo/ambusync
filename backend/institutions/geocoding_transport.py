@@ -1,11 +1,61 @@
 """Isolated bounded HTTPS worker. No Django imports, credentials in stdin only."""
 
 import json
+import socket
+import ssl
 import subprocess
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+ERROR_CODES = frozenset({
+    "deadline_exceeded", "dns_error", "tls_error", "connection_error",
+    "upstream_timeout", "http_rejected", "invalid_response", "worker_failure",
+})
+
+
+class GeocodingTransportError(Exception):
+    """Only closed application-owned fields may cross into the API."""
+
+    def __init__(self, code, http_status=None):
+        self.code = code if code in ERROR_CODES else "worker_failure"
+        self.http_status = (
+            http_status if self.code == "http_rejected"
+            and type(http_status) is int and 100 <= http_status <= 599 else None
+        )
+        super().__init__(self.code)
+
+    def diagnostic(self):
+        result = {"code": self.code}
+        if self.http_status is not None:
+            result["http_status"] = self.http_status
+        return result
+
+
+class GeocodingDeadlineError(GeocodingTransportError, TimeoutError):
+    pass
+
+
+def failure_details(error):
+    """Classify exception types; never inspect free-text messages or response bodies."""
+    if isinstance(error, urllib.error.HTTPError):
+        return GeocodingTransportError("http_rejected", error.code).diagnostic()
+    reason = error.reason if isinstance(error, urllib.error.URLError) else error
+    if isinstance(reason, socket.gaierror):
+        code = "dns_error"
+    elif isinstance(reason, ssl.SSLError):
+        code = "tls_error"
+    elif isinstance(reason, TimeoutError):
+        code = "upstream_timeout"
+    elif isinstance(reason, OSError):
+        code = "connection_error"
+    elif isinstance(reason, ValueError):
+        code = "invalid_response"
+    else:
+        code = "worker_failure"
+    return {"code": code}
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -45,11 +95,44 @@ def run_worker(script, payload, timeout=5):
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             timeout=timeout,
-            check=True,
+            check=False,
         )
     except subprocess.TimeoutExpired:
-        raise TimeoutError("Geocoding deadline exceeded") from None
-    return json.loads(result.stdout)
+        raise GeocodingDeadlineError("deadline_exceeded") from None
+    except OSError:
+        raise GeocodingTransportError("worker_failure") from None
+    try:
+        body = json.loads(result.stdout)
+    except (ValueError, UnicodeError):
+        code = "invalid_response" if result.returncode == 0 else "worker_failure"
+        raise GeocodingTransportError(code) from None
+    if isinstance(body, dict) and "_ambusync_error" in body:
+        if result.returncode == 0:
+            # A successful provider body cannot impersonate our worker's failure protocol.
+            raise GeocodingTransportError("invalid_response")
+        diagnostic = body["_ambusync_error"]
+        if (
+            result.returncode != 1
+            or set(body) != {"_ambusync_error"}
+            or not isinstance(diagnostic, dict)
+            or set(diagnostic) not in ({"code"}, {"code", "http_status"})
+            or not isinstance(diagnostic.get("code"), str)
+            or diagnostic["code"] not in ERROR_CODES
+            or (
+                "http_status" in diagnostic and (
+                    diagnostic["code"] != "http_rejected"
+                    or type(diagnostic["http_status"]) is not int
+                    or not 100 <= diagnostic["http_status"] <= 599
+                )
+            )
+        ):
+            raise GeocodingTransportError("worker_failure")
+        raise GeocodingTransportError(diagnostic["code"], diagnostic.get("http_status"))
+    if result.returncode != 0:
+        raise GeocodingTransportError("worker_failure")
+    if not isinstance(body, dict) or not isinstance(body.get("results"), list):
+        raise GeocodingTransportError("invalid_response")
+    return body
 
 
 def fetch_json(address, api_key):
@@ -61,5 +144,8 @@ if __name__ == "__main__":
         payload = json.loads(sys.stdin.buffer.read(8192))
         raw = fetch_bytes(payload["address"], payload["api_key"])
         sys.stdout.buffer.write(raw)
-    except Exception:  # noqa: BLE001 -- no trace/exception/URL/key on stdout or stderr.
+    except Exception as error:  # noqa: BLE001 -- closed fields only; no exception text.
+        sys.stdout.write(json.dumps(
+            {"_ambusync_error": failure_details(error)}, separators=(",", ":"),
+        ))
         sys.exit(1)
