@@ -720,3 +720,11 @@ en un único commit `0e27918bfc199ffa15313b21a007e66b64ebbc77`; push
 La suite completa de 398 tests de backend requiere Docker/PostgreSQL, no
 disponible durante esta corrección; los módulos reformateados que no usan DB
 pasan. El Frontend CI se dispara por el push; no se sondea. No se desplegó.
+
+El primer push `0e27918` volvió a fallar en **Frontend CI**, ahora en
+`test:sync`: `scripts/sync-test.mjs` hacía clic en el botón "Abrir simulador
+demo" que se removió del panel. Corrección `23c6c0e`: el test navega directo a
+`/ambulancia` y `scripts/shots.mjs` espera la etiqueta "Backend en Render".
+Verificado con la batería completa de tests de frontend
+(`node scripts/mailbox-regressions.mjs --all`), `npm run lint` y
+`npm run check:diagrams`, todos en verde. Pendiente de push.
