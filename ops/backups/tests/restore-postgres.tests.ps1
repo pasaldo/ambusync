@@ -93,3 +93,7 @@ finally {
     $env:SYNTHETIC_RESTORE_ENABLED = $savedEnabled
     if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
 }
+# The doubles above set $global:LASTEXITCODE to simulate native exit codes; a
+# failing retention case leaves it at 1, and PowerShell would return that as the
+# script exit code even though every assertion passed. Reset it for a real 0.
+$global:LASTEXITCODE = 0

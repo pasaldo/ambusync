@@ -23,15 +23,19 @@ COOLDOWN = timedelta(seconds=60)
 
 
 def _first_user_id(institution):
-    events = list(AuditEvent.objects.filter(
-        institution=institution, action="system.institution.first_admin_created",
-        object_type="account", result=AuditEvent.Result.SUCCESS,
-    ).values_list("object_id", flat=True)[:2])
+    events = list(
+        AuditEvent.objects.filter(
+            institution=institution,
+            action="system.institution.first_admin_created",
+            object_type="account",
+            result=AuditEvent.Result.SUCCESS,
+        ).values_list("object_id", flat=True)[:2]
+    )
     if len(events) != 1:
         return None
     try:
         return int(events[0])
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return None
 
 
@@ -40,8 +44,12 @@ def _pending_invitation(institution, *, locked=False):
     users = User.objects.select_for_update(no_key=True) if locked else User.objects
     target = users.filter(pk=target_id).first()
     if (
-        target is None or target.is_active or target.is_staff or target.is_superuser
-        or target.has_usable_password() or target.user_permissions.exists()
+        target is None
+        or target.is_active
+        or target.is_staff
+        or target.is_superuser
+        or target.has_usable_password()
+        or target.user_permissions.exists()
         or set(target.groups.values_list("name", flat=True)) != {"urgencias", "institution_admin"}
         or AmbulanceAssignment.objects.filter(user=target).exists()
     ):
@@ -103,15 +111,21 @@ class SystemFirstActivationView(APIView):
                 invitation.expires_at = now + LIFETIME
                 invitation.save(update_fields=["token_digest", "expires_at"])
                 audit_system_action(
-                    actor, institution, "system.institution.first_activation_resent",
-                    target.pk, object_type="account",
+                    actor,
+                    institution,
+                    "system.institution.first_activation_resent",
+                    target.pk,
+                    object_type="account",
                 )
                 if send_activation_email(target, raw, institution_name=institution.name) != 1:
                     raise OSError("activation_capture_unavailable")
-        except (OSError, smtplib.SMTPException):
-            return Response({
-                "code": "activation_delivery_unavailable",
-                "message": "No se pudo enviar la activación; no se modificó la invitación.",
-                "fields": {},
-            }, status=503)
+        except OSError, smtplib.SMTPException:
+            return Response(
+                {
+                    "code": "activation_delivery_unavailable",
+                    "message": "No se pudo enviar la activación; no se modificó la invitación.",
+                    "fields": {},
+                },
+                status=503,
+            )
         return Response(status=204)

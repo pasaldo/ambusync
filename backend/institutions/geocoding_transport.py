@@ -10,10 +10,18 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-ERROR_CODES = frozenset({
-    "deadline_exceeded", "dns_error", "tls_error", "connection_error",
-    "upstream_timeout", "http_rejected", "invalid_response", "worker_failure",
-})
+ERROR_CODES = frozenset(
+    {
+        "deadline_exceeded",
+        "dns_error",
+        "tls_error",
+        "connection_error",
+        "upstream_timeout",
+        "http_rejected",
+        "invalid_response",
+        "worker_failure",
+    }
+)
 
 
 class GeocodingTransportError(Exception):
@@ -22,8 +30,11 @@ class GeocodingTransportError(Exception):
     def __init__(self, code, http_status=None):
         self.code = code if code in ERROR_CODES else "worker_failure"
         self.http_status = (
-            http_status if self.code == "http_rejected"
-            and type(http_status) is int and 100 <= http_status <= 599 else None
+            http_status
+            if self.code == "http_rejected"
+            and type(http_status) is int
+            and 100 <= http_status <= 599
+            else None
         )
         super().__init__(self.code)
 
@@ -103,7 +114,7 @@ def run_worker(script, payload, timeout=10):
         raise GeocodingTransportError("worker_failure") from None
     try:
         body = json.loads(result.stdout)
-    except (ValueError, UnicodeError):
+    except ValueError, UnicodeError:
         code = "invalid_response" if result.returncode == 0 else "worker_failure"
         raise GeocodingTransportError(code) from None
     if isinstance(body, dict) and "_ambusync_error" in body:
@@ -119,7 +130,8 @@ def run_worker(script, payload, timeout=10):
             or not isinstance(diagnostic.get("code"), str)
             or diagnostic["code"] not in ERROR_CODES
             or (
-                "http_status" in diagnostic and (
+                "http_status" in diagnostic
+                and (
                     diagnostic["code"] != "http_rejected"
                     or type(diagnostic["http_status"]) is not int
                     or not 100 <= diagnostic["http_status"] <= 599
@@ -145,7 +157,10 @@ if __name__ == "__main__":
         raw = fetch_bytes(payload["address"], payload["api_key"])
         sys.stdout.buffer.write(raw)
     except Exception as error:  # noqa: BLE001 -- closed fields only; no exception text.
-        sys.stdout.write(json.dumps(
-            {"_ambusync_error": failure_details(error)}, separators=(",", ":"),
-        ))
+        sys.stdout.write(
+            json.dumps(
+                {"_ambusync_error": failure_details(error)},
+                separators=(",", ":"),
+            )
+        )
         sys.exit(1)

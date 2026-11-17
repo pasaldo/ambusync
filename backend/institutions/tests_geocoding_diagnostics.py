@@ -32,7 +32,9 @@ class GeocodingDiagnosticTransportTests(SimpleTestCase):
             return subprocess.run(
                 [sys.executable, str(worker)],
                 input=json.dumps({"address": ADDRESS, "api_key": SECRET}).encode(),
-                capture_output=True, timeout=10, check=False,
+                capture_output=True,
+                timeout=10,
+                check=False,
             )
 
     def test_worker_classifies_network_failures_without_echoing_untrusted_details(self):
@@ -41,15 +43,23 @@ class GeocodingDiagnosticTransportTests(SimpleTestCase):
             (f"urllib.error.URLError(socket.gaierror(-2,{SECRET!r}))", "dns_error", None),
             (f"urllib.error.URLError(ssl.SSLError({SECRET!r}))", "tls_error", None),
             (f"urllib.error.URLError(TimeoutError({SECRET!r}))", "upstream_timeout", None),
-            (f"urllib.error.URLError(ConnectionRefusedError({SECRET!r}))", "connection_error", None),
             (
-                (f"urllib.error.HTTPError('https://invalid.test/?apiKey={SECRET}',403,"
-                 f"{ADDRESS!r},None,None)"),
-                "http_rejected", 403,
+                f"urllib.error.URLError(ConnectionRefusedError({SECRET!r}))",
+                "connection_error",
+                None,
+            ),
+            (
+                (
+                    f"urllib.error.HTTPError('https://invalid.test/?apiKey={SECRET}',403,"
+                    f"{ADDRESS!r},None,None)"
+                ),
+                "http_rejected",
+                403,
             ),
             (
                 f"urllib.error.HTTPError('https://invalid.test',302,{SECRET!r},None,None)",
-                "http_rejected", 302,
+                "http_rejected",
+                302,
             ),
             (f"RuntimeError({SECRET!r}+{ADDRESS!r})", "worker_failure", None),
         ]
@@ -73,19 +83,28 @@ class GeocodingDiagnosticTransportTests(SimpleTestCase):
             worker = Path(root) / "fixture.py"
             for output, exit_code, expected_code in [
                 ('{"results":[]}', 0, None),
-                ('not-json-' + SECRET, 0, "invalid_response"),
+                ("not-json-" + SECRET, 0, "invalid_response"),
                 ('{"results":"wrong-shape"}', 0, "invalid_response"),
                 ('{"_ambusync_error":{"code":"tls_error"}}', 1, "tls_error"),
                 ('{"_ambusync_error":{"code":"tls_error"}}', 0, "invalid_response"),
                 ('{"_ambusync_error":{"code":["' + SECRET + '"]}}', 1, "worker_failure"),
-                ('{"_ambusync_error":{"code":"http_rejected","http_status":403}}', 1,
-                 "http_rejected"),
+                (
+                    '{"_ambusync_error":{"code":"http_rejected","http_status":403}}',
+                    1,
+                    "http_rejected",
+                ),
                 ('{"_ambusync_error":{"code":"' + SECRET + '"}}', 1, "worker_failure"),
-                ('{"_ambusync_error":{"code":"http_rejected","http_status":true}}', 1,
-                 "worker_failure"),
-                ('{"_ambusync_error":{"code":"tls_error","url":"' + SECRET + '"}}', 1,
-                 "worker_failure"),
-                ('', 1, "worker_failure"),
+                (
+                    '{"_ambusync_error":{"code":"http_rejected","http_status":true}}',
+                    1,
+                    "worker_failure",
+                ),
+                (
+                    '{"_ambusync_error":{"code":"tls_error","url":"' + SECRET + '"}}',
+                    1,
+                    "worker_failure",
+                ),
+                ("", 1, "worker_failure"),
                 ('{"results":[]}', 1, "worker_failure"),
             ]:
                 with self.subTest(expected=expected_code, exit_code=exit_code):
@@ -148,8 +167,9 @@ class GeocodingDiagnosticApiTests(TestCase):
             response = self.lookup(ADDRESS)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "unavailable")
-        self.assertEqual(response.json().get("diagnostic"),
-                         {"code": "http_rejected", "http_status": 403})
+        self.assertEqual(
+            response.json().get("diagnostic"), {"code": "http_rejected", "http_status": 403}
+        )
         self.assertIn("no-store", response["Cache-Control"])
         self.assertEqual(GeocodingQuota.objects.get(pk=1).used, 1)
         row = GeocodingLookup.objects.get(pk=response.json()["lookup_id"])
@@ -193,10 +213,15 @@ class GeocodingDiagnosticApiTests(TestCase):
     def test_success_keeps_existing_contract_without_failure_diagnostic(self):
         with patch(
             "institutions.geocoding.fetch_candidates",
-            return_value=[{
-                "latitude": -33, "longitude": -70, "formatted": "Edificio Sintetico",
-                "result_type": "building", "confidence": 1,
-            }],
+            return_value=[
+                {
+                    "latitude": -33,
+                    "longitude": -70,
+                    "formatted": "Edificio Sintetico",
+                    "result_type": "building",
+                    "confidence": 1,
+                }
+            ],
         ):
             response = self.lookup(ADDRESS)
         self.assertEqual(response.json()["status"], "ready")
@@ -223,8 +248,9 @@ class GeocodingDiagnosticApiTests(TestCase):
         ):
             anonymous = APIClient()
             self.assertEqual(
-                anonymous.post("/api/v1/system/geocoding/", {"address": ADDRESS},
-                               format="json").status_code,
+                anonymous.post(
+                    "/api/v1/system/geocoding/", {"address": ADDRESS}, format="json"
+                ).status_code,
                 401,
             )
             self.admin.groups.clear()

@@ -29,30 +29,47 @@ class TestMailboxSettings(unittest.TestCase):
     def test_missing_mailbox_hash_refused(self):
         for value in ("", "plaintext-synthetic", "$2b$04$" + "A" * 53, HASH + "\n"):
             with self.subTest(value=value), self.assertRaises(ValueError):
-                self.module().validate_mail_mode({
-                    "AMBUSYNC_MAIL_MODE": "mailpit",
-                    "AMBUSYNC_TEST_MAILBOX_PASSWORD_HASH": value,
-                })
+                self.module().validate_mail_mode(
+                    {
+                        "AMBUSYNC_MAIL_MODE": "mailpit",
+                        "AMBUSYNC_TEST_MAILBOX_PASSWORD_HASH": value,
+                    }
+                )
 
     def test_relay_forward_webhook_overrides_refused(self):
         for name in (
-            "MP_SMTP_RELAY_ALL", "MP_SMTP_FORWARD_CONFIG", "MP_WEBHOOK_URL",
-            "MP_SMTP_BIND_ADDR", "MP_UI_AUTH", "EMAIL_HOST", "EMAIL_PORT",
-            "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "SMTP_HOST", "SMTP_PORT",
+            "MP_SMTP_RELAY_ALL",
+            "MP_SMTP_FORWARD_CONFIG",
+            "MP_WEBHOOK_URL",
+            "MP_SMTP_BIND_ADDR",
+            "MP_UI_AUTH",
+            "EMAIL_HOST",
+            "EMAIL_PORT",
+            "EMAIL_HOST_USER",
+            "EMAIL_HOST_PASSWORD",
+            "SMTP_HOST",
+            "SMTP_PORT",
         ):
             with self.subTest(name=name), self.assertRaises(ValueError):
-                self.module().validate_mail_mode({
-                    "AMBUSYNC_MAIL_MODE": "mailpit",
-                    "AMBUSYNC_TEST_MAILBOX_PASSWORD_HASH": HASH,
-                    name: "synthetic-override",
-                })
+                self.module().validate_mail_mode(
+                    {
+                        "AMBUSYNC_MAIL_MODE": "mailpit",
+                        "AMBUSYNC_TEST_MAILBOX_PASSWORD_HASH": HASH,
+                        name: "synthetic-override",
+                    }
+                )
 
     def test_mailpit_uses_only_fixed_loopback(self):
         module = self.module()
-        self.assertEqual(module.validate_mail_mode({
-            "AMBUSYNC_MAIL_MODE": "mailpit",
-            "AMBUSYNC_TEST_MAILBOX_PASSWORD_HASH": HASH,
-        }), "mailpit")
+        self.assertEqual(
+            module.validate_mail_mode(
+                {
+                    "AMBUSYNC_MAIL_MODE": "mailpit",
+                    "AMBUSYNC_TEST_MAILBOX_PASSWORD_HASH": HASH,
+                }
+            ),
+            "mailpit",
+        )
         settings = module.mailpit_settings()
         self.assertEqual(settings["EMAIL_BACKEND"], "django.core.mail.backends.smtp.EmailBackend")
         self.assertEqual(settings["EMAIL_HOST"], "127.0.0.1")
@@ -65,23 +82,36 @@ class TestMailboxSettings(unittest.TestCase):
 
     def test_smtp_failure_is_not_reported_as_capture_success(self):
         from django.core.mail import EmailMessage, get_connection
+
         settings = self.module().mailpit_settings()
         connection = get_connection(
-            settings["EMAIL_BACKEND"], host=settings["EMAIL_HOST"],
-            port=settings["EMAIL_PORT"], timeout=settings["EMAIL_TIMEOUT"],
-            username="", password="", use_tls=False, use_ssl=False,
+            settings["EMAIL_BACKEND"],
+            host=settings["EMAIL_HOST"],
+            port=settings["EMAIL_PORT"],
+            timeout=settings["EMAIL_TIMEOUT"],
+            username="",
+            password="",
+            use_tls=False,
+            use_ssl=False,
             fail_silently=False,
         )
         with patch("smtplib.SMTP", side_effect=ConnectionRefusedError), self.assertRaises(OSError):
-            connection.send_messages([
-                EmailMessage("Synthetic", "No token", "test@example.invalid", ["user@example.invalid"])
-            ])
+            connection.send_messages(
+                [
+                    EmailMessage(
+                        "Synthetic", "No token", "test@example.invalid", ["user@example.invalid"]
+                    )
+                ]
+            )
 
     def profile(self, mode=None):
         with tempfile.TemporaryDirectory() as directory:
             Path(directory, "index.html").write_text("synthetic")
-            env = {key: value for key, value in os.environ.items()
-                   if key in ("PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "USERPROFILE")}
+            env = {
+                key: value
+                for key, value in os.environ.items()
+                if key in ("PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "USERPROFILE")
+            }
             env.update(
                 DJANGO_SECRET_KEY="synthetic-secret-not-used-for-sessions-" * 2,
                 FRONTEND_BASE_URL="https://synthetic-l.onrender.com",
@@ -105,9 +135,13 @@ print(json.dumps({'mode':getattr(s,'AMBUSYNC_MAIL_MODE',None),'backend':s.EMAIL_
 'host':s.EMAIL_HOST,'port':s.EMAIL_PORT,'sender':s.DEFAULT_FROM_EMAIL}))
 """
             result = subprocess.run(
-                [sys.executable, "-c", script], env=env,
-                cwd=Path(__file__).resolve().parent.parent, capture_output=True, text=True,
-                timeout=15, check=False,
+                [sys.executable, "-c", script],
+                env=env,
+                cwd=Path(__file__).resolve().parent.parent,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
             )
             self.assertEqual(result.returncode, 0, "Synthetic profile import failed")
             return json.loads(result.stdout)
@@ -132,11 +166,18 @@ class TestMailboxProcesses(unittest.TestCase):
 
     def test_child_environments_do_not_receive_application_secrets(self):
         module = self.module()
-        with patch.dict(os.environ, {
-            "DATABASE_URL": "synthetic-private-db", "BREVO_API_KEY": "synthetic-private-key",
-            "GEOAPIFY_API_KEY": "synthetic-private-geo", "MP_SMTP_RELAY_ALL": "true",
-        }):
-            specs = module.process_specs(10000, "/tmp/synthetic", HASH, "https://synthetic.onrender.com")
+        with patch.dict(
+            os.environ,
+            {
+                "DATABASE_URL": "synthetic-private-db",
+                "BREVO_API_KEY": "synthetic-private-key",
+                "GEOAPIFY_API_KEY": "synthetic-private-geo",
+                "MP_SMTP_RELAY_ALL": "true",
+            },
+        ):
+            specs = module.process_specs(
+                10000, "/tmp/synthetic", HASH, "https://synthetic.onrender.com"
+            )
         self.assertEqual(len(specs), 3)
         for name, args, env in specs:
             if name != "daphne":
@@ -179,12 +220,17 @@ class TestMailboxProcesses(unittest.TestCase):
         def ready(*args):
             children[0].code = 7
 
-        with patch.object(module.subprocess, "Popen", side_effect=spawn), \
-                patch.object(module, "wait_until_ready", side_effect=ready), \
-                patch.dict(os.environ, {
+        with (
+            patch.object(module.subprocess, "Popen", side_effect=spawn),
+            patch.object(module, "wait_until_ready", side_effect=ready),
+            patch.dict(
+                os.environ,
+                {
                     "AMBUSYNC_TEST_MAILBOX_PASSWORD_HASH": HASH,
                     "FRONTEND_BASE_URL": "https://synthetic.onrender.com",
-                }):
+                },
+            ),
+        ):
             self.assertEqual(module.run_deployment_processes(10000, "mailpit"), 1)
         self.assertEqual(len(children), 3)
         self.assertTrue(all(c.reaped for c in children))
@@ -194,13 +240,19 @@ class TestMailboxProcesses(unittest.TestCase):
         module = self.module()
         child = SimpleNamespace(poll=lambda: None)
         from unittest.mock import Mock
+
         child.terminate, child.wait, child.kill = Mock(), Mock(), Mock()
-        with patch.object(module.subprocess, "Popen", return_value=child), \
-                patch.object(module, "wait_until_ready", side_effect=TimeoutError), \
-                patch.dict(os.environ, {
+        with (
+            patch.object(module.subprocess, "Popen", return_value=child),
+            patch.object(module, "wait_until_ready", side_effect=TimeoutError),
+            patch.dict(
+                os.environ,
+                {
                     "AMBUSYNC_TEST_MAILBOX_PASSWORD_HASH": HASH,
                     "FRONTEND_BASE_URL": "https://synthetic.onrender.com",
-                }):
+                },
+            ),
+        ):
             self.assertEqual(module.run_deployment_processes(10000, "mailpit"), 1)
         self.assertTrue(child.terminate.called)
         self.assertTrue(child.wait.called)
@@ -209,8 +261,11 @@ class TestMailboxProcesses(unittest.TestCase):
         from django.test import RequestFactory, override_settings
 
         from config.health import ready
-        with override_settings(AMBUSYNC_MAIL_MODE="mailpit"), \
-                patch("config.test_mailbox.capture_services_ready", return_value=False):
+
+        with (
+            override_settings(AMBUSYNC_MAIL_MODE="mailpit"),
+            patch("config.test_mailbox.capture_services_ready", return_value=False),
+        ):
             response = ready(RequestFactory().get("/health/ready/"))
         self.assertEqual(response.status_code, 503)
 
@@ -221,13 +276,21 @@ class TestMailboxProcesses(unittest.TestCase):
         module = self.module()
         old = signal.getsignal(signal.SIGTERM)
         child = SimpleNamespace(poll=lambda: None, terminate=Mock(), wait=Mock(), kill=Mock())
-        with patch.object(module.subprocess, "Popen", return_value=child), \
-                patch.object(module, "wait_until_ready",
-                             side_effect=lambda *_: signal.raise_signal(signal.SIGTERM)), \
-                patch.dict(os.environ, {
+        with (
+            patch.object(module.subprocess, "Popen", return_value=child),
+            patch.object(
+                module,
+                "wait_until_ready",
+                side_effect=lambda *_: signal.raise_signal(signal.SIGTERM),
+            ),
+            patch.dict(
+                os.environ,
+                {
                     "AMBUSYNC_TEST_MAILBOX_PASSWORD_HASH": HASH,
                     "FRONTEND_BASE_URL": "https://synthetic.onrender.com",
-                }):
+                },
+            ),
+        ):
             self.assertEqual(module.run_deployment_processes(10000, "mailpit"), 0)
         self.assertTrue(child.terminate.called)
         self.assertTrue(child.wait.called)
