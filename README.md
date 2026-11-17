@@ -1,9 +1,14 @@
 # AmbuSync
 
-**L — preparación local, sin despliegue:** imagen no-root y arranque protegido,
-BrevoHTTPS/cuota persistente y copia local cifrada con guardias. Seis tareas
-verificadas, revisión independiente realizada y hallazgo corregido con TDD;
-operaciones remotas y aceptaciónL pendientes.
+**Buzón de pruebas opcional: preparado localmente, aún no desplegado.**
+Mailpitrealprivado permite probar activaciones/recuperaciones sin correoexterno;
+mensajesefímeros y credencialtécnicaindependiente.
+Ver [evidencia y límites](docs/PRUEBAS_BUZON_PRUEBAS.md).
+
+**L — primer despliegue sintético verificado: https://ambusync-pilot.onrender.com/**.
+Imagen no-root y arranque protegido; seis tareas locales verificadas y revisión
+independiente realizada con hallazgo corregidoTDD. Aprovisionamiento inicial,
+correo, pruebas autenticadas/dispositivos, respaldo real y aceptaciónL pendientes.
 Ver [pruebasL](docs/PRUEBAS_L.md) y [runbookL](docs/DESPLIEGUE_L.md).
 Solo datos sintéticos, costo estricto$0.
 
@@ -25,8 +30,8 @@ El desarrollo local continúa en `feature/pilot-completion` desde `main` `4091db
 [ejecución CI del 11/11](https://github.com/pasaldo/ambusync/actions/runs/43010182166) aprobó
 backend, frontend y secretos. El [plan aprobado](docs/superpowers/plans/2026-11-12-pilot-completion.md)
 separa integridad/sesiones, flujos pendientes, PWA, preparación Render y aceptación final.
-La PWA K fue aprobada posteriormente; el despliegue sigue pendiente. No hay
-servicio clínico ni entorno L publicado.
+La PWA K fue aprobada posteriormente y el primer despliegue sintético L se verificó
+el17/11/2026. No hay servicio autorizado para uso clínico.
 Los avances locales y límites del bloque A se registran en [ETAPA_1](docs/ETAPA_1.md).
 
 > Transmite la información clínica del paciente desde la **ambulancia** al **servicio de

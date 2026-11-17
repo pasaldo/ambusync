@@ -1,6 +1,11 @@
 # Guía de desarrollo y contribución
 
-## Preparación L — local, remoto pendiente
+## Preparación L — local verificado y primer despliegue sintético
+
+PrimerdeployFree verificado17/11/2026 en **https://ambusync-pilot.onrender.com/**,
+SHA`c07faec`, autodeployOff. Solo schema/base nueva y smoke anónimo autorizados;
+aprovisionamiento inicial/correo/pruebas autenticadas/dispositivos y aceptación
+pendientes. No confundir las suites locales con nuevas suitesCIremotas.
 
 Diseño/plan aprobados; imagen real y arranque verificados en DockerLinux sin
 infraestructura externa. Ver [PRUEBAS_L](PRUEBAS_L.md),

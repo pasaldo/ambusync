@@ -2,8 +2,10 @@
 
 Estado17/11/2026: seis tareas implementadas/verificadas localmente; revisión
 independiente realizada y hallazgo importante corregido mediante RED→GREEN.
-**L no está aceptado ni desplegado.**
+**L no está aceptado; primer despliegue Render verificado posteriormente.**
 Sin correo externo, backups/restores reales o migraciones de desarrollo.
+Ver [runbook](DESPLIEGUE_L.md) para autorizaciones/creación/estadoLive y evidencia
+remota, separada de las suites locales siguientes.
 
 **Revisión independiente:** un hallazgo importante, sin críticos ni menores:
 overrides libpq podían cambiar destino conservando el hostname declarado.
@@ -75,6 +77,14 @@ entrega/remitente reales, deployHTTPS/WSS/Android/reinicio/frío, copia local re
 restoreaislado y rollback. Resolver controlR2$0 antes de nuevas subidas.
 Externo pendiente bloquea cierreL. Aceptación explícita requerida; M separado.
 No publicar claves/direcciones privadas/cuerpos/enlaces/dumps/sesiones/tokens.
+
+**Actualizaciónremota17/11:** verificadosHobby/sintarjeta/límitetbuild$0, conexión
+GitHubsoloambusync, PGFree17/KeyValueFree/OregonAvailable y WebServiceFreeLive
+en `https://ambusync-pilot.onrender.com/`, fuenteSHA`c07faec`.
+Health200/SPA200/manifest-worker-icon200/API401-404/CSRFcookieSecure y
+WSSanónimo403 conTLSverificado. Arranque alcanzóDaphne tras gate de migraciones;
+sin inspecciónSQL independiente de esquema. No login/cuentas/correo real/WS
+autenticado/Android/backuprestore/R2cost$0/aceptación acreditados.
 
 ## Decisiones de revisión y límites de evidencia
 

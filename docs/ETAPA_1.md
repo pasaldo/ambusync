@@ -1,5 +1,25 @@
 # Etapa 1 — backend local mínimo
 
+**Buzón de pruebas opcional preparado localmente17/11/2026:** Mailpitreal+
+Caddyprivado enmismaimagen,no-root/loopback,sinenvíosexternos,capturasefímeras;
+modoBrevo predeterminado conservado. Reenvíoprimeradmininstitucionalpendiente
+desde system_admin,sincambiarcorreos/grants;UI muestra falloactivaciónconfields{}.
+Backend386:385PASS/1skipWindows;frontend18scriptsPASS;imagenreal captura/
+activación/login/recuperación/reinicio/reenvío/seguridad PASS. Revisiónindependiente
+final ypromociónremota aún pendientes. Noarranque serviciosdev ni cambiosRender.
+Ver [evidencia](PRUEBAS_BUZON_PRUEBAS.md).
+
+**Primer despliegue sintético Render verificado —17/11/2026:** sitio
+**https://ambusync-pilot.onrender.com/**, WebFreeDocker/Oregon/autodeployOff desde
+SHA`c07faec`, junto a PG17Free y KeyValueFree/OregonAvailable. Creación, variables
+privadas, migración exclusivamente a DBnueva`ambusync_pilot` y primerdeploy fueron
+autorizados posteriormente. Live/health200/SPA-recursos200/API401-404/CSRFSecure/
+WSSanónimo403 verificados, sin afirmar WSautenticado ni SQLindependiente de esquema.
+BillingHobby/sintarjeta/3servicios/totalmes-proyección$0. Sin cuentas nuevas/correo
+real/Android/backuprestore/R2costo$0/aceptaciónL/M. Ver [runbook](DESPLIEGUE_L.md).
+Este estado sustituye los pendientes de creación/deploy históricos siguientes,
+no los pendientes de aprovisionamiento, pruebas completas y aceptación.
+
 **L preparado/verificado localmente; remoto/aceptación pendientes
 —17/11/2026:** plan y modalidad inlineTDD+una revisión independiente aprobados.
 Seis tareas verificadas: perfilHTTP/SPA/salud, BrevoHTTPS/cuotaoperativa persistente,

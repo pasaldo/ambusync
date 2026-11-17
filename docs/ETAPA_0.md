@@ -1,5 +1,14 @@
 # Etapa 0 — alcance, reglas y base de ingeniería
 
+**Excepción aprobada para piloto sintético17/11/2026 — buzón de pruebas:**
+responsable eligióMailpitrealprivado enRender,aceptócapturasefímeras y aprobó
+diseño/plan. Cambia temporalmente elcanaldemostrativoD-008:activación/recuperación
+mediante mensajes capturados, no entregaexterna.Nocambia contraseña15–128,
+plazos24h/30min,unuso,sesiones,roles ni prohibicióndedatosreales.
+Accesooperadortécnicoindependiente aTODOS los enlaces sintéticos, no permiso
+clínico de system_admin. Implementación local no equivale apublicación/deploy/
+aceptaciónL;ver [pruebas](PRUEBAS_BUZON_PRUEBAS.md).
+
 **Aclaración H posterior a `2dda7cd`:** el responsable solicita conservar el Archivo de Urgencias para cuentas Urgencias normales y administración+Urgencias, coexistiendo con Auditoría administrativa. Archivo/detalle básico requieren Urgencias del destino activo, sin `view_reports`; informes/resúmenes mantienen ese permiso adicional y auditoría mantiene `institution_admin`. Sustituye la elección previa «Restringir histórico» solo en ese acceso básico. Corrección local en verificación, sin ampliar ámbitos ni autorizar publicación/I/J. Guía vigente: [PRUEBAS_CORRECCION_H.md](PRUEBAS_CORRECCION_H.md).
 
 **Cierre técnico de la corrección:** backend249/249; frontend38unit+12H+15G+12F+6E+30integridad+3correcciones y todas regresiones/checks/tipos/build/Mermaid/PSrestore dobles PASS. Revisión independiente sin hallazgos accionables; manual pendiente. No acredita dispositivos reales/CIremota/restore real/despliegue.
