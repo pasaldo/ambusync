@@ -1,45 +1,40 @@
-# AmbuSync
+# AmbuSync â€” Piloto SintÃ©tico Desplegado
 
-## Continuidad del proyecto — Nota 3
+**Punto 0 â€” Estado del piloto L (aprobado):**
+El punto **L se encuentra aprobado**. El piloto estÃ¡ desplegado en Render bajo `https://ambusync-pilot.onrender.com/` (Web Service Docker Free, Oregon, `autodeploy` Off), con datos sintÃ©ticos exclusivamente y costo estricto **$0**. El buzÃ³n de pruebas Mailpit estÃ¡ activo bajo `/buzon-pruebas/` con credencial tÃ©cnica independiente (`operador`). No estÃ¡ autorizado para atenciÃ³n clÃ­nica real.
 
-Repositorio de trabajo independiente: **[pasaldo/ambusync](https://github.com/pasaldo/ambusync)** (privado).
-Se conserva el historial del [prototipo original](https://github.com/brypro/ambusync).
-El diagnóstico, las pruebas iniciales y el plan de evolución están en
-**[docs/ANALISIS_INICIAL.md](docs/ANALISIS_INICIAL.md)**.
-La definición de alcance, reglas y tareas de preparación se encuentra en
-**[docs/ETAPA_0.md](docs/ETAPA_0.md)**; contiene decisiones confirmadas y propuestas pendientes de aprobación.
-La preparación reproducible del frontend, el flujo de revisión y el checklist de cierre están en
-**[docs/GUIA_DESARROLLO.md](docs/GUIA_DESARROLLO.md)**.
-La aplicación sigue siendo un prototipo de demostración, no un sistema clínico productivo.
+---
 
-> Transmite la información clínica del paciente desde la **ambulancia** al **servicio de
-> urgencia** en tiempo real, para que el hospital anticipe la recepción y prepare recursos
-> antes del arribo.
+## 1. Resumen del piloto
 
-AmbuSync es una **web app mobile-first** que en escritorio se muestra dentro de un *marco de
-teléfono* (device shell) para emular una app nativa. Incluye módulos separados por rol:
+AmbuSync es un prototipo sintÃ©tico de traslado clÃ­nico entre una unidad de ambulancia y un servicio de urgencias, operando entre dispositivos mediante HTTPS. El punto **L (primer despliegue sintÃ©tico)** estÃ¡ aprobado y desplegado en Render:
 
-- **Paramédico (ambulancia)** — captura del paciente. Modo claro, controles grandes (uso con guantes).
-- **Urgencias (hospital)** — tablero de pacientes entrantes. Modo oscuro tipo monitor, lectura de un vistazo.
-- **Administración global** — gestión del directorio institucional, sin acceso a episodios ni permisos clínicos.
+- **URL del piloto:** `https://ambusync-pilot.onrender.com/`
+- **Plataforma:** Render Web Service Docker Free, regiÃ³n Oregon, 0.1 CPU / 512 MiB, autodeploy desactivado.
+- **Costo:** $0 mensual (plan Hobby sin tarjeta, sin add-ons, sin segundo servicio).
+- **Datos:** exclusivamente sintÃ©ticos; ficticios son aceptables con el buzÃ³n de pruebas.
+- **AutenticaciÃ³n:** sesiÃ³n de Django; las rutas `/ambulancia` y `/urgencias` son un simulador demo separado del backend; `/local` y `/sistema` integran el flujo de emergencias y administraciÃ³n institucional.
+- **BuzÃ³n de pruebas:** Mailpit real + proxy Caddy dentro del mismo contenedor Web Free, acceso independiente bajo `/buzon-pruebas/` con usuario `operador` y contraseÃ±a privada (bcrypt costo 12). Los mensajes se capturan localmente; no hay entrega de Internet, relay, forwarding ni webhook.
+- **GeocodificaciÃ³n:** Geoapify desde el backend Ãºnicamente para direcciones institucionales, timeout total de 10 segundos, cuota 100 intentos/dÃ­a UTC, sin reintentos automÃ¡ticos.
+- **Estado:** Live. Salud `live/` y `ready/` devuelven 200 JSON. SPA, manifest, service worker y recursos estÃ¡ticos devuelven 200. CSRF con cookie Secure SameSite=Lax. BuzÃ³n y API de mensajes rechazan solicitudes sin credenciales Basic (401).
 
-El MVP demuestra el flujo completo **capturar → transmitir → recibir** con datos de demo.
+**No estÃ¡ autorizado:** uso clÃ­nico real, correo externo real, backups reales, restauraciÃ³n, alta disponibilidad, o dispositivos mÃ³viles fÃ­sicos sin aceptaciÃ³n separada.
+
+---
 
 ## Muestras del funcionamiento
 
-Capturas de las vistas locales de ambulancia, Urgencias y administración global. Todas usan un
-mock con datos sintéticos; no representan sesiones ni datos leídos de un backend real.
+Capturas de las vistas locales de ambulancia, Urgencias y administraciÃ³n global. Todas usan un mock con datos sintÃ©ticos; no representan sesiones ni datos leÃ­dos de un backend real.
 
-### 1. Ingreso a la aplicación
+### 1. Ingreso a la aplicaciÃ³n
 
 <p align="center">
-  <img src="docs/screenshots/01-inicio-sesion.png" alt="Inicio de sesión AmbuSync" width="420" />
+  <img src="docs/screenshots/01-inicio-sesion.png" alt="Inicio de sesiÃ³n AmbuSync" width="420" />
 </p>
 
 ### 2. Portal local de ambulancia
 
-La vista actual permite ingresar una emergencia desde el portal local, muestra la unidad
-asignada y previsualiza los signos vitales que verá Urgencias al confirmar.
+La vista actual permite ingresar una emergencia desde el portal local, muestra la unidad asignada y previsualiza los signos vitales que verÃ¡ Urgencias al confirmar.
 
 <table>
   <tr>
@@ -56,8 +51,7 @@ asignada y previsualiza los signos vitales que verá Urgencias al confirmar.
 
 ### 3. Portal local de Urgencias
 
-La bandeja actual ordena los episodios, muestra triage y signos vitales directamente,
-permite registrar la llegada desde la tarjeta y conserva un archivo filtrable.
+La bandeja actual ordena los episodios, muestra triage y signos vitales directamente, permite registrar la llegada desde la tarjeta y conserva un archivo filtrable.
 
 <table>
   <tr>
@@ -65,95 +59,189 @@ permite registrar la llegada desde la tarjeta y conserva un archivo filtrable.
     <td align="center"><img src="docs/screenshots/09-llegada-registrada.png" alt="Llegada registrada desde la tarjeta" width="340" /><br/><sub>Llegada desde la bandeja</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/10-administracion-cuentas.png" alt="Administración de cuentas" width="340" /><br/><sub>Administración: crear cuentas</sub></td>
-    <td align="center"><img src="docs/screenshots/11-administracion-historial.png" alt="Historial de cuentas administradas" width="340" /><br/><sub>Historial y asignación de unidades</sub></td>
+    <td align="center"><img src="docs/screenshots/10-administracion-cuentas.png" alt="AdministraciÃ³n de cuentas" width="340" /><br/><sub>AdministraciÃ³n: crear cuentas</sub></td>
+    <td align="center"><img src="docs/screenshots/11-administracion-historial.png" alt="Historial de cuentas administradas" width="340" /><br/><sub>Historial y asignaciÃ³n de unidades</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/12-administracion-unidades.png" alt="Gestión de unidades de ambulancia" width="340" /><br/><sub>Unidades de ambulancia</sub></td>
+    <td align="center"><img src="docs/screenshots/12-administracion-unidades.png" alt="GestiÃ³n de unidades de ambulancia" width="340" /><br/><sub>Unidades de ambulancia</sub></td>
   </tr>
 </table>
 
-### 4. Administración global de instituciones
+### 4. AdministraciÃ³n global de instituciones
 
-El rol global exclusivo de administración lista instituciones activas e inactivas, permite editar
-sus datos y conservarlas mediante baja lógica. El alta crea una institución Operadora y Receptora
-que administra sus propias unidades, junto con una primera
-cuenta de Urgencias con administración institucional, pendiente de activar por correo local.
+El rol global exclusivo de administraciÃ³n lista instituciones activas e inactivas, permite editar sus datos y conservarlas mediante baja lÃ³gica. El alta crea una instituciÃ³n Operadora y Receptora que administra sus propias unidades, junto con una primera cuenta de Urgencias con administraciÃ³n institucional, pendiente de activar por correo local.
 
 <p align="center">
-  <img src="docs/screenshots/13-administracion-global-instituciones.png" alt="Panel global de administración de instituciones sintéticas" width="720" />
+  <img src="docs/screenshots/13-administracion-global-instituciones.png" alt="Panel global de administraciÃ³n de instituciones sintÃ©ticas" width="720" />
 </p>
 
-> Las capturas se regeneran con `npm run shots` y muestran vistas de `/local` y `/sistema` con el mock
-> sintético (requiere Vite activo en `:5173`); no representan datos de producción ni el simulador demo.
+> Las capturas se regeneran con `npm run shots` y muestran vistas de `/local` y `/sistema` con el mock sintÃ©tico (requiere Vite activo en `:5173`); no representan datos de producciÃ³n ni el simulador demo.
 
-## Stack
+---
 
-- **React + Vite + TypeScript**
+## 2. Stack
+
+### Frontend
+- **React + Vite + TypeScript** (Node 24.20.0, npm 11.19.0)
 - **TailwindCSS** (design tokens), **lucide-react** (iconos), **framer-motion** (animaciones)
-- **Zustand** (estado global), **React Router** (`/ambulancia` y `/urgencias`)
+- **Zustand** (estado global), **React Router** (`/ambulancia`, `/urgencias`, `/local`, `/sistema`)
 - Fuentes: **Hanken Grotesk** (UI) + **JetBrains Mono** tabular (vitales/ETA)
 
-El ingreso comienza con autenticación de cuenta en Django. Tras iniciar sesión, `/local` muestra
-el módulo permitido por los grupos de esa cuenta; no se selecciona libremente una identidad.
-La administración global se provisiona localmente mediante comando controlado y accede solo a `/sistema`.
-Las cuentas con administración institucional pueden crear usuarios dentro de su establecimiento,
-asignar permisos operativos delegables y vincular operadores a unidades existentes; la activación
-requiere que cada persona defina su propia contraseña mediante correo local.
-Las rutas del simulador también requieren sesión, pero sus casos de ejemplo siguen separados de
-los episodios del backend.
+### Backend
+- **Django / Django REST Framework**
+- **PostgreSQL 17** (Render Free, base `ambusync_pilot`, SSL `require`)
+- **Valkey** (protocolo Redis, Render Free, loopback vÃ­a Daphne)
+- **Daphne** (ASGI, loopback puerto 8000)
+- **Caddy** (proxy inverso y servidor del buzÃ³n de pruebas, mismo contenedor Web)
 
-El **tiempo real de la demo** se resuelve en el frontend: el store (Zustand) se sincroniza
-**entre pestañas del mismo navegador** vía **BroadcastChannel** con respaldo en **localStorage**.
-Las rutas `/ambulancia` y `/urgencias` conservan esa demo independiente. La ruta `/local` conecta
-la SPA con Django + DRF para crear emergencias y consultar episodios autorizados;
-usa cookie de sesión y no persiste respuestas del backend en `localStorage`. Desde el 11/11/2026,
-`/local` también usa WebSocket autenticado como aviso para refrescar desde la API entre
-dispositivos. Los avisos no son durables: PostgreSQL/API sigue siendo la fuente de verdad. La
-integración está en `main`; no está desplegada y no autoriza uso clínico. Detalles,
-dependencias y pasos de ejecución local: [docs/ETAPA_1.md](docs/ETAPA_1.md) y
-[docs/GUIA_DESARROLLO.md](docs/GUIA_DESARROLLO.md).
+### Correo y ubicaciÃ³n (captura/pruebas)
+- **Mailpit real** (SMTP 1025 / UI 8025) dentro del contenedor Web, solo loopback, expuesta vÃ­a Caddy en `/buzon-pruebas/` con BasicAuth independiente.
+- **Brevo** como modo predeterminado (`AMBUSYNC_MAIL_MODE=brevo` o ausente); modo captura (`mailpit`) activo para el buzÃ³n de pruebas. No hay fallback automÃ¡tico a Brevo desde captura.
+- **Geoapify** (backend Ãºnicamente, direcciones institucionales, timeout 10s, cuota persistente 100/dÃ­a UTC, sin reintentos automÃ¡ticos).
 
-## Estado del piloto local
+### Despliegue
+- **Render Free** (Web Service + PostgreSQL + Key Value), regiÃ³n Oregon, sin dominio comprado, sin CA LAN, listener HTTP accesible solo vÃ­a proxy TLS confiable.
+- **Autodeploy Off.** Despliegues manuales por SHA completo (`Manual Deploy â†’ Deploy a specific commit`).
+- **SHA de despliegue actual:** `456b5c85fc49b9408a4426fd1cce290ef3b7d621` (rama `main`).
 
-La ruta `/local` integra el primer slice de Django/DRF con la SPA. Una cuenta de ambulancia ve su unidad asignada junto a la sesión y puede ingresar episodios con una previsualización de signos vitales. Urgencias dispone de una bandeja priorizada y un archivo filtrable; cada tarjeta muestra triage, signos vitales y permite confirmar la llegada sin abrir el detalle. La vista demo `/ambulancia` y `/urgencias` continúa separada de estos datos del backend.
+---
 
-Los colores y rangos de signos vitales son exclusivamente una ayuda visual para datos sintéticos del piloto; no constituyen reglas clínicas ni autorización de atención real.
+## 3. Arquitectura
 
-La integración WebSocket (rama `feature/websocket-integration`, integrada en `main` el 11/11/2026 por
-solicitud expresa del responsable) se verificó localmente con dos dispositivos según la comprobación
-reportada; no se ha ejecutado CI remoto ni existe despliegue. La documentación y el código no
-autorizan uso clínico. GPS, cambio de destino, recuperación administrativa, informes, operación
-continua de copias/restauración y decisiones de hosting siguen pendientes.
+El piloto despliega una **SPA React** que consume una **API Django/DRF** autorizada. La arquitectura operativa es la siguiente:
 
-## Cómo correrlo
+```
+Navegador (HTTPS)
+    â”‚
+    â–¼
+Render Web Service (Docker Free, Oregon)
+    â”‚
+    â”œâ”€â”€ Caddy (puerto 10000, proxy inverso)
+    â”‚     â”œâ”€â”€ /buzon-pruebas/ â”€â”€â–º Mailpit (SMTP 1025 / UI 8025, loopback)
+    â”‚     â””â”€â”€ /                 â”€â”€â–º Daphne (ASGI, 127.0.0.1:8000, loopback)
+    â”‚                                       â”‚
+    â”‚                               Django / DRF
+    â”‚                                       â”‚
+    â”‚                               PostgreSQL 17 (Render Free, interna)
+    â”‚                                       â”‚
+    â”‚                               Valkey (loopback, avisos de sesiÃ³n)
+    â”‚
+    â””â”€â”€ Backend â”€â”€â–º Geoapify (solo direcciones institucionales, timeout 10s)
+```
 
-El flujo entre dispositivos usa PostgreSQL aislado, Valkey (Redis protocol) local, Daphne/ASGI y
-Vite como proxy HTTP/WebSocket. **Mailpit** solo se
-necesita para probar altas/activaciones de cuentas. No se debe exponer PostgreSQL, Valkey ni Daphne
-a la LAN ni a una red pública; para la prueba desde celular solo Vite escucha en la IP LAN.
+**Principios de diseÃ±o:**
+- **Correo:** modo captura (Mailpit) para pruebas de activaciÃ³n/recuperaciÃ³n; los mensajes son efÃ­meros (100 mensajes / 24h configurados). Las cuentas persisten en PostgreSQL aunque el buzÃ³n se vacÃ­e al reiniciar.
+- **Seguridad:** Daphne y Valkey expuestos solo en loopback; solo Caddy escucha el puerto pÃºblico. Cookies de sesiÃ³n `Secure` y `SameSite=Lax`; CSRF token vÃ¡lido. Acceso al buzÃ³n tÃ©cnico (`operador`) independiente de la sesiÃ³n de Django.
+- **WebSocket:** usado como aviso para refrescar desde la API; PostgreSQL/HTTP siguen siendo la autoridad. No hay shell duradero.
+- **Sin datos clÃ­nicos reales:** solo sintÃ©ticos; no se introduce informaciÃ³n personal ni de pacientes reales.
 
-Requiere **Python 3.14.10**, `uv`, **Node.js 24.20.0**, **npm 11.19.0** y el backend local
-configurado según [docs/ETAPA_1.md](docs/ETAPA_1.md). Node está fijado en `.nvmrc`, Python en
-`.python-version` y npm en `frontend/package.json`.
+---
 
-### 1. Preparar dependencias y secretos locales
+## 4. Modelo de datos (resumen)
 
-Desde la raíz del repositorio, instala las dependencias del backend y frontend. El archivo
-`backend/.env` debe existir con `DATABASE_URL`, `DJANGO_SECRET_KEY` y los demás valores locales;
-no lo copies al repositorio ni compartas sus secretos.
+El modelo de backend incluye (no es el schema completo):
 
+| Entidad | PropÃ³sito |
+|---------|-----------|
+| `Institution` | Operadora, receptora o ambas (`combined`). |
+| `Ambulance` / `AmbulanceAssignment` | Unidades de ambulancia y asignaciones a cuentas de ambulancia. |
+| `Emergency` | Episodio de traslado con hitos (notificada, en_traslado, llegado, cerrada/cancelada). |
+| `Patient` / `VitalMeasurement` | Paciente sintÃ©tico y mediciones seriadas (originales inmutables, rectificaciÃ³n encadenada). |
+| `AccountActivation` | InvitaciÃ³n de activaciÃ³n, 24 horas, un uso. |
+| `IdentityRecoveryCase` / `PasswordRecovery` / `RecoveryContact` | Flujo de recuperaciÃ³n de cuenta. |
+| `AuditEvent` / `SessionRevocationEvent` | AuditorÃ­a (plazo 12 meses) y revocaciÃ³n de sesiones. |
+| `GeocodingLookup` / `GeocodingQuota` | CachÃ© y cuota de geocodificaciÃ³n institucional. |
+
+**Reglas clave:**
+- Una cuenta de ambulancia opera solo sobre su unidad asignada activa.
+- Un episodio pertenece a una instituciÃ³n receptora; el receptor consulta solo sus episodios dirigidos.
+- Cambio de destino antes de recepciÃ³n: cancelaciÃ³n atÃ³mica del episodio original y creaciÃ³n de reemplazo vinculado, sin heredar hitos ni acceso del receptor.
+- RetenciÃ³n: aplicaciÃ³n hasta 90 dÃ­as tras cierre formal; auditorÃ­a 12 meses tras cierre; logs tÃ©cnicos 30 dÃ­as.
+
+---
+
+## 5. Estructura del repositorio
+
+```
+ambusync/
+â”œâ”€â”€ backend/                 # Django/DRF: accounts, institutions, emergencies, audit, reports, config
+â”œâ”€â”€ frontend/                # React + Vite + TypeScript (SPA, PWA, scripts de prueba)
+â”œâ”€â”€ ops/
+â”‚   â”œâ”€â”€ deploy/              # Scripts y tests de despliegue contenedor (Mailpit, Caddy, smoke)
+â”‚   â””â”€â”€ backups/             # Pruebas de guarda de respaldo (dobles, sin red ni restauraciÃ³n real)
+â”œâ”€â”€ docs/                    # Etapas, planes, pruebas, evidencias, decisiones (ETAPA_0, ETAPA_1, DESPLIEGUE_L, etc.)
+â”œâ”€â”€ Dockerfile               # Imagen no-root, UID 10001, sin herramientas de compilaciÃ³n en runtime
+â”œâ”€â”€ .dockerignore
+â”œâ”€â”€ backend/pyproject.toml / uv.lock
+â””â”€â”€ frontend/package.json / package-lock.json
+```
+
+**Nota:** `backend/.env` y los secretos de Render **no** se versionan ni comparten por chat.
+
+---
+
+## 6. Calidad
+
+| Ãrea | Estado |
+|------|--------|
+| Backend | 388 tests (387 PASS / 1 skip Windows por symlink), `ruff check`, `makemigrations --check`, `openapi-spec-validator`, `pip-audit` |
+| Frontend | 18 scripts de prueba, `tsc --noEmit` (lint), diagramas Mermaid vÃ¡lidos (3/3) |
+| Imagen contenedora | No-root (UID 10001), sin file capabilities innecesarias, sin herramientas de compilaciÃ³n, sin `.env` ni `.git` en el artefacto |
+| Recursos | LÃ­mite Docker 512 MiB / 0.1 CPU; muestras 179.3 / 220.6 / 163.9 MiB; CPU instantÃ¡nea 0.10 / 0.13 / 0.10 % |
+| Seguridad | CSP restrictiva, herramientas de diagnÃ³stico de Mailpit bloqueadas, acceso al buzÃ³n solo con BasicAuth |
+
+---
+
+## 7. Estado del piloto desplegado (punto L aprobado)
+
+| Componente | Estado |
+|------------|--------|
+| Despliegue en Render | âœ… Live, SHA `456b5c85fc49b9408a4426fd1cce290ef3b7d621` |
+| Salud `live/` / `ready/` | âœ… 200 JSON `{"status": "ok"}` |
+| SPA / recursos estÃ¡ticos | âœ… 200 |
+| API desconocida | âœ… 404 sin shell HTML |
+| CSRF | âœ… Cookie Secure / SameSite=Lax |
+| BuzÃ³n de pruebas | âœ… 401 sin credenciales Basic, independiente de sesiÃ³n Django |
+| ActivaciÃ³n / recuperaciÃ³n | âœ… Capturadas en Mailpit (un uso, 24h / 30 min, sin autologin) |
+| GeocodificaciÃ³n | âœ… Timeout 10s, consulta real verificada con direcciÃ³n institucional |
+| Correo externo real | âŒ No autorizado / pendiente |
+| AceptaciÃ³n L completa | âœ… Aprobada (punto L aprobado, despliegue Live verificado) |
+| Backups / restauraciÃ³n real | âŒ Pendiente (dobles locales solo) |
+| GPS / cambio de destino | âŒ Pendiente (diseÃ±o aprobado, no implementado) |
+
+---
+
+## 8. Desarrollo local
+
+Esta secciÃ³n explica cÃ³mo levantar el proyecto completo en tu mÃ¡quina para desarrollo y pruebas locales. Usa datos sintÃ©ticos y no se conecta al despliegue de Render.
+
+### Requisitos previos
+- Python 3.14.10 y `uv` 0.11.26
+- Node.js 24.20.0 y npm 11.19.0
+- PostgreSQL 18.6 (instalaciÃ³n local de AmbuSync en `C:\Users\pablo\AppData\Local\AmbuSync\postgresql-18.6-binaries\`)
+- Valkey en WSL (Ubuntu)
+- Docker Desktop (opcional, solo para pruebas de contenedor)
+
+### Paso 1: Instalar dependencias
+
+Desde la raÃ­z del repositorio (`ambusync/`):
+
+Backend:
 ```powershell
 uv sync --directory backend --locked --all-groups
+```
+
+Frontend:
+```powershell
 Set-Location frontend
 npm ci
 npx playwright install chromium
+Set-Location ..
 ```
 
-### 2. Iniciar PostgreSQL aislado
+### Paso 2: Iniciar PostgreSQL aislado
 
-Usa el clúster de desarrollo de AmbuSync en `127.0.0.1:55432`; no uses ni modifiques el
-servicio PostgreSQL preexistente en `5432`.
+Usa el clÃºster de desarrollo de AmbuSync en `127.0.0.1:55432`. No uses ni modifiques el servicio PostgreSQL preexistente en `5432`.
 
 ```powershell
 $pgBin = "$env:LOCALAPPDATA\AmbuSync\postgresql-18.6-binaries\pgsql\bin"
@@ -162,41 +250,37 @@ $dataDir = "$env:LOCALAPPDATA\AmbuSync\postgres-dev-18.6"
 & "$pgBin\pg_isready.exe" -h 127.0.0.1 -p 55432
 ```
 
-### 3. Preparar la base y cuentas sintéticas
+### Paso 3: Preparar la base y cuentas sintÃ©ticas
 
-Ejecuta migraciones y crea las instituciones, unidad y cuentas de prueba. `seed_synthetic`
-solicita las contraseñas de forma oculta y no imprime credenciales.
+Ejecuta migraciones y crea las instituciones, unidad y cuentas de prueba. `seed_synthetic` solicita las contraseÃ±as de forma oculta y no imprime credenciales.
 
 ```powershell
 uv run --directory backend python manage.py migrate
 uv run --directory backend python manage.py seed_synthetic
 ```
 
-### 4. Iniciar Valkey local (WSL)
+### Paso 4: Iniciar Valkey local (WSL)
 
-La línea WebSocket requiere Valkey y `VALKEY_URL` en el `backend/.env` local. En este equipo Valkey
-escucha solo por loopback. Mantén WSL activo durante la prueba; los pasos completos de instalación
-y comprobación están en [ETAPA_1.md](docs/ETAPA_1.md#valkey-local-en-wsl).
+La lÃ­nea WebSocket requiere Valkey y `VALKEY_URL` en el `backend/.env` local. En este equipo Valkey escucha solo por loopback. MantÃ©n WSL activo durante la prueba.
 
 ```powershell
-wsl -d Ubuntu -- bash -lc "sudo systemctl start valkey-server && exec sleep infinity"
+wsl -d Ubuntu -- bash -lc "sudo -n systemctl start valkey-server && exec sleep infinity"
 ```
 
-Deja ese comando ejecutándose en una terminal. En otra, comprueba que Valkey devuelve `PONG`:
-
+En otra terminal, comprueba que Valkey devuelve `PONG`:
 ```powershell
 wsl -d Ubuntu -- valkey-cli -h 127.0.0.1 -p 6379 ping
 ```
 
-### 5. Iniciar Daphne/ASGI
+### Paso 5: Iniciar Daphne/ASGI
 
-En otra terminal desde la raíz, usa Daphne (no `manage.py runserver`) para servir HTTP y WebSocket:
+En otra terminal desde la raÃ­z, usa Daphne (no `manage.py runserver`) para servir HTTP y WebSocket:
 
 ```powershell
 uv run --directory backend daphne -b 127.0.0.1 -p 8000 config.asgi:application
 ```
 
-### 6. Iniciar el frontend
+### Paso 6: Iniciar el frontend
 
 En otra terminal:
 
@@ -205,28 +289,19 @@ cd frontend
 npm run dev -- --host 127.0.0.1
 ```
 
-Abre <http://127.0.0.1:5173> e inicia sesión con una cuenta sintética. Para probar desde otro
-dispositivo, sigue los pasos LAN de [ETAPA_1.md](docs/ETAPA_1.md): Vite debe enlazarse a la IP LAN
-del PC, mientras Daphne y Valkey permanecen en loopback. El login abre `/local` y muestra el módulo
-permitido por los grupos de la cuenta. Las rutas `/ambulancia` y `/urgencias` son el simulador demo
-separado y también requieren sesión.
+Abre <http://127.0.0.1:5173> e inicia sesiÃ³n con una cuenta sintÃ©tica. Para probar desde otro dispositivo, sigue los pasos LAN de ETAPA_1.md: Vite debe enlazarse a la IP LAN del PC, mientras Daphne y Valkey permanecen en loopback. El login abre `/local` y muestra el mÃ³dulo permitido por los grupos de la cuenta. Las rutas `/ambulancia` y `/urgencias` son el simulador demo separado y tambiÃ©n requieren sesiÃ³n.
 
-### 7. Mailpit para activaciones locales
+### Paso 7: Mailpit para activaciones locales
 
-**Mailpit es obligatorio para probar la creación, activación o reenvío de cuentas desde
-Administración.** Inícialo antes de realizar esas operaciones. El backend usa SMTP local en
-`127.0.0.1:1025` y su interfaz web habitual está en <http://127.0.0.1:8025>, donde se consultan
-los mensajes sintéticos y sus enlaces de activación. La configuración actual no envía correos
-externos. Solo puede omitirse Mailpit si se ejecutan exclusivamente los flujos que no crean ni
-activan cuentas.
+Mailpit es obligatorio para probar la creaciÃ³n, activaciÃ³n o reenvÃ­o de cuentas desde AdministraciÃ³n. InÃ­cialo antes de realizar esas operaciones. El backend usa SMTP local en `127.0.0.1:1025` y su interfaz web estÃ¡ en <http://127.0.0.1:8025>, donde se consultan los mensajes sintÃ©ticos y sus enlaces de activaciÃ³n. La configuraciÃ³n actual no envÃ­a correos externos. Solo puede omitirse Mailpit si se ejecutan exclusivamente los flujos que no crean ni activan cuentas.
 
 ```powershell
-# Reemplaza la ruta por la carpeta real donde está instalado mailpit.exe.
+# Reemplaza la ruta por la carpeta real donde estÃ¡ instalado mailpit.exe.
 $env:Path += ";C:\ruta\a\mailpit"
-mailpit.exe --smtp 127.0.0.1:1025 --listen 127.0.0.1:8025
+mailpit.exe --smtp 127.0.0.1:1025 --listen 127.0.0.1:8025 --webroot buzon-pruebas --database mailpit.sqlite3 --max 100 --max-age 24h --max-message-size 1 --smtp-max-recipients 1 --disable-version-check --smtp-disable-rdns --block-remote-css-and-fonts --quiet
 ```
 
-### 8. Detener servicios locales
+### Paso 8: Detener servicios locales
 
 Cuando termines el trabajo local:
 
@@ -234,27 +309,23 @@ Cuando termines el trabajo local:
 & "$pgBin\pg_ctl.exe" -D $dataDir -m fast stop
 ```
 
-Detén Daphne y Vite con `Ctrl+C` en sus terminales. Detén la espera que mantiene WSL activo con
-`Ctrl+C`; no deshabilites ni expongas Valkey. Para acceso desde celular, no uses esta instrucción
-de Vite en loopback: sigue el procedimiento seguro de [ETAPA_1.md](docs/ETAPA_1.md#prueba-local-entre-dispositivos).
+DetÃ©n Daphne y Vite con `Ctrl+C` en sus terminales. DetÃ©n la espera que mantiene WSL activo con `Ctrl+C`; no deshabilites ni expongas Valkey. Para acceso desde celular, no uses esta instrucciÃ³n de Vite en loopback: sigue el procedimiento seguro de ETAPA_1.md.
 
 ### Verificaciones
 
 Desde `frontend/`:
-
 ```bash
 npm run lint
 npm run test:unit
 npm run test:local-websocket
 npm run check:diagrams
 npm run test:sync       # requiere Vite activo
-npm run test:accounts   # flujo local con mock sintético
+npm run test:accounts   # flujo local con mock sintÃ©tico
 npm run build
 npm run shots           # actualiza capturas de /local y /sistema; requiere Vite activo
 ```
 
-Desde la raíz:
-
+Desde la raÃ­z:
 ```powershell
 uv run --directory backend python manage.py test
 uv run --directory backend python manage.py check
@@ -264,188 +335,12 @@ uv run --directory backend pip-audit
 uv run --directory backend openapi-spec-validator openapi.json
 ```
 
-## Cómo demostrarlo
+---
 
-**Demo en vivo entre dos ventanas** (lo más vistoso): abre la app en **dos ventanas lado a
-lado** del mismo navegador — una en **Urgencias** (`/urgencias`) y otra en **Paramédico**
-(`/ambulancia`). Captura un paciente en la ambulancia y pulsa **Transmitir al hospital**: el
-caso aparece **en vivo** en el tablero de Urgencias (badge **NUEVO** + countdown corriendo),
-y los cambios de estado (*Aceptar*, *Preparar box*, *Marcar recibido*) se reflejan en ambas.
-Primero inicia sesión en la raíz con una cuenta local; la demo usa el navegador y el backend debe
-estar activo para validar la sesión.
+## 9. Acceso al piloto desplegado
 
-Otras formas de mostrarlo:
+- **AplicaciÃ³n:** `https://ambusync-pilot.onrender.com/` (inicia sesiÃ³n con cuenta sintÃ©tica de instituciÃ³n).
+- **BuzÃ³n de pruebas:** `https://ambusync-pilot.onrender.com/buzon-pruebas/` â†’ usuario `operador`, contraseÃ±a privada definida por el responsable (no compartida por chat ni por herramientas).
+- **Correo:** los mensajes de activaciÃ³n y recuperaciÃ³n se capturan en el buzÃ³n; no hay entrega de Internet.
 
-1. Entra como **Urgencias**: el tablero arranca sembrado con casos de demo (triage variado),
-   con countdowns de ETA vivos. Toca una tarjeta para ver el detalle y las acciones.
-2. Pulsa **Modo demo** (pie del tablero) para que entre un caso crítico guionado y veas la
-   animación de "aterrizaje" + el badge **NUEVO** — ideal para grabar el video en una pantalla.
-
-## Arquitectura
-
-La demo frontend es una **SPA React** que vive en el navegador. El estado global
-(`useCases`, Zustand) actúa como un **bus de tiempo real**: el flujo del paramédico publica un
-`Case` y el tablero de Urgencias, suscrito reactivamente, lo refleja al instante. Ese bus se
-sincroniza **entre pestañas** ([`sync.ts`](frontend/src/store/sync.ts)) con **BroadcastChannel**
-(push) + **localStorage** (persistencia y late-join), así que dos ventanas del mismo navegador
-ven los mismos casos de ejemplo en vivo. El backend local usa su propia API y PostgreSQL; la ruta
-`/local` no conecta con ese store. La sincronización WebSocket entre dispositivos y la edición de
-estados desde la SPA quedan pendientes.
-
-```mermaid
-flowchart LR
-    Login["Inicio de sesión<br/>Django"]
-
-    subgraph Browser["Navegador — SPA React + Vite + Tailwind"]
-        direction LR
-        subgraph Amb["/ambulancia · modo claro"]
-            W["Wizard de captura<br/>paciente · vitales · triage · ETA"]
-            T["Pulso de transmisión"]
-        end
-        Store[("useCases · store Zustand<br/>sync.ts: BroadcastChannel + localStorage")]
-        subgraph ER["/urgencias · modo oscuro"]
-            B["Tablero entrantes<br/>orden por triage + ETA"]
-            D["Detalle + acciones"]
-        end
-    end
-
-    Tab2["Otra pestaña<br/>(mismo navegador)"]
-
-    Login -.->|"sesión requerida"| Amb
-    Login -.->|"sesión requerida"| ER
-    W -->|"addCase()"| Store
-    T -.->|"status: transmitido"| Store
-    Store ==>|"suscripción reactiva<br/>(countdown ETA en vivo)"| B
-    B --> D
-    D -->|"updateStatus()"| Store
-    Store <-.->|"sincroniza en vivo"| Tab2
-
-    subgraph Backend["Backend local — primera rebanada etapa 1"]
-        direction TB
-        API["Django REST Framework"]
-        DB[("PostgreSQL")]
-        API --> DB
-        Portal["/local · módulo según permisos"]
-        API --> Portal
-    end
-
-    Login -->|"autentica y lee grupos"| API
-
-    subgraph Future["Pendiente: tiempo real multi-dispositivo"]
-        WS["Django Channels<br/>WebSocket"]
-    end
-
-    Store -.->|"integración pendiente"| API
-    WS -.->|"push casos / cambios de estado"| Store
-
-    classDef future stroke-dasharray:5 5,opacity:0.75;
-    class Future,WS future;
-```
-
-**Ciclo de vida de un `Case`** — el estado que el objeto recorre desde la captura hasta la recepción:
-
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> capturando: paramédico inicia
-    capturando --> transmitido: Transmitir al hospital
-    transmitido --> aceptado: Aceptar paciente
-    transmitido --> preparando: Preparar box
-    aceptado --> preparando: Preparar box
-    preparando --> recibido: Marcar recibido
-    recibido --> [*]
-```
-
-## Modelo de datos
-
-El objeto central es **`Case`** (`CaseRecord` en [`types.ts`](frontend/src/types.ts)): el
-paquete que "viaja" de la ambulancia a Urgencias. En el MVP, `Patient` y `Vitals` van
-**embebidos** en el caso, y la ambulancia/hospital se guardan denormalizados (`ambulanceCode`,
-`hospitalName`); el triage es un nivel `1..5` resuelto contra la tabla de triage.
-
-```mermaid
-erDiagram
-    CASE ||--|| PATIENT : incluye
-    CASE ||--|| VITALS : incluye
-    CASE }o--|| TRIAGE : clasifica
-    CASE }o--|| AMBULANCE : "transmite desde"
-    CASE }o--|| HOSPITAL : "destino"
-
-    CASE {
-        string id PK
-        string ambulanceCode FK
-        string hospitalName FK
-        int triage "1..5"
-        string status "capturando|transmitido|aceptado|preparando|recibido"
-        number createdAt "epoch ms"
-        int etaMinutes
-        number etaTarget "epoch ms — countdown vivo"
-    }
-    PATIENT {
-        string alias
-        int age
-        string sex "F|M|X"
-        string chiefComplaint
-        array symptoms
-    }
-    VITALS {
-        int hr "FC (lpm)"
-        int bpSys "PA sistólica"
-        int bpDia "PA diastólica"
-        int spo2 "SatO2 (%)"
-        int rr "FR (rpm)"
-        float tempC "Temp (°C)"
-        int glasgow "3..15"
-        number takenAt "epoch ms"
-    }
-    TRIAGE {
-        int level "1..5"
-        string label "Crítico..No urgente"
-        string color "token de color"
-    }
-    AMBULANCE {
-        string code PK "ej. SAMU-12"
-        string status "disponible|en_ruta"
-        string crew
-    }
-    HOSPITAL {
-        string name PK
-    }
-```
-
-## Estructura
-
-```
-ambusync/
-├── frontend/                 # Vite + React + Tailwind (el MVP)
-│   ├── src/
-│   │   ├── components/        # PhoneFrame, VitalsStrip, TriageBadge, EtaCountdown, ui/
-│   │   ├── screens/           # LoginScreen, ambulance/, er/, local/
-│   │   ├── store/             # useCases (Zustand) + sync.ts (BroadcastChannel/localStorage)
-│   │   ├── data/              # triage, vitals, status, seed
-│   │   └── types.ts           # modelo de datos (CaseRecord)
-│   ├── scripts/               # shots.mjs (capturas), check-mermaid.mjs (valida diagramas)
-│   └── tailwind.config.js     # design tokens
-├── docs/screenshots/         # muestras del funcionamiento (este README)
-├── CLAUDE.md                 # contexto persistente
-└── README.md
-```
-
-## Calidad
-
-Responsive desde 360 px, foco de teclado visible, `prefers-reduced-motion` respetado,
-contraste AA y copy en voz activa. El color **codifica gravedad** (triage), no decora; el
-acento cian representa la señal/sincronización en vivo.
-
-## Estado del MVP
-
-| Fase | Descripción | Estado |
-|---|---|---|
-| 0 | Scaffold + design tokens | ✅ |
-| 1 | PhoneFrame + navegación + ingreso centralizado | ✅ |
-| 2 | Flujo del paramédico (wizard + transmisión) | ✅ |
-| 3 | Tablero de Urgencias + tiempo real simulado | ✅ |
-| 4–5 | Backend local Django + DRF + PostgreSQL; WebSocket para avisos en tiempo real | Primera rebanada implementada; WebSocket integrado en `main` el 11/11/2026 (prueba manual PC-celular reportada satisfactoria); sin CI remoto ni despliegue |
-| 6 | Pulido, modo demo y documentación | ✅ |
-
-> Proyecto académico.
+> **Importante:** el piloto usa Ãºnicamente datos sintÃ©ticos y no estÃ¡ autorizado para atenciÃ³n clÃ­nica real. No introduzcas datos personales o clÃ­nicos reales ni presentes funciones planificadas como existentes.
