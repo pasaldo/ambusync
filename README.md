@@ -139,7 +139,37 @@ Render Web Service (Docker Free, Oregon)
 
 ## 4. Modelo de datos (resumen)
 
-El modelo de backend incluye (no es el schema completo):
+El modelo de backend incluye (no es el schema completo). El siguiente diagrama relacional resume las entidades del piloto y sus cardinalidades; no muestra todas las columnas:
+
+```mermaid
+erDiagram
+    USER ||--o{ INSTITUTION_MEMBERSHIP : pertenece
+    USER ||--o{ AMBULANCE_ASSIGNMENT : asignado
+    USER ||--o{ EMERGENCY : interviene
+    USER ||--o{ POSITION : registra
+    USER ||--|| ACCOUNT_ACTIVATION : invitacion
+    USER ||--o{ RECOVERY_CONTACT : declara
+    USER ||--o{ IDENTITY_RECOVERY_CASE : recupera
+    USER ||--o{ PASSWORD_RECOVERY : restablece
+    USER ||--o{ AUDIT_EVENT : ejecuta
+    USER ||--o{ SESSION_REVOCATION_EVENT : revoca
+    INSTITUTION ||--o{ INSTITUTION_MEMBERSHIP : tiene
+    INSTITUTION ||--o{ AMBULANCE : opera
+    INSTITUTION ||--o{ SYMPTOM : cataloga
+    INSTITUTION ||--o{ EMERGENCY : opera_recibe
+    INSTITUTION ||--o{ AUDIT_EVENT : registra
+    AMBULANCE ||--o{ AMBULANCE_ASSIGNMENT : asigna
+    AMBULANCE ||--o{ EMERGENCY : traslada
+    AMBULANCE ||--o{ AUDIT_EVENT : menciona
+    PATIENT ||--o{ EMERGENCY : protagoniza
+    EMERGENCY ||--o{ VITAL_MEASUREMENT : registra
+    EMERGENCY ||--o{ POSITION : ubica
+    EMERGENCY ||--o{ PATIENT_CONTEXT_CORRECTION : corrige
+    EMERGENCY ||--o{ EMERGENCY : reemplaza
+    VITAL_MEASUREMENT ||--o{ VITAL_MEASUREMENT : rectifica
+    RECOVERY_CONTACT ||--o{ IDENTITY_RECOVERY_CASE : verifica
+    IDENTITY_RECOVERY_CASE ||--o{ PASSWORD_RECOVERY : habilita
+```
 
 | Entidad | Propósito |
 |---------|-----------|
@@ -157,6 +187,27 @@ El modelo de backend incluye (no es el schema completo):
 - Un episodio pertenece a una institución receptora; el receptor consulta solo sus episodios dirigidos.
 - Cambio de destino antes de recepción: cancelación atómica del episodio original y creación de reemplazo vinculado, sin heredar hitos ni acceso del receptor.
 - Retención: aplicación hasta 90 días tras cierre formal; auditoría 12 meses tras cierre; logs técnicos 30 días.
+
+**Claves, unicidades y notas de relación**
+
+| Relación | Tipo | Restricción real |
+|---|---|---|
+| Usuario ↔ Institución | N:M vía `InstitutionMembership` | Único (`user`, `institution`); una membresía activa por usuario |
+| Usuario ↔ Ambulancia | N:M vía `AmbulanceAssignment` | Una asignación activa por usuario |
+| Institución → Ambulancia | 1:N | `code` único por institución |
+| Institución → Síntoma | 1:N | `normalized` único por institución |
+| Institución → Urgencia | 1:N (opera) y 1:N (recibe) | Operadora y destino son instituciones distintas; el receptor consulta solo sus episodios |
+| Urgencia → Urgencia | 1:1 autorreferente | `replaces` / `replacement`; prohibido el auto-reemplazo |
+| Urgencia → Medición | 1:N | Originales inmutables; rectificación 1:1 encadenada (`rectifies`) |
+| Urgencia → Posición | 1:N | `sequence` único por episodio; `operation_id` único por actor |
+| Usuario → Activación | 1:1 | Token hasheado, caducidad 24h, un solo uso |
+| Usuario → Contacto de recuperación | 1:N | Configuración técnica, no membresía institucional |
+| Contacto → Caso de recuperación | 1:N | El caso abierto excluye la recuperación por correo anterior |
+| Caso → Recuperación de contraseña | 1:N | Token hasheado 30 min, un uso, revocación de sesiones |
+| Usuario / Institución / Ambulancia → Auditoría | 1:N | Actor o ejecutor, nunca ambos; plazo 12 meses |
+| Usuario → Revocación de sesión | 1:N | Incrementa `session_version` |
+
+> Fuente de verdad: `backend/accounts/models.py`, `backend/accounts/recovery_models.py`, `backend/institutions/models.py`, `backend/emergencies/models.py`, `backend/audit/models.py`.
 
 ---
 
